@@ -20,7 +20,7 @@ const MAX_TEXT = 16000;                 // characters of text taken from one mes
 const MAX_FILE_MB = 20;
 const TEXT_FILE = /\.(txt|md|markdown|csv|tsv|json|xml|html?|css|jsx?|tsx?|py|java|c|cpp|h|hpp|cs|go|rb|php|sql|sh|bat|ya?ml|ini|log|tex|r|swift|kt|ipynb)$/i;
 
-// ---------- Tiny, safe Markdown → HTML (escape first, then format) ----------
+// ---------- Tiny, safe Markdown → HTML (escape first, then format): lists, tables, code, quotes ----------
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 function inline(s) {
   return s
@@ -30,6 +30,9 @@ function inline(s) {
     .replace(/(^|[\s(])\*([^*]+)\*(?=[\s.,!?)]|$)/g, '$1<em>$2</em>')
     .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
 }
+const TABLE_ROW = /^\s*\|.*\|\s*$/;
+const TABLE_SEP = /^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?\s*$/;
+const cells = (row) => row.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map((c) => inline(c.trim()));
 export function markdown(src) {
   const out = [];
   const parts = esc(src).split(/```/);                      // odd parts are code blocks
@@ -41,14 +44,29 @@ export function markdown(src) {
     }
     let list = null;                                         // 'ul' | 'ol' | null
     const close = () => { if (list) { out.push(`</${list}>`); list = null; } };
-    for (const raw of part.split('\n')) {
-      const line = raw.trimEnd();
+    const lines = part.split('\n');
+    for (let k = 0; k < lines.length; k += 1) {
+      const line = lines[k].trimEnd();
+      // Table: a "| a | b |" row followed by a "|---|---|" row
+      if (TABLE_ROW.test(line) && TABLE_SEP.test(lines[k + 1] || '')) {
+        close();
+        const head = cells(line);
+        const rows = [];
+        for (k += 2; k < lines.length && TABLE_ROW.test(lines[k].trimEnd()); k += 1) rows.push(cells(lines[k]));
+        k -= 1;
+        out.push(`<div class="md-table"><table><thead><tr>${head.map((c) => `<th>${c}</th>`).join('')}</tr></thead><tbody>${
+          rows.map((r) => `<tr>${head.map((_, j) => `<td>${r[j] ?? ''}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`);
+        continue;
+      }
       const h = line.match(/^(#{1,4})\s+(.*)/);
       const ul = line.match(/^\s*[-*•]\s+(.*)/);
       const ol = line.match(/^\s*\d+[.)]\s+(.*)/);
-      if (h) { close(); out.push(`<h4>${inline(h[2])}</h4>`); }
+      const quote = line.match(/^&gt;\s?(.*)/);
+      if (/^\s*(-{3,}|\*{3,}|_{3,})\s*$/.test(line)) { close(); out.push('<hr />'); }
+      else if (h) { close(); out.push(`<h4>${inline(h[2])}</h4>`); }
       else if (ul) { if (list !== 'ul') { close(); out.push('<ul>'); list = 'ul'; } out.push(`<li>${inline(ul[1])}</li>`); }
       else if (ol) { if (list !== 'ol') { close(); out.push('<ol>'); list = 'ol'; } out.push(`<li>${inline(ol[1])}</li>`); }
+      else if (quote) { close(); out.push(`<blockquote>${inline(quote[1])}</blockquote>`); }
       else if (!line.trim()) { close(); }
       else { close(); out.push(`<p>${inline(line)}</p>`); }
     }
