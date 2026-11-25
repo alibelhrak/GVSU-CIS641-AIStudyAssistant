@@ -36,7 +36,7 @@ export default function Login() {
       </button>
 
       <form className="login-card" onSubmit={submit}>
-        <span className="logo"><Icon name="spark" size={22} /></span>
+        <img src="/logo.png" alt="Study Assistant" width={48} height={48} style={{ display: 'block' }} />
         <h1>{mode === 'login' ? 'Welcome back' : 'Create your account'}</h1>
         <p className="muted">
           {mode === 'login'

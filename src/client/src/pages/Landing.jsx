@@ -122,7 +122,7 @@ export default function Landing() {
     <div className="landing">
       <header className={`lp-nav ${scrolled ? 'scrolled' : ''}`}>
         <div className="lp-wrap lp-nav-in">
-          <a className="lp-brand" href="#top"><span className="logo sm"><Icon name="spark" size={16} /></span>Study Assistant</a>
+          <a className="lp-brand" href="#top"><img src="/logo.png" alt="" width={30} height={30} style={{ display: 'block' }} />Study Assistant</a>
           <nav className="lp-links">
             <a href="#features">Features</a>
             <a href="#how">How the AI works</a>
