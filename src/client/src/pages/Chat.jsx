@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { getToken } from '../lib/api.js';
+import { useNavigate } from 'react-router-dom';
+import { api, getToken } from '../lib/api.js';
 import { useAuth } from '../lib/auth.jsx';
 import { useData } from '../lib/store.jsx';
 import { todayIso } from '../lib/dates.js';
@@ -9,7 +10,7 @@ import '../chat.css';
 const SUGGESTIONS = [
   { title: 'What should I study tonight?', text: 'Look at my deadlines and tell me where to start.' },
   { title: 'Plan my week', text: 'Make a day-by-day study plan for my upcoming deadlines.' },
-  { title: 'Explain a concept', text: 'Explain the difference between a sequence diagram and a state machine diagram, with an example.' },
+  { title: 'Add my exams for me', text: 'Add my CIS 641 final exam on December 12 and plan three 2-hour study sessions before it.' },
   { title: 'Quiz me', text: 'Give me 5 quick questions to test what I know about my most urgent exam topic. Ask them one at a time.' },
 ];
 
@@ -147,6 +148,28 @@ const chunks = (text) => (text.match(/[^.!?]+[.!?]*\s*/g) || [text]).reduce((lis
   return list;
 }, []);
 
+/** What the AI did in an earlier answer, written out so it remembers it in the next question */
+const withActions = (m) => {
+  const done = (m.parts || []).filter((p) => p.type === 'action');
+  if (!done.length) return m.content;
+  return `${m.content}\n\n[Actions in the app: ${done.map((a) => `${a.title}: ${a.detail}${a.undone ? ' (the student pressed Undo)' : ''}`).join('; ')}]`;
+};
+
+function ActionCard({ a, onUndo, onView }) {
+  return (
+    <div className={`action-card ${a.undone ? 'undone' : ''}`}>
+      <span className="action-icon"><Icon name={a.undone ? 'refresh' : a.icon || 'check'} size={16} /></span>
+      <span className="action-text"><b>{a.undone ? `Undone: ${a.title.toLowerCase()}` : a.title}</b><span>{a.detail}</span></span>
+      {!a.undone && (
+        <span className="action-btns">
+          {a.page && <button type="button" className="btn ghost sm" onClick={onView}>View</button>}
+          {a.undo && <button type="button" className="btn sm" onClick={onUndo}>Undo</button>}
+        </span>
+      )}
+    </div>
+  );
+}
+
 // ---------- Conversation kept for this browser tab, per student ----------
 const storeKey = (id) => `sa-chat-${id}`;
 const loadChat = (id) => { try { return JSON.parse(sessionStorage.getItem(storeKey(id))) || []; } catch { return []; } };
@@ -176,7 +199,8 @@ function AttachmentChip({ a, onRemove }) {
 
 export default function Chat() {
   const { user } = useAuth();
-  const { notify } = useData();
+  const { notify, reload } = useData();
+  const navigate = useNavigate();
   const [messages, setMessages] = useState(() => loadChat(user.id));
   const [input, setInput] = useState('');
   const [drafts, setDrafts] = useState([]);           // files attached to the message being typed
@@ -211,14 +235,22 @@ export default function Chat() {
 
   // ---------- Talking to the server ----------
   const run = async (history) => {
-    setMessages([...history, { role: 'assistant', content: '', pending: true }]);
+    setMessages([...history, { role: 'assistant', content: '', parts: [], pending: true }]);
     setBusy(true);
     setEditing(null);
     const controller = new AbortController();
     abort.current = controller;
     const update = (fn) => setMessages((m) => { const copy = [...m]; copy[copy.length - 1] = fn(copy[copy.length - 1]); return copy; });
+    // Words go into the last text part; each action the AI took becomes its own card
+    const addText = (v) => update((last) => {
+      const parts = [...last.parts];
+      const tail = parts[parts.length - 1];
+      if (tail?.type === 'text') parts[parts.length - 1] = { ...tail, v: tail.v + v }; else parts.push({ type: 'text', v });
+      return { ...last, content: last.content + v, parts };
+    });
     let answer = '';
     let finished = false;
+    let changed = false;
     try {
       const res = await fetch('/api/chat', {
         method: 'POST',
@@ -228,7 +260,7 @@ export default function Chat() {
           today: todayIso(),
           messages: history.map((m) => ({
             role: m.role,
-            content: m.content,
+            content: m.role === 'assistant' ? withActions(m) : m.content,
             attachments: m.attachments?.map(({ type, name, text, dataUrl }) => ({ type, name, text, dataUrl })),
           })),
         }),
@@ -237,28 +269,58 @@ export default function Chat() {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || `Request failed (${res.status})`);
       }
-      // Read the answer piece by piece as it arrives
+      // The answer arrives as one small JSON object per line
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
+      let buffer = '';
+      const handle = (line) => {
+        if (!line.trim()) return;
+        let ev;
+        try { ev = JSON.parse(line); } catch { return; }
+        if (ev.t === 'text') { answer += ev.v; addText(ev.v); }
+        else if (ev.t === 'action') {
+          changed = true;
+          const { t, ...action } = ev;
+          update((last) => ({ ...last, parts: [...last.parts, { type: 'action', ...action }] }));
+        } else if (ev.t === 'error') addText(`\n\n_${ev.v}_`);
+      };
       for (;;) {
         const { value, done } = await reader.read();
         if (done) break;
-        const piece = decoder.decode(value, { stream: true });
-        answer += piece;
-        update((last) => ({ ...last, content: last.content + piece }));
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop();
+        lines.forEach(handle);
       }
+      handle(buffer);
       update((last) => ({ ...last, pending: false }));
       finished = true;
     } catch (err) {
-      if (err.name === 'AbortError') update((last) => ({ ...last, pending: false, content: last.content || '_Stopped._' }));
-      else update((last) => ({ ...last, pending: false, error: true, content: err.message }));
+      if (err.name === 'AbortError') update((last) => ({ ...last, pending: false, ...(last.content || last.parts.length ? {} : { content: '_Stopped._', parts: [{ type: 'text', v: '_Stopped._' }] }) }));
+      else update((last) => ({ ...last, pending: false, error: true, content: err.message, parts: [] }));
     } finally {
       setBusy(false);
       abort.current = null;
     }
+    if (changed) reload().catch(() => {});                // the AI changed the planner: refresh every page
     // Voice mode: read the answer, then listen again
     if (finished && answer && live.current.voice) speak(answer, history.length, () => { if (live.current.voice) listen(); });
     else if (!live.current.voice) boxRef.current?.focus();
+  };
+
+  /** Undo one change the AI made (deletes what it added, or puts the old values back) */
+  const undo = async (i, k) => {
+    const part = messages[i].parts[k];
+    try {
+      if (part.undo.method === 'DELETE') await api.del(part.undo.path);
+      else await api.patch(part.undo.path, part.undo.body);
+      setMessages((m) => m.map((msg, mi) => (mi !== i ? msg
+        : { ...msg, parts: msg.parts.map((p, pk) => (pk === k ? { ...p, undone: true } : p)) })));
+      notify('Undone');
+      reload().catch(() => {});
+    } catch (err) {
+      notify(err.message === 'Not found' ? 'That was already removed' : err.message);
+    }
   };
 
   const send = (text = live.current.input, files = live.current.drafts) => {
@@ -421,7 +483,7 @@ export default function Chat() {
           <div className="chat-empty">
             <img className="chat-orb" src="/logo.png" alt="" width={64} height={64} />
             <h2>How can I help, {first}?</h2>
-            <p className="muted">I can see your courses, deadlines and study hours. Ask about your plan, attach your notes or slides, or just talk to me.</p>
+            <p className="muted">I can see your courses, deadlines and study hours. Ask about your plan, attach your notes or syllabus, or tell me what to add and I'll put it in your planner.</p>
             <div className="suggest">
               {SUGGESTIONS.map((s, k) => (
                 <button key={s.title} type="button" className="suggest-card" style={{ animationDelay: `${0.1 + k * 0.07}s` }} onClick={() => send(s.text, [])}>
@@ -462,19 +524,26 @@ export default function Chat() {
               <div key={i} className={`msg bot ${m.error ? 'error-msg' : ''} ${i === lastBot ? 'latest' : ''}`}>
                 <img className="bot-avatar" src="/logo.png" alt="" width={30} height={30} />
                 <div className="bubble">
-                  {m.pending && !m.content ? (
+                  {m.parts?.length ? m.parts.map((p, k) => (p.type === 'action' ? (
+                    <ActionCard key={k} a={p} onUndo={() => undo(i, k)} onView={() => navigate(p.page)} />
+                  ) : (
+                    <div key={k} className="md" dangerouslySetInnerHTML={{
+                      __html: markdown(p.v) + (m.pending && k === m.parts.length - 1 ? '<span class="caret"></span>' : ''),
+                    }} />
+                  ))) : m.pending ? (
                     <span className="thinking"><i /><i /><i /></span>
                   ) : (
-                    <div className="md" dangerouslySetInnerHTML={{ __html: markdown(m.content) + (m.pending ? '<span class="caret"></span>' : '') }} />
+                    <div className="md" dangerouslySetInnerHTML={{ __html: markdown(m.content) }} />
                   )}
+                  {m.pending && m.parts?.[m.parts.length - 1]?.type === 'action' && <span className="thinking"><i /><i /><i /></span>}
                   {!m.pending && (
                     <div className="msg-actions bot-actions">
-                      {!m.error && (
+                      {!m.error && m.content && (
                         <button type="button" onClick={() => copy(i)} title="Copy" aria-label="Copy">
                           <Icon name={copied === i ? 'check' : 'copy'} size={14} /><span>{copied === i ? 'Copied' : 'Copy'}</span>
                         </button>
                       )}
-                      {!m.error && canSpeak && (
+                      {!m.error && canSpeak && m.content && (
                         <button type="button" onClick={() => toggleRead(i)} title={speaking === i ? 'Stop reading' : 'Read aloud'} aria-label="Read aloud" className={speaking === i ? 'on' : ''}>
                           <Icon name={speaking === i ? 'stop' : 'volume'} size={14} /><span>{speaking === i ? 'Stop' : 'Read aloud'}</span>
                         </button>

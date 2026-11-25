@@ -9,12 +9,19 @@
  * Messages can carry attachments: text taken from files (read in the browser, PDFs too)
  * and pictures. Only the newest attachments are sent again, to keep requests small.
  * Pictures go to VISION_MODEL, a model that can see images.
+ *
+ * The AI can also change the planner with tools (add courses, tasks and study sessions, log time,
+ * update tasks); see services/chatTools.js. The answer is sent as one JSON object per line:
+ *   {"t":"text","v":"..."}    words of the answer
+ *   {"t":"action",...}        something the AI changed (shown as a card with Undo)
+ *   {"t":"error","v":"..."}   a problem after the answer started
  */
 import { Router } from 'express';
 import { config, chatEnabled } from '../config.js';
 import { Course, Task, StudySession, StudyLog, Recommendation, User } from '../models/index.js';
 import { h, HttpError } from '../middleware/error.js';
 import { addDays, buildCandidates, daysBetween } from '../services/recommendationEngine.js';
+import { TOOLS, runTool } from '../services/chatTools.js';
 
 const r = Router();
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
@@ -90,6 +97,17 @@ Write in clear, simple English. Use Markdown: short paragraphs, bullet lists, **
 and code blocks for code. Keep answers focused; do not repeat the whole data back to the student.
 When the student attaches files or pictures, read them carefully and refer to them by name.
 Tables are welcome when they help (Markdown tables with a |---| header row).
+
+YOU CAN CHANGE THE PLANNER with your tools: add_course, add_task, update_task, add_study_session, log_study_time.
+- When the student asks you to add, create, plan, schedule, log, move or finish something, DO IT with the tools
+  instead of explaining how to do it by hand. You may call several tools at once (for example every exam in a syllabus).
+- Work out real dates (YYYY-MM-DD) from Today. If something important is missing and has no sensible default
+  (for example the due date of an exam), ask one short question first. Defaults: weekly goal 5 h, task 4 h,
+  priority med, session start 18:00.
+- Add a course with add_course before adding its tasks if it does not exist yet.
+- If a tool answers with ok:false, fix the problem or tell the student. Never say you did something that failed.
+- After using tools, confirm in one or two short sentences what you did. Do not repeat every detail; the app shows them.
+- You cannot delete anything. If the student wants to delete, tell them to use the page in the app.
 
 HOW THE APP WORKS (use these exact names; never invent buttons or pages that are not listed here)
 - Dashboard: "What to study next" shows the app's recommendations; each has "Accept and add to schedule" and "Dismiss".
@@ -199,80 +217,140 @@ r.post('/', h(async (req, res) => {
   if (hasImages && !config.llm.visionModel) {
     throw new HttpError(400, 'Reading pictures is not set up yet. The server needs VISION_MODEL (for Groq: qwen/qwen3.8-27b). Files and text work without it.');
   }
-
-  const context = await studentContext(req.userId, today);
+  const model = hasImages ? config.llm.visionModel : config.llm.chatModel;
+  const convo = [{ role: 'system', content: SYSTEM + await studentContext(req.userId, today) }, ...apiMessages];
 
   // Stop asking the model if the student closes the page or presses Stop
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 90000);
+  const timer = setTimeout(() => controller.abort(), 120000);
   res.on('close', () => controller.abort());
 
-  let upstream;
-  try {
-    upstream = await fetch(`${config.llm.baseUrl}/chat/completions`, {
-      method: 'POST',
-      signal: controller.signal,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(config.llm.apiKey ? { Authorization: `Bearer ${config.llm.apiKey}` } : {}),
-      },
-      body: JSON.stringify({
-        model: hasImages ? config.llm.visionModel : config.llm.chatModel,
-        stream: true,
-        temperature: 0.6,
-        max_tokens: 1500,
-        messages: [{ role: 'system', content: SYSTEM + context }, ...apiMessages],
-      }),
-    });
-  } catch (err) {
-    clearTimeout(timer);
-    console.warn('Chat: could not reach the LLM:', err.message);
-    throw new HttpError(502, 'Could not reach the AI service. Try again in a moment.');
-  }
-  if (!upstream.ok || !upstream.body) {
-    clearTimeout(timer);
-    console.warn('Chat: LLM responded', upstream.status, (await upstream.text().catch(() => '')).slice(0, 300));
+  // The answer is sent as one JSON object per line (see the top of this file)
+  let started = false;
+  const send = (obj) => {
+    if (!started) {
+      res.status(200).set({ 'Content-Type': 'application/x-ndjson; charset=utf-8', 'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no' });
+      res.flushHeaders();
+      started = true;
+    }
+    res.write(`${JSON.stringify(obj)}\n`);
+  };
+  const fail = (status, message) => {
+    if (!started) throw new HttpError(status, message);
+    send({ t: 'error', v: message });
+  };
+
+  /** Asks the model once. Returns the response, or null after reporting an error. */
+  async function ask(withTools) {
+    let upstream;
+    try {
+      upstream = await fetch(`${config.llm.baseUrl}/chat/completions`, {
+        method: 'POST',
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(config.llm.apiKey ? { Authorization: `Bearer ${config.llm.apiKey}` } : {}),
+        },
+        body: JSON.stringify({
+          model,
+          stream: true,
+          temperature: 0.5,
+          max_tokens: 2000,
+          messages: convo,
+          ...(withTools ? { tools: TOOLS, tool_choice: 'auto' } : {}),
+        }),
+      });
+    } catch (err) {
+      if (err.name === 'AbortError') return null;
+      console.warn('Chat: could not reach the LLM:', err.message);
+      fail(502, 'Could not reach the AI service. Try again in a moment.');
+      return null;
+    }
+    if (upstream.ok && upstream.body) return upstream;
+    const detail = await upstream.text().catch(() => '');
+    // Some models sometimes write a broken tool call; then answer once more without tools
+    if (withTools && upstream.status === 400 && /tool|function/i.test(detail)) {
+      console.warn('Chat: tool call failed, answering without tools:', detail.slice(0, 200));
+      return ask(false);
+    }
+    console.warn('Chat: LLM responded', upstream.status, detail.slice(0, 300));
     const why = {
       429: 'The AI is busy right now (rate limit). Wait a few seconds and try again.',
       413: 'That is too much text for the AI at once. Attach a shorter file or start a new chat.',
     }[upstream.status];
-    throw new HttpError(502, why || 'The AI service returned an error. Try again in a moment.');
+    fail(502, why || 'The AI service returned an error. Try again in a moment.');
+    return null;
   }
 
-  // Pass the answer through as plain text, piece by piece
-  res.status(200).set({ 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no' });
-  res.flushHeaders();
-  const reader = upstream.body.getReader();
-  const decoder = new TextDecoder();
-  const visible = thinkFilter();
-  let buffer = '';
   try {
-    for (;;) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop();                                   // keep a half-received line for later
-      for (const line of lines) {
-        const data = line.trim().startsWith('data:') ? line.trim().slice(5).trim() : '';
-        if (!data || data === '[DONE]') continue;
-        try {
-          const piece = JSON.parse(data).choices?.[0]?.delta?.content;
-          const text = piece ? visible(piece) : '';
-          if (text) res.write(text);
-        } catch { /* ignore keep-alive or partial lines */ }
+    let wroteText = false;
+    for (let round = 0; round < 5; round += 1) {
+      const upstream = await ask(true);
+      if (!upstream) break;
+
+      // Read the streamed answer: words go straight to the browser, tool calls are collected
+      const reader = upstream.body.getReader();
+      const decoder = new TextDecoder();
+      const visible = thinkFilter();
+      const calls = [];
+      let text = '';
+      let buffer = '';
+      const emit = (piece) => {
+        if (!piece) return;
+        if (!text && wroteText) send({ t: 'text', v: '\n\n' });   // a new paragraph after earlier actions
+        text += piece;
+        wroteText = true;
+        send({ t: 'text', v: piece });
+      };
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop();                                   // keep a half-received line for later
+        for (const line of lines) {
+          const data = line.trim().startsWith('data:') ? line.trim().slice(5).trim() : '';
+          if (!data || data === '[DONE]') continue;
+          let delta;
+          try { delta = JSON.parse(data).choices?.[0]?.delta; } catch { continue; }
+          if (delta?.content) emit(visible(delta.content));
+          for (const tc of delta?.tool_calls || []) {
+            const c = (calls[tc.index ?? calls.length] ||= { id: '', name: '', args: '' });
+            if (tc.id) c.id = tc.id;
+            if (tc.function?.name) c.name += tc.function.name;
+            if (tc.function?.arguments) c.args += tc.function.arguments;
+          }
+        }
       }
+      emit(visible.flush());
+
+      const todo = calls.filter((c) => c?.name).slice(0, 20);
+      if (!todo.length) break;                                   // a normal answer: finished
+
+      // Run the tools, show each change, and give the results back to the model
+      convo.push({
+        role: 'assistant',
+        content: text || null,
+        tool_calls: todo.map((c, k) => ({ id: c.id || `call_${round}_${k}`, type: 'function', function: { name: c.name, arguments: c.args || '{}' } })),
+      });
+      for (const [k, c] of todo.entries()) {
+        const { result, action } = await runTool(req.userId, c.name, c.args, today);
+        if (action) send({ t: 'action', ...action });
+        convo.push({ role: 'tool', tool_call_id: c.id || `call_${round}_${k}`, content: JSON.stringify(result) });
+      }
+      if (round === 4) send({ t: 'text', v: '\n\n_I stopped after several steps. Ask me to continue if something is missing._' });
     }
-    const rest = visible.flush();
-    if (rest) res.write(rest);
+    if (!started && !controller.signal.aborted) send({ t: 'text', v: '_The AI gave an empty answer. Please try again._' });
   } catch (err) {
+    if (err instanceof HttpError) throw err;
     if (err.name !== 'AbortError') {
       console.warn('Chat: stream stopped:', err.message);
-      res.write('\n\n_The answer was cut off. Please try again._');
+      fail(502, 'The answer was cut off. Please try again.');
     }
   } finally {
     clearTimeout(timer);
-    res.end();
+    if (started) res.end();
+    else if (!res.headersSent && controller.signal.aborted) res.end();
   }
 }));
 

@@ -74,6 +74,19 @@
 .thinking i{width:7px;height:7px;border-radius:50%;background:var(--accent);opacity:.4;animation:dot 1.2s ease-in-out infinite}
 .thinking i:nth-child(2){animation-delay:.15s}.thinking i:nth-child(3){animation-delay:.3s}
 
+/* ---------- Things the AI did in the app ---------- */
+.msg.bot .bubble > * + *{margin-top:10px}
+.action-card{display:flex;align-items:center;gap:12px;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:12px;
+  padding:10px 10px 10px 12px;background:var(--bg);animation:rise .35s var(--ease) both}
+.action-icon{width:32px;height:32px;flex:none;border-radius:9px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent)}
+.action-text{flex:1;min-width:0;display:grid;line-height:1.35}
+.action-text b{font-size:.86rem}
+.action-text span{font-size:.8rem;color:var(--muted);overflow-wrap:anywhere}
+.action-btns{display:flex;gap:4px;flex:none}
+.action-card.undone{border-left-color:var(--line-strong);opacity:.65}
+.action-card.undone .action-icon{background:var(--surface-2);color:var(--muted)}
+.action-card.undone .action-text b{text-decoration:line-through;text-decoration-thickness:1px}
+
 /* ---------- Attachments ---------- */
 .att-row{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;max-width:78%}
 .att-row.drafts{justify-content:flex-start;max-width:none;padding:2px 2px 8px}
@@ -142,4 +155,6 @@
   .msg.me .bubble,.att-row{max-width:88%}
   .composer-wrap{padding:8px}
   .voice-btn span{display:none}
+  .action-card{flex-wrap:wrap}
+  .action-btns{width:100%;justify-content:flex-end}
 }
