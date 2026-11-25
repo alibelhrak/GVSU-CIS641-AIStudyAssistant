@@ -33,9 +33,8 @@ const PAGES = [
     title: () => 'Study Schedule', sub: 'Plan your study sessions for the week and tick them off when you finish.' },
   { to: '/materials', label: 'Materials', icon: 'clip', emoji: '📎', element: <Materials />,
     title: () => 'Materials', sub: 'Keep the files and links for every course in one place.' },
-  { to: '/chat', label: 'Ask AI', icon: 'chat', emoji: '✨', element: <Chat />,
+  { to: '/chat', label: 'Ask AI', icon: 'chat', emoji: '✨', logo: true, element: <Chat />,
     title: () => 'Ask AI', sub: 'Chat with an AI study coach that knows your courses, deadlines and study hours.' },
-
 ];
 
 /** Popover with theme tiles and accent colors */
@@ -136,7 +135,9 @@ function PageHeader() {
   const page = PAGES.find((p) => p.to === pathname) || PAGES[0];
   return (
     <div className="page-head">
-      <span className="page-emoji" aria-hidden="true">{page.emoji}</span>
+      {page.logo
+        ? <img className="page-emoji" src="/logo.png" alt="" width={52} height={52} style={{ display: 'block' }} />
+        : <span className="page-emoji" aria-hidden="true">{page.emoji}</span>}
       <h1>{page.title(user)}</h1>
       <p className="muted">{page.sub}</p>
     </div>

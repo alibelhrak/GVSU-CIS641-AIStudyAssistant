@@ -1,8 +1,14 @@
 /**
  * "Ask AI": a chat with a large language model that knows the student's own data.
- * The server adds the student's courses, deadlines, hours and study gaps,
- * calls any OpenAI-compatible /chat/completions API with stream: true,
- * and passes the answer back to the browser piece by piece.
+ *
+ * The browser sends the conversation; the server adds a system message with the
+ * student's courses, deadlines, hours studied and study gaps, calls any
+ * OpenAI-compatible /chat/completions API with stream: true, and passes the
+ * answer back to the browser piece by piece, so it appears word by word.
+ *
+ * Messages can carry attachments: text taken from files (read in the browser, PDFs too)
+ * and pictures. Only the newest attachments are sent again, to keep requests small.
+ * Pictures go to VISION_MODEL, a model that can see images.
  */
 import { Router } from 'express';
 import { config, chatEnabled } from '../config.js';
@@ -13,7 +19,10 @@ import { addDays, buildCandidates, daysBetween } from '../services/recommendatio
 const r = Router();
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const MAX_MESSAGES = 20;       // only the most recent part of a long conversation is sent
-const MAX_CHARS = 4000;        // per message
+const MAX_CHARS = 4000;        // typed text per message
+const MAX_FILE_CHARS = 16000;  // text taken from attached files (free AI plans have small limits)
+const MAX_IMAGES = 3;          // pictures per message
+const IMAGE_URL = /^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$/;
 
 const PRIORITY = { high: 'high', med: 'medium', low: 'low' };
 
@@ -79,9 +88,78 @@ and suggest adding it in the app (Courses, Assignments & Exams, or Study Schedul
 When you suggest a plan, be concrete (days, hours, what to do in each session) and realistic.
 Write in clear, simple English. Use Markdown: short paragraphs, bullet lists, **bold** for key points,
 and code blocks for code. Keep answers focused; do not repeat the whole data back to the student.
+When the student attaches files or pictures, read them carefully and refer to them by name.
 
 STUDENT DATA
 `;
+
+/** Keep only well-formed attachments, within the size limits. */
+function cleanAttachments(list) {
+  if (!Array.isArray(list)) return [];
+  let chars = 0;
+  let images = 0;
+  const out = [];
+  for (const a of list.slice(0, 8)) {
+    const name = typeof a?.name === 'string' ? a.name.slice(0, 120) : 'file';
+    if (a?.type === 'text' && typeof a.text === 'string' && chars < MAX_FILE_CHARS) {
+      const text = a.text.slice(0, MAX_FILE_CHARS - chars);
+      chars += text.length;
+      out.push({ type: 'text', name, text, cut: text.length < a.text.length });
+    } else if (a?.type === 'image' && typeof a.dataUrl === 'string' && images < MAX_IMAGES
+      && a.dataUrl.length < 3_000_000 && IMAGE_URL.test(a.dataUrl)) {
+      images += 1;
+      out.push({ type: 'image', name, dataUrl: a.dataUrl });
+    } else {
+      out.push({ type: 'name', name });          // too big, or already sent earlier: just mention it
+    }
+  }
+  return out;
+}
+
+/** One chat message in the format the AI API expects. */
+function toApiMessage(m, withFiles) {
+  if (m.role !== 'user' || !m.attachments.length) return { role: m.role, content: m.content };
+  const files = m.attachments.map((a) => {
+    if (withFiles && a.type === 'text') {
+      return `\n\n--- Attached file: ${a.name} ---\n${a.text}${a.cut ? '\n[... the rest of the file was cut to fit ...]' : ''}\n--- End of ${a.name} ---`;
+    }
+    if (withFiles && a.type === 'image') return `\n\n[Attached picture: ${a.name}]`;
+    return `\n\n[The student attached "${a.name}" earlier in the conversation]`;
+  }).join('');
+  const text = (m.content || 'Please look at the attached file.') + files;
+  const images = withFiles ? m.attachments.filter((a) => a.type === 'image') : [];
+  if (!images.length) return { role: 'user', content: text };
+  return {
+    role: 'user',
+    content: [{ type: 'text', text }, ...images.map((a) => ({ type: 'image_url', image_url: { url: a.dataUrl } }))],
+  };
+}
+
+/** Some models "think out loud" inside <think>...</think>. Hide that part from the student. */
+function thinkFilter() {
+  let inside = false;
+  let buf = '';
+  const partial = (s, tag) => { for (let k = Math.min(tag.length - 1, s.length); k > 0; k -= 1) if (tag.startsWith(s.slice(-k))) return k; return 0; };
+  const push = (piece) => {
+    buf += piece;
+    let out = '';
+    for (;;) {
+      const tag = inside ? '</think>' : '<think>';
+      const at = buf.indexOf(tag);
+      if (at < 0) {
+        const keep = partial(buf, tag);
+        if (!inside) out += buf.slice(0, buf.length - keep);
+        buf = buf.slice(buf.length - keep);
+        return out;
+      }
+      if (!inside) out += buf.slice(0, at);
+      buf = buf.slice(at + tag.length);
+      inside = !inside;
+    }
+  };
+  push.flush = () => { const rest = inside ? '' : buf; buf = ''; return rest; };
+  return push;
+}
 
 r.post('/', h(async (req, res) => {
   if (!chatEnabled()) {
@@ -90,10 +168,24 @@ r.post('/', h(async (req, res) => {
   const today = ISO.test(req.body?.today) ? req.body.today : new Date().toISOString().slice(0, 10);
   const incoming = Array.isArray(req.body?.messages) ? req.body.messages : [];
   const messages = incoming
-    .filter((m) => (m?.role === 'user' || m?.role === 'assistant') && typeof m.content === 'string' && m.content.trim())
-    .slice(-MAX_MESSAGES)
-    .map((m) => ({ role: m.role, content: m.content.slice(0, MAX_CHARS) }));
+    .filter((m) => m?.role === 'user' || m?.role === 'assistant')
+    .map((m) => ({
+      role: m.role,
+      content: typeof m.content === 'string' ? m.content.slice(0, MAX_CHARS) : '',
+      attachments: m.role === 'user' ? cleanAttachments(m.attachments) : [],
+    }))
+    .filter((m) => m.content.trim() || m.attachments.length)
+    .slice(-MAX_MESSAGES);
   if (!messages.length || messages[messages.length - 1].role !== 'user') throw new HttpError(400, 'Type a message first');
+
+  // Only the newest message with attachments sends its files again; older ones are just named
+  let newest = -1;
+  messages.forEach((m, i) => { if (m.attachments.some((a) => a.type !== 'name')) newest = i; });
+  const apiMessages = messages.map((m, i) => toApiMessage(m, i === newest));
+  const hasImages = apiMessages.some((m) => Array.isArray(m.content));
+  if (hasImages && !config.llm.visionModel) {
+    throw new HttpError(400, 'Reading pictures is not set up yet. The server needs VISION_MODEL (for Groq: qwen/qwen3.8-27b). Files and text work without it.');
+  }
 
   const context = await studentContext(req.userId, today);
 
@@ -112,11 +204,11 @@ r.post('/', h(async (req, res) => {
         ...(config.llm.apiKey ? { Authorization: `Bearer ${config.llm.apiKey}` } : {}),
       },
       body: JSON.stringify({
-        model: config.llm.chatModel,
+        model: hasImages ? config.llm.visionModel : config.llm.chatModel,
         stream: true,
         temperature: 0.6,
         max_tokens: 1500,
-        messages: [{ role: 'system', content: SYSTEM + context }, ...messages],
+        messages: [{ role: 'system', content: SYSTEM + context }, ...apiMessages],
       }),
     });
   } catch (err) {
@@ -127,9 +219,11 @@ r.post('/', h(async (req, res) => {
   if (!upstream.ok || !upstream.body) {
     clearTimeout(timer);
     console.warn('Chat: LLM responded', upstream.status, (await upstream.text().catch(() => '')).slice(0, 300));
-    throw new HttpError(502, upstream.status === 429
-      ? 'The AI is busy right now (rate limit). Wait a few seconds and try again.'
-      : 'The AI service returned an error. Try again in a moment.');
+    const why = {
+      429: 'The AI is busy right now (rate limit). Wait a few seconds and try again.',
+      413: 'That is too much text for the AI at once. Attach a shorter file or start a new chat.',
+    }[upstream.status];
+    throw new HttpError(502, why || 'The AI service returned an error. Try again in a moment.');
   }
 
   // Pass the answer through as plain text, piece by piece
@@ -137,6 +231,7 @@ r.post('/', h(async (req, res) => {
   res.flushHeaders();
   const reader = upstream.body.getReader();
   const decoder = new TextDecoder();
+  const visible = thinkFilter();
   let buffer = '';
   try {
     for (;;) {
@@ -150,10 +245,13 @@ r.post('/', h(async (req, res) => {
         if (!data || data === '[DONE]') continue;
         try {
           const piece = JSON.parse(data).choices?.[0]?.delta?.content;
-          if (piece) res.write(piece);
+          const text = piece ? visible(piece) : '';
+          if (text) res.write(text);
         } catch { /* ignore keep-alive or partial lines */ }
       }
     }
+    const rest = visible.flush();
+    if (rest) res.write(rest);
   } catch (err) {
     if (err.name !== 'AbortError') {
       console.warn('Chat: stream stopped:', err.message);

@@ -18,6 +18,8 @@ export const config = {
     model: process.env.LLM_MODEL || '',
     // The chat can use a different (bigger) model than the recommendation text. Defaults to LLM_MODEL.
     chatModel: process.env.CHAT_MODEL || process.env.LLM_MODEL || '',
+    // A model that can read images, used only when the student attaches a picture (Groq: qwen/qwen3.8-27b)
+    visionModel: process.env.VISION_MODEL || '',
     timeoutMs: Number(process.env.LLM_TIMEOUT_MS) || 30000,
   },
 };
