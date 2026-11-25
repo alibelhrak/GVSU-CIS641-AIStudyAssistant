@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildCandidates, buildPlan, templateText, addDays, daysBetween } from '../src/services/recommendationEngine.js';
+import { parseReply } from '../src/services/llm.js';
 
 const today = '2026-10-07';
 const task = (over = {}) => ({ _id: 't1', course: 'c1', title: 'Midterm 1', type: 'Exam', dueDate: '2026-10-10', priority: 'high', hoursNeeded: 8, done: false, ...over });
@@ -72,4 +73,12 @@ test('template text names the course and task', () => {
   assert.match(t.message, /BIO 120/);
   assert.match(t.message, /due tomorrow/);
   assert.match(t.reason, /not studied/);
+});
+
+
+test('LLM reply parser tolerates code fences and rejects garbage', () => {
+  assert.deepEqual(parseReply('```json\n{"items":[{"ref":"a","message":"m","reason":"r"}]}\n```'), [{ ref: 'a', message: 'm', reason: 'r' }]);
+  assert.equal(parseReply('sorry, I cannot'), null);
+  assert.equal(parseReply('{"items":"nope"}'), null);
+  assert.equal(parseReply(undefined), null);
 });

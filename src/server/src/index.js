@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import mongoose from 'mongoose';
-import { config } from './config.js';
+import { config, llmEnabled } from './config.js';
 import { createApp } from './app.js';
 
 async function main() {
@@ -10,8 +10,11 @@ async function main() {
 
   createApp().listen(config.port, () => {
     console.log(`API listening on :${config.port}`);
+    console.log(llmEnabled()
+      ? `LLM: ${config.llm.model} at ${config.llm.baseUrl}`
+      : 'LLM: not configured, using rule-based recommendation text');
   });
-}
+} // <- this closes main()
 
 main().catch((err) => {
   console.error(err);
