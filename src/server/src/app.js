@@ -13,6 +13,7 @@ import logRoutes from './routes/logs.js';
 import materialRoutes from './routes/materials.js';
 import recommendationRoutes from './routes/recommendations.js';
 import chatRoutes from './routes/chat.js';
+import conversationRoutes from './routes/conversations.js';
 
 export function createApp() {
   const app = express();
@@ -31,6 +32,7 @@ export function createApp() {
   app.use('/api/materials', materialRoutes);
   app.use('/api/recommendations', recommendationRoutes);
   app.use('/api/chat', chatRoutes);
+  app.use('/api/conversations', conversationRoutes);
 
   // Online (Render): also serve the built React app from client/dist.
   // Every address that is not /api gets index.html, so React Router can show the right page.

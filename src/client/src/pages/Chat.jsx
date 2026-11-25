@@ -170,16 +170,35 @@ function ActionCard({ a, onUndo, onView }) {
   );
 }
 
-// ---------- Conversation kept for this browser tab, per student ----------
-const storeKey = (id) => `sa-chat-${id}`;
-const loadChat = (id) => { try { return JSON.parse(sessionStorage.getItem(storeKey(id))) || []; } catch { return []; } };
-const saveChat = (id, msgs) => {
-  // Pictures are too big to keep; only their names are saved
-  const slim = msgs.map((m) => (m.attachments
-    ? { ...m, attachments: m.attachments.map((a) => (a.type === 'image' ? { id: a.id, type: 'name', name: a.name, wasImage: true } : a)) }
-    : m));
-  try { sessionStorage.setItem(storeKey(id), JSON.stringify(slim)); } catch { /* ignore */ }
+// ---------- Saved conversations (chat history, stored on the server) ----------
+const currentKey = (id) => `sa-chat-current-${id}`;
+const getCurrent = (id) => { try { return sessionStorage.getItem(currentKey(id)); } catch { return null; } };
+const setCurrent = (id, conv) => {
+  try { if (conv) sessionStorage.setItem(currentKey(id), conv); else sessionStorage.removeItem(currentKey(id)); } catch { /* ignore */ }
 };
+/** Earlier versions kept one chat in the browser tab; it is moved into the history once */
+const takeOldChat = (id) => {
+  try { const old = JSON.parse(sessionStorage.getItem(`sa-chat-${id}`)) || []; sessionStorage.removeItem(`sa-chat-${id}`); return old; } catch { return []; }
+};
+/** What is saved: pictures are too big to keep, so only their names are */
+const slim = (msgs) => msgs.filter((m) => !m.pending).map((m) => (m.attachments
+  ? { ...m, attachments: m.attachments.map((a) => (a.type === 'image' ? { id: a.id, type: 'name', name: a.name, wasImage: true } : a)) }
+  : m));
+/** A conversation is named after its first question */
+const titleOf = (msgs) => {
+  const first = msgs.find((m) => m.role === 'user');
+  const t = (first?.content || first?.attachments?.[0]?.name || 'New chat').replace(/\s+/g, ' ').trim();
+  return t.length > 60 ? `${t.slice(0, 57)}…` : t;
+};
+/** "Today", "Yesterday", ... for the history list */
+function groupOf(when) {
+  const d = new Date(when);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const days = Math.round((today - new Date(d.getFullYear(), d.getMonth(), d.getDate())) / 86400000);
+  return days <= 0 ? 'Today' : days === 1 ? 'Yesterday' : days < 7 ? 'Previous 7 days' : days < 30 ? 'Previous 30 days' : 'Older';
+}
+const wide = () => typeof window !== 'undefined' && window.innerWidth > 900;
 
 function AttachmentChip({ a, onRemove }) {
   return (
@@ -201,7 +220,12 @@ export default function Chat() {
   const { user } = useAuth();
   const { notify, reload } = useData();
   const navigate = useNavigate();
-  const [messages, setMessages] = useState(() => loadChat(user.id));
+  const [messages, setMessages] = useState(() => takeOldChat(user.id));
+  const [convId, setConvId] = useState(() => getCurrent(user.id));   // the open conversation (null = new)
+  const [history, setHistory] = useState([]);                         // saved conversations, newest first
+  const [panel, setPanel] = useState(wide);                           // history panel shown
+  const [confirmDel, setConfirmDel] = useState(null);                 // id waiting for "Delete?" confirmation
+  const [loadingConv, setLoadingConv] = useState(() => Boolean(getCurrent(user.id)));
   const [input, setInput] = useState('');
   const [drafts, setDrafts] = useState([]);           // files attached to the message being typed
   const [reading, setReading] = useState(false);      // files are being read
@@ -218,10 +242,104 @@ export default function Chat() {
   const boxRef = useRef(null);
   const fileRef = useRef(null);
   const recRef = useRef(null);
+  const convRef = useRef(getCurrent(user.id));
+  const savedRef = useRef('');                        // what was last saved, to skip saving twice
+  const saveChain = useRef(Promise.resolve());        // saves run one after another
+  const runId = useRef(0);                            // ignore answers that arrive after switching chats
   const live = useRef({});                            // latest values, for voice callbacks
   live.current = { messages, input, drafts, voice, busy };
 
-  useEffect(() => { if (!busy) saveChat(user.id, messages); }, [messages, busy, user.id]);
+  // ---------- Chat history ----------
+  const openId = (id) => { convRef.current = id; setConvId(id); setCurrent(user.id, id); };
+
+  /** Saves the open conversation (creates it the first time) */
+  const save = async () => {
+    const msgs = slim(live.current.messages);
+    const json = JSON.stringify(msgs);
+    if (!msgs.length || json === savedRef.current) return;
+    const title = titleOf(msgs);
+    let doc = null;
+    if (convRef.current) {
+      try {
+        doc = await api.patch(`/conversations/${convRef.current}`, { title, messages: msgs });
+      } catch (err) {
+        if (err.message !== 'Conversation not found') throw err;   // try again on the next change
+        convRef.current = null;                                    // it was deleted (maybe on another device)
+      }
+    }
+    if (!doc) { doc = await api.post('/conversations', { title, messages: msgs }); openId(doc.id); }
+    savedRef.current = json;
+    setHistory((h) => [doc, ...h.filter((c) => c.id !== doc.id)]);
+  };
+  const flush = () => { saveChain.current = saveChain.current.then(save).catch(() => {}); return saveChain.current; };
+
+  // Load the list, and the conversation that was open last time
+  useEffect(() => {
+    api.get('/conversations').then(setHistory).catch(() => {});
+    const id = getCurrent(user.id);
+    if (!id) return;
+    api.get(`/conversations/${id}`)
+      .then((c) => { savedRef.current = JSON.stringify(slim(c.messages)); setMessages(c.messages); })
+      .catch(() => openId(null))
+      .finally(() => setLoadingConv(false));
+  }, [user.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Save shortly after every change (a finished answer, an edit, an undo...)
+  useEffect(() => {
+    if (busy || loadingConv || !messages.length) return undefined;
+    const t = setTimeout(flush, 400);
+    return () => clearTimeout(t);
+  }, [messages, busy, loadingConv]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** Leaves the current chat cleanly before showing another one */
+  const leave = async () => {
+    runId.current += 1;
+    stop();
+    setBusy(false);
+    abort.current = null;
+    recRef.current?.abort();
+    await flush();
+    setEditing(null);
+    setDrafts([]);
+    setConfirmDel(null);
+    if (!wide()) setPanel(false);
+  };
+
+  const openConversation = async (id) => {
+    if (id === convRef.current) { if (!wide()) setPanel(false); return; }
+    await leave();
+    setLoadingConv(true);
+    try {
+      const c = await api.get(`/conversations/${id}`);
+      savedRef.current = JSON.stringify(slim(c.messages));
+      openId(id);
+      setMessages(c.messages);
+    } catch (err) {
+      notify(err.message);
+      setHistory((h) => h.filter((c) => c.id !== id));
+    } finally {
+      setLoadingConv(false);
+    }
+  };
+
+  const removeConversation = async (id) => {
+    setConfirmDel(null);
+    try {
+      await api.del(`/conversations/${id}`);
+      setHistory((h) => h.filter((c) => c.id !== id));
+      if (id === convRef.current) {
+        runId.current += 1;
+        stop();
+        setBusy(false);
+        savedRef.current = '';
+        openId(null);
+        setMessages([]);
+      }
+      notify('Conversation deleted');
+    } catch (err) {
+      notify(err.message);
+    }
+  };
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }); }, [messages.length, busy]);
   useEffect(() => () => { abort.current?.abort(); recRef.current?.abort(); if (canSpeak) speechSynthesis.cancel(); }, []);
 
@@ -240,7 +358,13 @@ export default function Chat() {
     setEditing(null);
     const controller = new AbortController();
     abort.current = controller;
-    const update = (fn) => setMessages((m) => { const copy = [...m]; copy[copy.length - 1] = fn(copy[copy.length - 1]); return copy; });
+    const mine = ++runId.current;
+    const update = (fn) => setMessages((m) => {
+      if (runId.current !== mine || !m.length) return m;     // the student switched to another chat
+      const copy = [...m];
+      copy[copy.length - 1] = fn(copy[copy.length - 1]);
+      return copy;
+    });
     // Words go into the last text part; each action the AI took becomes its own card
     const addText = (v) => update((last) => {
       const parts = [...last.parts];
@@ -299,9 +423,9 @@ export default function Chat() {
       if (err.name === 'AbortError') update((last) => ({ ...last, pending: false, ...(last.content || last.parts.length ? {} : { content: '_Stopped._', parts: [{ type: 'text', v: '_Stopped._' }] }) }));
       else update((last) => ({ ...last, pending: false, error: true, content: err.message, parts: [] }));
     } finally {
-      setBusy(false);
-      abort.current = null;
+      if (runId.current === mine) { setBusy(false); abort.current = null; }
     }
+    if (runId.current !== mine) return;
     if (changed) reload().catch(() => {});                // the AI changed the planner: refresh every page
     // Voice mode: read the answer, then listen again
     if (finished && answer && live.current.voice) speak(answer, history.length, () => { if (live.current.voice) listen(); });
@@ -351,13 +475,11 @@ export default function Chat() {
     run([...messages.slice(0, i), { ...m, content: text.trim() }]);
   };
 
-  const newChat = () => {
-    stop();
-    recRef.current?.abort();
+  const newChat = async () => {
+    await leave();
+    savedRef.current = '';
+    openId(null);
     setMessages([]);
-    setDrafts([]);
-    setEditing(null);
-    saveChat(user.id, []);
     boxRef.current?.focus();
   };
 
@@ -463,23 +585,75 @@ export default function Chat() {
 
   const first = user.name.split(' ')[0];
   const lastBot = messages.length - 1;
-  const canSend = (input.trim() || drafts.length) && !reading;
+  const canSend = (input.trim() || drafts.length) && !reading && !loadingConv;
+  // History list in groups: Today, Yesterday, ...
+  const groups = history.reduce((list, c) => {
+    const label = groupOf(c.updatedAt);
+    if (list.length && list[list.length - 1][0] === label) list[list.length - 1][1].push(c); else list.push([label, [c]]);
+    return list;
+  }, []);
 
   return (
-    <div className={`chat ${dragging ? 'dragging' : ''}`}
+    <div className={`chat ${dragging ? 'dragging' : ''} ${panel ? 'panel-open' : ''}`}
       onDragOver={(e) => { if (e.dataTransfer.types.includes('Files')) { e.preventDefault(); setDragging(true); } }}
       onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDragging(false); }}
       onDrop={(e) => { e.preventDefault(); setDragging(false); addFiles(e.dataTransfer.files); }}>
 
+      <aside className="history" aria-label="Chat history">
+        <div className="history-head">
+          <b>Chats</b>
+          <button className="icon-btn" type="button" onClick={() => setPanel(false)} aria-label="Hide chat history" title="Hide"><Icon name="sidebar" size={17} /></button>
+        </div>
+        <button className="btn primary sm history-new" type="button" onClick={newChat}><Icon name="plus" size={15} /> New chat</button>
+        <div className="history-list">
+          {history.length === 0 && <p className="history-empty">Your conversations will be saved here, so you can come back to them.</p>}
+          {groups.map(([label, items]) => (
+            <div key={label}>
+              <p className="history-group">{label}</p>
+              {items.map((c) => (
+                <div key={c.id} className={`history-item ${c.id === convId ? 'active' : ''}`}>
+                  {confirmDel === c.id ? (
+                    <div className="history-confirm">
+                      <span>Delete this chat?</span>
+                      <button className="btn danger sm" type="button" onClick={() => removeConversation(c.id)}>Delete</button>
+                      <button className="btn sm" type="button" onClick={() => setConfirmDel(null)}>Cancel</button>
+                    </div>
+                  ) : (
+                    <>
+                      <button type="button" className="history-open" onClick={() => openConversation(c.id)} title={c.title}>
+                        <span className="ellipsis">{c.title}</span>
+                      </button>
+                      <button type="button" className="history-del" onClick={() => setConfirmDel(c.id)} aria-label={`Delete "${c.title}"`} title="Delete">
+                        <Icon name="trash" size={14} />
+                      </button>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </aside>
+      {panel && <div className="history-scrim" onClick={() => setPanel(false)} aria-hidden="true" />}
+
+      <div className="chat-main">
       <div className="chat-top">
-        <span className="chat-title"><img src="/logo.png" alt="" width={22} height={22} /> Study Assistant</span>
+        {!panel && (
+          <button className="icon-btn" type="button" onClick={() => setPanel(true)} aria-label="Show chat history" title="Chat history"><Icon name="history" size={17} /></button>
+        )}
+        <span className="chat-title">
+          <img src="/logo.png" alt="" width={22} height={22} />
+          <span className="ellipsis">{messages.length ? titleOf(messages) : 'New chat'}</span>
+        </span>
         {messages.length > 0 && (
           <button className="btn ghost sm" type="button" onClick={newChat}><Icon name="plus" size={15} /> New chat</button>
         )}
       </div>
 
       <div className="chat-scroll">
-        {messages.length === 0 ? (
+        {loadingConv ? (
+          <div className="chat-loading"><span className="thinking"><i /><i /><i /></span></div>
+        ) : messages.length === 0 ? (
           <div className="chat-empty">
             <img className="chat-orb" src="/logo.png" alt="" width={64} height={64} />
             <h2>How can I help, {first}?</h2>
@@ -608,6 +782,7 @@ export default function Chat() {
       </div>
 
       {dragging && <div className="drop-hint"><Icon name="clip" size={28} /><b>Drop files to attach</b><span>PDF, text, code or pictures</span></div>}
+      </div>
     </div>
   );
 }

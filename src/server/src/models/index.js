@@ -34,6 +34,7 @@ export const User = model('User', new Schema({
   name: { type: String, required: [true, 'Name is required'], trim: true },
   email: { type: String, required: [true, 'Email is required'], unique: true, lowercase: true, trim: true },
   passwordHash: { type: String, required: true },
+  // "Forgot password": a fingerprint of the emailed reset code, and when it stops working
   resetTokenHash: { type: String, index: true },
   resetExpires: Date,
 }, opts));
@@ -102,3 +103,11 @@ export const Recommendation = model('Recommendation', new Schema({
   plan: [{ _id: false, date: String, hours: Number }],
   status: { type: String, enum: ['pending', 'accepted', 'dismissed'], default: 'pending' },
 }, opts));
+
+// Ask AI conversations. Messages are stored as sent by the browser (checked in routes/conversations.js)
+export const Conversation = model('Conversation', new Schema({
+  user: ref('User'),
+  title: { type: String, default: 'New chat', trim: true, maxlength: 120 },
+  messages: { type: [Schema.Types.Mixed], default: [] },
+}, opts));
+

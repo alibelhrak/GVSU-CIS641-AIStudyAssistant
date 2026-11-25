@@ -2,11 +2,38 @@
    Ask AI (chat) page. Uses the color tokens from styles.css.
    ========================================================================= */
 
-.chat{position:relative;display:flex;flex-direction:column;height:calc(100vh - 250px);min-height:480px;border:1px solid var(--line);border-radius:16px;
+.chat{position:relative;display:flex;height:calc(100vh - 250px);min-height:480px;border:1px solid var(--line);border-radius:16px;
   background:var(--surface);overflow:hidden;animation:rise .5s var(--ease) both}
+.chat-main{position:relative;flex:1;min-width:0;display:flex;flex-direction:column}
+
+/* ---------- Chat history ---------- */
+.history{width:250px;flex:none;display:none;flex-direction:column;gap:8px;padding:10px 8px;border-right:1px solid var(--line);background:var(--sidebar)}
+.chat.panel-open .history{display:flex}
+.history-head{display:flex;align-items:center;justify-content:space-between;padding:0 4px 0 8px;min-height:30px}
+.history-head b{font-size:.86rem}
+.history-new{justify-content:flex-start;margin:0 2px}
+.history-list{flex:1;overflow-y:auto;margin:0 -2px;padding:0 2px}
+.history-group{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--faint);padding:12px 8px 4px}
+.history-empty{font-size:.82rem;color:var(--muted);padding:12px 8px;line-height:1.5}
+.history-item{position:relative;display:flex;align-items:center;border-radius:8px;transition:background-color .15s}
+.history-item:hover{background:var(--hover)}
+.history-item.active{background:var(--accent-soft)}
+.history-item.active .history-open{color:var(--fg);font-weight:600}
+.history-open{flex:1;min-width:0;border:0;background:none;text-align:left;padding:8px 6px 8px 10px;font:inherit;font-size:.86rem;color:var(--muted);cursor:pointer;display:flex}
+.history-del{flex:none;width:28px;height:28px;margin-right:4px;border:0;border-radius:7px;background:none;color:var(--faint);display:grid;place-items:center;cursor:pointer;
+  opacity:0;transition:opacity .15s,color .15s,background-color .15s}
+.history-item:hover .history-del,.history-item.active .history-del,.history-del:focus{opacity:1}
+.history-del:hover{color:var(--crit);background:var(--crit-bg)}
+.history-confirm{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:8px;font-size:.8rem;font-weight:600;width:100%;
+  background:var(--crit-bg);border-radius:8px;animation:rise .2s var(--ease)}
+.history-confirm span{width:100%}
+.history-scrim{display:none}
+.chat-loading{display:grid;place-items:center;min-height:100%}
+@media (hover:none){.history-del{opacity:1}}
 .chat.dragging{border-color:var(--accent)}
 .chat-top{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px 8px 16px;border-bottom:1px solid var(--line);min-height:46px}
-.chat-title{display:inline-flex;align-items:center;gap:8px;font-weight:700;font-size:.9rem}
+.chat-title{flex:1;min-width:0;display:inline-flex;align-items:center;gap:8px;font-weight:700;font-size:.9rem}
+.chat-title img{flex:none}
 .chat-scroll{flex:1;overflow-y:auto;padding:24px 24px 8px;scroll-behavior:smooth}
 
 /* ---------- Empty state ---------- */
@@ -146,10 +173,13 @@
 @keyframes orb{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-6px) rotate(4deg)}}
 @keyframes dot{0%,100%{transform:translateY(0);opacity:.35}50%{transform:translateY(-5px);opacity:1}}
 @keyframes blink{50%{opacity:0}}
+@keyframes slide-in{from{transform:translateX(-24px);opacity:0}}
 @keyframes pulse{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--crit) 45%,transparent)}50%{box-shadow:0 0 0 6px transparent}}
 
 @media (max-width:900px){
   .chat{height:calc(100vh - 200px);border-radius:12px}
+  .history{position:absolute;inset:0 auto 0 0;width:min(300px,86%);z-index:6;box-shadow:var(--shadow-lg, 0 10px 40px rgba(0,0,0,.25));animation:slide-in .25s var(--ease)}
+  .chat.panel-open .history-scrim{display:block;position:absolute;inset:0;z-index:5;background:rgba(0,0,0,.25)}
   .chat-scroll{padding:16px 12px 8px}
   .suggest{grid-template-columns:1fr}
   .msg.me .bubble,.att-row{max-width:88%}
