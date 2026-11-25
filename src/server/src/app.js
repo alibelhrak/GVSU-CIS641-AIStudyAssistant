@@ -1,24 +1,27 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import express from 'express';
 import cors from 'cors';
 import { requireAuth } from './middleware/auth.js';
 import { notFound, errorHandler } from './middleware/error.js';
+import { llmEnabled } from './config.js';
 import authRoutes from './routes/auth.js';
 import courseRoutes from './routes/courses.js';
 import taskRoutes from './routes/tasks.js';
 import sessionRoutes from './routes/sessions.js';
 import logRoutes from './routes/logs.js';
 import materialRoutes from './routes/materials.js';
-import recommendationRoutes from './routes/recommendations.js'; 
+import recommendationRoutes from './routes/recommendations.js';
 
 export function createApp() {
   const app = express();
   app.use(cors());
   app.use(express.json({ limit: '1mb' }));
 
-  app.get('/api/health', (_req, res) => res.json({ ok: true }));
+  app.get('/api/health', (_req, res) => res.json({ ok: true, llm: llmEnabled() }));
   app.use('/api/auth', authRoutes);
 
-  // Everything below needs a valid login token
+  // Everything below under /api needs a valid login token
   app.use('/api', requireAuth);
   app.use('/api/courses', courseRoutes);
   app.use('/api/tasks', taskRoutes);
@@ -26,8 +29,15 @@ export function createApp() {
   app.use('/api/logs', logRoutes);
   app.use('/api/materials', materialRoutes);
   app.use('/api/recommendations', recommendationRoutes);
-  app.get('/api/health', (_req, res) => res.json({ ok: true, llm: llmEnabled() }));
-  app.use('/api/recommendations', recommendationRoutes);
+
+  // Online (Render): also serve the built React app from client/dist.
+  // Every address that is not /api gets index.html, so React Router can show the right page.
+  const dist = path.resolve(process.env.CLIENT_DIST || '../client/dist');
+  if (fs.existsSync(dist)) {
+    app.use(express.static(dist));
+    app.get(/^\/(?!api(\/|$)).*/, (_req, res) => res.sendFile(path.join(dist, 'index.html')));
+  }
+
   // These two must stay LAST
   app.use(notFound);
   app.use(errorHandler);
