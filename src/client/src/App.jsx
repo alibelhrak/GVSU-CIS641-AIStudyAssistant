@@ -35,8 +35,7 @@ const PAGES = [
     title: () => 'Materials', sub: 'Keep the files and links for every course in one place.' },
   { to: '/chat', label: 'Ask AI', icon: 'chat', emoji: '✨', element: <Chat />,
     title: () => 'Ask AI', sub: 'Chat with an AI study coach that knows your courses, deadlines and study hours.' },
-  { to: '/chat', label: 'Chat', icon: 'chat', emoji: '💬', element: <Chat />,
-    title: () => 'Chat', sub: 'Discuss with your peers and get help from the community.' },
+
 ];
 
 /** Popover with theme tiles and accent colors */
