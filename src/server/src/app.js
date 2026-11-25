@@ -4,7 +4,7 @@ import express from 'express';
 import cors from 'cors';
 import { requireAuth } from './middleware/auth.js';
 import { notFound, errorHandler } from './middleware/error.js';
-import { llmEnabled } from './config.js';
+import { llmEnabled, chatEnabled } from './config.js';
 import authRoutes from './routes/auth.js';
 import courseRoutes from './routes/courses.js';
 import taskRoutes from './routes/tasks.js';
@@ -12,13 +12,14 @@ import sessionRoutes from './routes/sessions.js';
 import logRoutes from './routes/logs.js';
 import materialRoutes from './routes/materials.js';
 import recommendationRoutes from './routes/recommendations.js';
+import chatRoutes from './routes/chat.js';
 
 export function createApp() {
   const app = express();
   app.use(cors());
   app.use(express.json({ limit: '1mb' }));
 
-  app.get('/api/health', (_req, res) => res.json({ ok: true, llm: llmEnabled() }));
+  app.get('/api/health', (_req, res) => res.json({ ok: true, llm: llmEnabled(), chat: chatEnabled() }));
   app.use('/api/auth', authRoutes);
 
   // Everything below under /api needs a valid login token
@@ -29,9 +30,9 @@ export function createApp() {
   app.use('/api/logs', logRoutes);
   app.use('/api/materials', materialRoutes);
   app.use('/api/recommendations', recommendationRoutes);
+  app.use('/api/chat', chatRoutes);
 
   // Online (Render): also serve the built React app from client/dist.
-  // Every address that is not /api gets index.html, so React Router can show the right page.
   const dist = path.resolve(process.env.CLIENT_DIST || '../client/dist');
   if (fs.existsSync(dist)) {
     app.use(express.static(dist));

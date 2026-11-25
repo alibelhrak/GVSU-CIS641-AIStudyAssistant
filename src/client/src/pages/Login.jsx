@@ -54,6 +54,7 @@ export default function Login() {
         </div>
 
         {error && <p className="error" role="alert">{error}</p>}
+        {mode === 'login' && <Link className="linklike" to="/forgot-password" style={{ justifySelf: 'end', fontSize: '.85rem', marginTop: -6 }}>Forgot password?</Link>}
         <button className="btn primary block" type="submit" disabled={busy}>
           {busy ? <span className="spinner" aria-label="Please wait" /> : mode === 'login' ? 'Sign in' : 'Create account'}
         </button>

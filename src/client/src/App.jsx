@@ -7,11 +7,13 @@ import { daysUntil } from './lib/dates.js';
 import { Icon } from './icons.jsx';
 import Landing from './pages/Landing.jsx';
 import Login from './pages/Login.jsx';
+import ForgotPassword from './pages/ForgotPassword.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Courses from './pages/Courses.jsx';
 import Tasks from './pages/Tasks.jsx';
 import Schedule from './pages/Schedule.jsx';
 import Materials from './pages/Materials.jsx';
+import Chat from './pages/Chat.jsx';
 
 const greeting = () => {
   const h = new Date().getHours();
@@ -31,6 +33,10 @@ const PAGES = [
     title: () => 'Study Schedule', sub: 'Plan your study sessions for the week and tick them off when you finish.' },
   { to: '/materials', label: 'Materials', icon: 'clip', emoji: '📎', element: <Materials />,
     title: () => 'Materials', sub: 'Keep the files and links for every course in one place.' },
+  { to: '/chat', label: 'Ask AI', icon: 'chat', emoji: '✨', element: <Chat />,
+    title: () => 'Ask AI', sub: 'Chat with an AI study coach that knows your courses, deadlines and study hours.' },
+  { to: '/chat', label: 'Chat', icon: 'chat', emoji: '💬', element: <Chat />,
+    title: () => 'Chat', sub: 'Discuss with your peers and get help from the community.' },
 ];
 
 /** Popover with theme tiles and accent colors */
@@ -187,6 +193,8 @@ export default function App() {
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Login />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ForgotPassword />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     );

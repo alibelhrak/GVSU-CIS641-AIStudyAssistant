@@ -20,6 +20,8 @@ const opts = {
       delete ret.user;
       delete ret.passwordHash;
       delete ret.storedName;
+      delete ret.resetTokenHash;
+      delete ret.resetExpires;
       return ret;
     },
   },
@@ -32,6 +34,8 @@ export const User = model('User', new Schema({
   name: { type: String, required: [true, 'Name is required'], trim: true },
   email: { type: String, required: [true, 'Email is required'], unique: true, lowercase: true, trim: true },
   passwordHash: { type: String, required: true },
+  resetTokenHash: { type: String, index: true },
+  resetExpires: Date,
 }, opts));
 
 export const Course = model('Course', new Schema({
