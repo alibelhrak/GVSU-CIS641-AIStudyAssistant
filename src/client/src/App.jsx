@@ -5,6 +5,7 @@ import { DataProvider, useData } from './lib/store.jsx';
 import { ACCENTS, THEMES, useTheme } from './lib/theme.jsx';
 import { daysUntil } from './lib/dates.js';
 import { Icon } from './icons.jsx';
+import Landing from './pages/Landing.jsx';
 import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Courses from './pages/Courses.jsx';
@@ -179,6 +180,16 @@ function Shell() {
 export default function App() {
   const { user, ready } = useAuth();
   if (!ready) return null;
-  if (!user) return <Login />;
+  // Signed out: welcome page, sign in and sign up
+  if (!user) {
+    return (
+      <Routes>
+        <Route path="/" element={<Landing />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Login />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    );
+  }
   return <DataProvider key={user.id}><Shell /></DataProvider>;
 }
