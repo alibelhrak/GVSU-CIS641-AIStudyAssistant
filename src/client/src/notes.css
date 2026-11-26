@@ -358,7 +358,7 @@ select.course-tag{width:auto;min-height:30px;padding:4px 8px;font-size:.8rem;bac
 .note-page .bn-block-outer.ai-flash{border-radius:6px;animation:ai-flash 2.2s ease-out both}
 .ai-btn.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
 
-.nai{position:relative;width:400px;flex:none;display:flex;flex-direction:column;border-left:1px solid var(--line);background:var(--bg);
+.nai{position:relative;width:var(--nai-w,400px);flex:none;display:flex;flex-direction:column;border-left:1px solid var(--line);background:var(--bg);
   animation:nai-in .3s var(--ease) both;min-height:0}
 .nai-head{display:flex;align-items:center;gap:9px;padding:8px 8px 8px 14px;border-bottom:1px solid var(--line);min-height:48px}
 .nai-head b{flex:1;font-size:.92rem}
@@ -441,7 +441,7 @@ select.course-tag{width:auto;min-height:30px;padding:4px 8px;font-size:.8rem;bac
   display:grid;place-items:center;font-weight:700;color:var(--accent);pointer-events:none;animation:fade-in .15s both;z-index:5}
 
 @media (max-width:1250px){
-  .nai{position:absolute;top:0;right:0;bottom:0;z-index:7;box-shadow:var(--shadow-lg);width:min(400px,92%)}
+  .nai{position:absolute;top:0;right:0;bottom:0;z-index:7;box-shadow:var(--shadow-lg);width:min(var(--nai-w,400px),92%)}
 }
 @media (max-width:900px){
   .nai{width:100%;border-left:0}
@@ -576,3 +576,16 @@ html.dragging-note .group-head{outline:1px dashed var(--line-strong);outline-off
 .note-page.text-s .note-title{font-size:2.1rem}
 .note-page.text-l .note-title{font-size:2.9rem}
 @media (max-width:900px){.notes-resize{display:none}.note-page.wide{padding-inline:0}}
+
+/* ---------- Notes AI panel: drag its edge to resize ---------- */
+.nai-resize{position:absolute;top:0;bottom:0;left:-4px;width:8px;z-index:6;cursor:col-resize;touch-action:none}
+.nai-resize::after{content:"";position:absolute;inset:0 3px;background:var(--accent);opacity:0;transition:opacity .15s}
+.nai-resize:hover::after,.nai-resize:focus-visible::after,.nai-resize.on::after{opacity:.8}
+.nai-resize:focus-visible{outline:none}
+[dir="rtl"] .nai-resize{left:auto;right:-4px}
+@media (max-width:900px){.nai-resize{display:none}}
+
+/* A narrow page (wide side panels): keep every toolbar button visible */
+.notes-main{container-type:inline-size;container-name:notepage}
+@container notepage (max-width:640px){.notes-top .save-state{display:none}}
+@container notepage (max-width:500px){.notes-top select.course-tag{display:none}.notes-top .ai-btn{padding-inline:8px}}

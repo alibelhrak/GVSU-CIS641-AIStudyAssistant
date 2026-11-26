@@ -7,7 +7,7 @@
 .chat-main{position:relative;flex:1;min-width:0;display:flex;flex-direction:column}
 
 /* ---------- Chat history ---------- */
-.history{width:250px;flex:none;display:none;flex-direction:column;gap:8px;padding:10px 8px;border-right:1px solid var(--line);background:var(--sidebar)}
+.history{position:relative;width:var(--history-w,250px);flex:none;display:none;flex-direction:column;gap:8px;padding:10px 8px;border-right:1px solid var(--line);background:var(--sidebar)}
 .chat.panel-open .history{display:flex}
 .history-head{display:flex;align-items:center;justify-content:space-between;padding:0 4px 0 8px;min-height:30px}
 .history-head b{font-size:.86rem}
@@ -225,3 +225,11 @@
   .chat-empty{padding:8px 4px 16px}
   .chat-empty h2{font-size:1.4rem}
 }
+
+/* ---------- Drag the edge of the chat list to resize it ---------- */
+.history .notes-resize{position:absolute;top:0;bottom:0;right:-4px;width:8px;z-index:4;cursor:col-resize;touch-action:none}
+.history .notes-resize::after{content:"";position:absolute;inset:0 3px;border-radius:2px;background:var(--accent);opacity:0;transition:opacity .15s}
+.history .notes-resize:hover::after,.history .notes-resize:focus-visible::after,.history .notes-resize.on::after{opacity:.8}
+.history .notes-resize:focus-visible{outline:none}
+[dir="rtl"] .history .notes-resize{right:auto;left:-4px}
+@media (max-width:900px){.history .notes-resize{display:none}}

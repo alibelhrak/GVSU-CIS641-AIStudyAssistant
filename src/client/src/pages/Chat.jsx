@@ -4,6 +4,7 @@ import { api, getToken } from '../lib/api.js';
 import { useAuth } from '../lib/auth.jsx';
 import { useData } from '../lib/store.jsx';
 import { todayIso } from '../lib/dates.js';
+import { useResizable } from '../lib/resize.jsx';
 import { Icon } from '../icons.jsx';
 import { getLang, locale } from '../lib/i18n.jsx';
 import '../chat.css';
@@ -231,6 +232,7 @@ export function AttachmentChip({ a, onRemove }) {
 export default function Chat() {
   const { user } = useAuth();
   const { notify, reload, trashed } = useData();
+  const histW = useResizable('sa-chats-w', { initial: 250, min: 200, max: 460 });
   const navigate = useNavigate();
   const location = useLocation();
   // "Ask AI" on a note opens a new chat with the note attached: { name, text, prompt }
@@ -660,12 +662,13 @@ export default function Chat() {
   }, []);
 
   return (
-    <div className={`chat ${dragging ? 'dragging' : ''} ${panel ? 'panel-open' : ''}`}
+    <div className={`chat ${dragging ? 'dragging' : ''} ${panel ? 'panel-open' : ''}`} style={{ '--history-w': `${histW.width}px` }}
       onDragOver={(e) => { if (e.dataTransfer.types.includes('Files')) { e.preventDefault(); setDragging(true); } }}
       onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDragging(false); }}
       onDrop={(e) => { e.preventDefault(); setDragging(false); addFiles(e.dataTransfer.files); }}>
 
       <aside className="history" aria-label="Chat history">
+        <div className={`notes-resize ${histW.dragging ? 'on' : ''}`} {...histW.handleProps} aria-label="Resize the list of chats" />
         <div className="history-head">
           <b>Chats</b>
           <button className="icon-btn" type="button" onClick={() => setPanel(false)} aria-label="Hide chat history" title="Hide"><Icon name="sidebar" size={17} /></button>

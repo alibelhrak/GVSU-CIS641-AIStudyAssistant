@@ -10,6 +10,7 @@ import { useEffect, useRef, useState } from 'react';
 import { api, getToken } from '../lib/api.js';
 import { markdown, readFile, AttachmentChip, MAX_FILES, Countdown } from './Chat.jsx';
 import { Icon } from '../icons.jsx';
+import { useResizable } from '../lib/resize.jsx';
 
 const SUGGESTIONS = [
   { icon: '📝', text: 'Summarize this page' },
@@ -112,6 +113,8 @@ function Changes({ m, onUndo, onShow }) {
 }
 
 export function NotesChat({ note, getEditor, onClose, notify, onChanged }) {
+  // drag the panel's left edge to make it wider or narrower (remembered on this device)
+  const size = useResizable('sa-nai-w', { initial: 400, min: 300, max: 760, edge: 'start' });
   const [messages, setMessages] = useState(() => load(note.id));
   const [input, setInput] = useState('');
   const [drafts, setDrafts] = useState([]);
@@ -256,10 +259,11 @@ export function NotesChat({ note, getEditor, onClose, notify, onChanged }) {
   };
 
   return (
-    <aside className={`nai ${dragging ? 'dragging' : ''}`} aria-label="Notes AI"
+    <aside className={`nai ${dragging ? 'dragging' : ''}`} aria-label="Notes AI" style={{ '--nai-w': `${size.width}px` }}
       onDragOver={(e) => { if (e.dataTransfer.types.includes('Files')) { e.preventDefault(); setDragging(true); } }}
       onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDragging(false); }}
       onDrop={(e) => { e.preventDefault(); setDragging(false); addFiles(e.dataTransfer.files); }}>
+      <div className={`nai-resize ${size.dragging ? 'on' : ''}`} {...size.handleProps} aria-label="Resize the Notes AI panel" />
       <header className="nai-head">
         <img src="/logo.png" alt="" width={22} height={22} />
         <b>Notes AI</b>

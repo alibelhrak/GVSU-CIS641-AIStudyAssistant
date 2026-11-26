@@ -1074,11 +1074,17 @@ export default function Notes() {
     return () => clearTimeout(t);
   }, [current?.id]);
 
-  // Grow the title box with the text
+  // Grow the title box with the text (and again when the page gets narrower or wider, e.g. a panel is resized)
   useEffect(() => {
     const el = titleRef.current;
-    if (el) { el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px`; }
-  }, [current?.title, current?.id]);
+    if (!el) return undefined;
+    const fit = () => { el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px`; };
+    fit();
+    let width = el.clientWidth;
+    const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => { if (el.clientWidth !== width) { width = el.clientWidth; fit(); } });
+    ro?.observe(el);
+    return () => ro?.disconnect();
+  }, [current?.title, current?.id, current?.textSize]);
 
   const crumbs = [];
   for (let p = current?.parent; p && byId.has(p); p = byId.get(p).parent) crumbs.unshift(byId.get(p));

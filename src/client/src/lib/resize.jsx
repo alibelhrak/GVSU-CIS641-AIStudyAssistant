@@ -10,8 +10,9 @@ const read = (key, fallback, min, max) => {
 /**
  * A width the student can drag (sidebars). Remembered on this device.
  * Returns the width and the props for the drag handle.
+ * `edge: 'start'` is for a panel on the right (its handle is on its left side, so dragging left makes it wider).
  */
-export function useResizable(key, { initial, min, max }) {
+export function useResizable(key, { initial, min, max, edge = 'end' }) {
   const [width, setWidth] = useState(() => read(key, initial, min, max));
   const [dragging, setDragging] = useState(false);
   const start = useRef(null);
@@ -24,6 +25,7 @@ export function useResizable(key, { initial, min, max }) {
   }, [key, min, max]);
 
   const rtl = () => document.documentElement.dir === 'rtl';
+  const flip = () => (rtl() ? -1 : 1) * (edge === 'start' ? -1 : 1);
   const handleProps = {
     role: 'separator',
     'aria-orientation': 'vertical',
@@ -42,7 +44,7 @@ export function useResizable(key, { initial, min, max }) {
     },
     onPointerMove: (e) => {
       if (!start.current) return;
-      const dx = (e.clientX - start.current.x) * (rtl() ? -1 : 1);
+      const dx = (e.clientX - start.current.x) * flip();
       save(start.current.w + dx);
     },
     onPointerUp: () => {
@@ -53,7 +55,7 @@ export function useResizable(key, { initial, min, max }) {
     onDoubleClick: () => save(initial),
     onKeyDown: (e) => {
       const step = e.shiftKey ? 40 : 10;
-      const sign = rtl() ? -1 : 1;
+      const sign = flip();
       if (e.key === 'ArrowLeft') { e.preventDefault(); save(width - step * sign); }
       if (e.key === 'ArrowRight') { e.preventDefault(); save(width + step * sign); }
       if (e.key === 'Home' || e.key === 'Enter') { e.preventDefault(); save(initial); }
