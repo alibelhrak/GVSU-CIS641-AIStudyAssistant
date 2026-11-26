@@ -882,5 +882,8 @@
 "Weekly goal removed": "每周目标已移除",
 "Weekly study goal (hours)": "每周学习目标（小时）",
 "Move this course and its tasks, sessions and files to the Trash? You can restore it for 30 days.": "把此课程及其任务、学习时段和文件移到回收站？30 天内可以恢复。",
-"no goal": "无目标"
+"no goal": "无目标",
+"Edit course": "编辑课程",
+"Save changes": "保存更改",
+"Course saved": "课程已保存"
 }

@@ -883,5 +883,8 @@
 "Weekly goal removed": "تمت إزالة الهدف الأسبوعي",
 "Weekly study goal (hours)": "هدف الدراسة الأسبوعي (ساعات)",
 "Move this course and its tasks, sessions and files to the Trash? You can restore it for 30 days.": "نقل هذا المقرر ومهامه وجلساته وملفاته إلى سلة المحذوفات؟ يمكنك استعادته خلال 30 يومًا.",
-"no goal": "بدون هدف"
+"no goal": "بدون هدف",
+"Edit course": "تعديل المقرر",
+"Save changes": "حفظ التغييرات",
+"Course saved": "تم حفظ المقرر"
 }

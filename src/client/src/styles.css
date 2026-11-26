@@ -780,3 +780,13 @@ img.avatar,img.set-avatar{object-fit:cover;padding:0;background:var(--surface-2)
 .bar-track.no-goal{background:repeating-linear-gradient(90deg,var(--surface-2) 0 6px,transparent 6px 10px)}
 .prog .faint{color:var(--faint);font-size:.8rem}
 .trash-search:focus-within{box-shadow:0 0 0 2px var(--accent-soft);color:var(--accent)}
+
+/* ---------- Editing a course on its card ---------- */
+.course-btns{display:flex;flex-wrap:wrap;gap:4px}
+.course-btns .btn{display:inline-flex;align-items:center;gap:6px}
+.course.editing{transform:none}
+.course.editing:hover{transform:none}
+.course-edit{position:relative;z-index:1;display:grid;gap:10px;animation:rem-in .25s var(--ease) both}
+.course-edit label{display:grid;gap:4px;font-size:.8rem;font-weight:600;color:var(--muted)}
+.course-edit-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:end}
+.course-edit-color input{width:56px;min-height:38px;padding:3px}

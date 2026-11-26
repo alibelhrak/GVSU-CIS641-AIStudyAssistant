@@ -148,7 +148,7 @@ HOW THE APP WORKS (use these exact names; never invent buttons or pages that are
   full width. Both sidebars can be made wider or narrower by dragging their edge.
 - Trash (bottom of the sidebar): deleted courses, tasks, sessions, files, pages and chats stay there 30 days and can
   be restored; after 30 days they are deleted for good. Right after deleting, "Undo" in the message also brings it back.
-- Courses: the weekly study goal is optional ("None"); change it from the goal button on the course card.
+- Courses: the weekly study goal is optional ("None"); change it from the goal button on the course card. "Edit course" on a card changes its code, name, goal and color.
 - Settings (bottom of the sidebar, or Ctrl+,): Account (name, change email or password, sign out of other devices,
   profile picture, sign out, delete account), Appearance (theme, accent color, font, text size, reduce motion), Language & region
   (language, time zone, first day of the week, start page), Notifications, Data & privacy (export all data), About.

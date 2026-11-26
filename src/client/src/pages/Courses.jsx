@@ -38,10 +38,50 @@ function GoalEditor({ course }) {
   );
 }
 
+/** Edit a saved course right on its card: code, name, weekly goal (or none) and color */
+function CourseEditor({ course, onDone }) {
+  const { run } = useData();
+  const [f, setF] = useState({
+    code: course.code, name: course.name, color: course.color || '#2b4fd8',
+    weeklyGoalHours: course.weeklyGoalHours ? String(course.weeklyGoalHours) : '',
+  });
+  const [busy, setBusy] = useState(false);
+  const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
+  const save = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    const ok = await run(() => api.patch(`/courses/${course.id}`, {
+      code: f.code.trim(), name: f.name.trim(), color: f.color, weeklyGoalHours: goalOf(f.weeklyGoalHours),
+    }), 'Course saved');
+    setBusy(false);
+    if (ok) onDone();
+  };
+  return (
+    <form className="course-edit" onSubmit={save} onKeyDown={(e) => { if (e.key === 'Escape') onDone(); }}>
+      <label>Course code<input type="text" value={f.code} onChange={set('code')} required maxLength={30} autoFocus /></label>
+      <label>Course name<input type="text" value={f.name} onChange={set('name')} required maxLength={120} /></label>
+      <div className="course-edit-row">
+        <label>Weekly study goal (hrs, optional)
+          <span className="goal-input">
+            <input type="number" min="0" max="168" step="0.5" placeholder="None" value={f.weeklyGoalHours} onChange={set('weeklyGoalHours')} />
+            {f.weeklyGoalHours !== '' && <button type="button" className="goal-clear" onClick={() => setF({ ...f, weeklyGoalHours: '' })} title="No weekly goal" aria-label="No weekly goal"><Icon name="close" size={13} /></button>}
+          </span>
+        </label>
+        <label className="course-edit-color">Color<input type="color" value={f.color} onChange={set('color')} /></label>
+      </div>
+      <div className="rec-actions">
+        <button className="btn sm primary" type="submit" disabled={busy || !f.code.trim() || !f.name.trim()}>{busy ? 'Saving…' : 'Save changes'}</button>
+        <button className="btn sm" type="button" onClick={onDone}>Cancel</button>
+      </div>
+    </form>
+  );
+}
+
 export default function Courses() {
   const { courses, tasks, materials, hoursSince, weekStart, run } = useData();
   const [form, setForm] = useState(BLANK);
   const [confirming, setConfirming] = useState(null);   // id of the course waiting for "Remove?"
+  const [editing, setEditing] = useState(null);         // id of the course being edited
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
 
   const submit = async (e) => {
@@ -74,8 +114,9 @@ export default function Courses() {
           const open = tasks.filter((t) => t.course === c.id && !t.done);
           const next = open[0];   // tasks come sorted by due date
           return (
-            <div className="course" key={c.id} style={{ '--c': c.color }}>
-              <div><div className="mono muted">{c.code}</div><h3>{c.name}</h3></div>
+            <div className={`course ${editing === c.id ? 'editing' : ''}`} key={c.id} style={{ '--c': c.color }}>
+              <div><div className="mono muted" data-no-translate>{c.code}</div><h3 data-no-translate>{c.name}</h3></div>
+              {editing === c.id ? <CourseEditor course={c} onDone={() => setEditing(null)} /> : (<>
               <div className="stats">
                 <div><b>{open.length}</b>open tasks</div>
                 <div><b>{fmtH(hoursSince(c.id, weekStart))}h</b>this week</div>
@@ -90,8 +131,12 @@ export default function Courses() {
                   <button className="btn sm" type="button" onClick={() => setConfirming(null)}>Keep</button>
                 </div>
               ) : (
-                <div><button className="btn ghost sm" type="button" onClick={() => setConfirming(c.id)}>Remove course</button></div>
+                <div className="course-btns">
+                  <button className="btn ghost sm" type="button" onClick={() => { setConfirming(null); setEditing(c.id); }}><Icon name="pencil" size={14} /> Edit course</button>
+                  <button className="btn ghost sm" type="button" onClick={() => setConfirming(c.id)}>Remove course</button>
+                </div>
               )}
+              </>)}
             </div>
           );
         })}
