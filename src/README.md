@@ -37,6 +37,9 @@ Put these in `src/server/.env` on your computer, or in the **Environment** tab o
 | `MAIL_FROM` | For email | The sender address you verified in Brevo |
 | `MAIL_FROM_NAME` | No | Sender name (default `Study Assistant`) |
 | `APP_URL` | For email | The site address used in reset links (default `http://localhost:5173`) |
+| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | For push | Keys for push notifications. Create them once with `npx web-push generate-vapid-keys` (in `src/server`) |
+| `VAPID_SUBJECT` | No | Contact for the push services, for example `mailto:you@example.com` (default: `MAIL_FROM`) |
+| `CRON_SECRET` | For reminders | Long random text. The scheduler sends it to `POST /api/reminders/run`; put the same value in GitHub (Settings → Secrets → Actions) |
 | `UPLOAD_DIR` | No | Where uploaded files are saved (default `./uploads`) |
 
 Without the AI settings, recommendations use rule-based text and Ask AI is turned off. Without `VISION_MODEL`, Ask AI still reads attached PDFs and text files, but not pictures. Without the email settings, reset emails are printed in the server terminal instead of being sent, which is handy for testing.
@@ -81,7 +84,22 @@ All routes start with `/api`. Every route except `/auth/*` and `/health` needs t
 | `POST /notes/ai` | AI inside a note: sends `{ action, prompt, selection, page, title, language }` and streams back Markdown as plain text. Actions: improve, fix, shorter, longer, simplify, professional, explain, bullets, table, translate, continue, summary, takeaways, quiz, flashcards, todos, outline, brainstorm |
 | `POST /notes/chat` | The Notes AI panel: sends `{ title, blocks: [{ id, md }], messages }` and streams back one JSON object per line: `text`, `edit` (a change for the browser to apply: edit, insert, delete a block, or rewrite the page) and `error` |
 | `POST /notes/feedback` | Saves a 👍 or 👎 on an AI answer (`{ rating, prompt, answer }`) in the Feedback collection |
+| `GET`/`PUT /reminders/settings` | Which reminders are on, the hour, time zone, and email / push |
+| `POST`/`DELETE /reminders/devices` | Turn push notifications on or off for one browser or phone |
+| `POST /reminders/test` | Sends a test summary email and push now |
+| `POST /reminders/run` | **No login**, needs the header `x-cron-secret`. Sends every reminder that is due (called every 15 minutes by `.github/workflows/reminders.yml`) |
+| `GET /reminders/unsubscribe` | **No login**: the signed link in reminder emails that turns them off |
 | `/conversations` | Chat history: list (`GET`), open (`GET /:id`), save (`POST`, `PATCH /:id`) and delete (`DELETE /:id`) |
+
+## Reminders (email and push)
+
+Render's free server sleeps, so it cannot run its own timer. `.github/workflows/reminders.yml` wakes it every 15 minutes and calls `POST /api/reminders/run`, which sends whatever is due in each student's own time zone. A ReminderLog makes sure nothing is sent twice, even when a run is late or repeated.
+
+1. In `src/server`, run `npx web-push generate-vapid-keys`, and put both keys on Render as `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY`.
+2. Make up a long random `CRON_SECRET`, and put it on Render and in GitHub (repository **Settings → Secrets and variables → Actions → New repository secret**).
+3. Run the workflow once by hand (**Actions → Study reminders → Run workflow**) to check it.
+
+GitHub pauses scheduled workflows in a repository with no commits for 60 days; re-enable it in the Actions tab if that happens. Waking the server every 15 minutes keeps it running all month, which fits in Render's free 750 hours for one service.
 
 ## Project structure
 
@@ -93,12 +111,13 @@ src/
     src/index.js           start-up: connects to MongoDB, starts the server
     src/app.js             routes; also serves the built app online
     src/config.js          reads the settings above
-    src/models/            Mongoose models: User, Course, Task, StudySession, StudyLog, Material, Recommendation, Conversation, Note, Feedback
+    src/models/            Mongoose models: User, Course, Task, StudySession, StudyLog, Material, Recommendation, Conversation, Note, Feedback, PushSub, ReminderLog
     src/routes/            auth, courses, tasks, sessions, logs, materials, recommendations, chat, conversations, notes (and the notes AI), notesChat (the Notes AI panel)
     src/services/recommendationEngine.js   rules: study gap, ranking, session plan
     src/services/llm.js    recommendation text from the model, with rule-based fallback
     src/services/chatTools.js  the actions Ask AI can take (checked and limited to the student's own data)
-    src/services/mailer.js password reset emails (Brevo)
+    src/services/mailer.js password reset and reminder emails (Brevo)
+    src/services/reminders.js  morning summary, deadline, session and weekly reminders (email and push)
     test/engine.test.js    unit tests for the rules
   client/                  React app (Vite)
     public/                logo, app icons, manifest.webmanifest, sw.js (installable app)

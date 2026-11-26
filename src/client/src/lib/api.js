@@ -28,7 +28,7 @@ export const api = {
   get: (p) => request('GET', p),
   post: (p, b) => request('POST', p, b),
   patch: (p, b) => request('PATCH', p, b),
-  del: (p) => request('DELETE', p),
+  del: (p, b) => request('DELETE', p, b),
   /** Download a protected file and hand it to the browser. */
   async download(path, filename) {
     const res = await fetch(`/api${path}`, { headers: { Authorization: `Bearer ${getToken()}` } });

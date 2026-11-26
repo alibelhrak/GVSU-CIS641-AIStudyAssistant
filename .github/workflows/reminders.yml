@@ -1,0 +1,25 @@
+# Sends study reminders (emails and push notifications).
+# Render's free server sleeps when nobody uses the app, so this wakes it every 15 minutes
+# and asks it to send whatever is due. Set up once in GitHub: Settings → Secrets and variables → Actions:
+#   Secret   CRON_SECRET  the same long random text as CRON_SECRET on Render
+#   Variable APP_URL      (optional) the site address, if it is not the one below
+name: Study reminders
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Wake the server and send reminders that are due
+        env:
+          APP_URL: ${{ vars.APP_URL || 'https://gvsu-cis641-aistudyassistant.onrender.com' }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then echo "Add the CRON_SECRET secret first"; exit 1; fi
+          curl -fsS --retry 6 --retry-delay 20 --retry-all-errors --max-time 150 \
+            -X POST "$APP_URL/api/reminders/run" -H "x-cron-secret: $CRON_SECRET"

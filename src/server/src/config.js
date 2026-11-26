@@ -12,6 +12,14 @@ export const config = {
     from: process.env.MAIL_FROM || '',
     fromName: process.env.MAIL_FROM_NAME || 'Study Assistant',
   },
+  // Push notifications (create the keys once with: npx web-push generate-vapid-keys)
+  push: {
+    publicKey: process.env.VAPID_PUBLIC_KEY || '',
+    privateKey: process.env.VAPID_PRIVATE_KEY || '',
+    subject: process.env.VAPID_SUBJECT || `mailto:${process.env.MAIL_FROM || 'admin@example.com'}`,
+  },
+  // A password that the scheduler (GitHub Actions) sends to POST /api/reminders/run
+  cronSecret: process.env.CRON_SECRET || '',
   llm: {
     baseUrl: (process.env.LLM_BASE_URL || '').replace(/\/+$/, ''),
     apiKey: process.env.LLM_API_KEY || '',
@@ -29,3 +37,4 @@ export const llmEnabled = () => Boolean(config.llm.baseUrl && config.llm.model);
 export const chatEnabled = () => Boolean(config.llm.baseUrl && config.llm.chatModel);
 // Emails are sent only when a Brevo key and a sender address are set
 export const mailEnabled = () => Boolean(config.mail.apiKey && config.mail.from);
+export const pushEnabled = () => Boolean(config.push.publicKey && config.push.privateKey);

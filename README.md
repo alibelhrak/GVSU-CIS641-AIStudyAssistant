@@ -45,6 +45,7 @@ Built for **CIS 641 (Software Engineering)** at Grand Valley State University.
 | **Ask AI** | Chat with an AI study coach that sees the student's courses, deadlines, hours and notes. It explains, plans and quizzes, and it can **add courses, exams, assignments and study sessions**, and **search, read and write notes**, each change with an **Undo** button |
 | **Files, pictures and voice** | Attach PDFs, notes, code or screenshots to a question; dictate with the microphone; or use **Voice mode** to talk and hear the answers |
 | **Chat history** | Every conversation is saved; go back to any of them or delete them |
+| **Reminders** | Turn on a morning summary of your top priorities, deadline alerts, study-session alerts and a Sunday progress email, sent by **email** and as **push notifications** on your phone or computer |
 | **Accounts** | Sign up, sign in, and reset a forgotten password through an emailed link (valid for 30 minutes, works once) |
 | **Themes** | Light, Dark, Paper, Midnight or System theme, plus five accent colors. Small animations throughout (respecting "reduce motion"), and thin scrollbars in the theme's colors |
 | **Download the app** | A **Download app** button installs it on a laptop or phone in one click (Chrome and Edge), or shows the steps for other browsers. The installed app opens full screen in its own window, with an icon on the taskbar, Dock or home screen |
@@ -54,6 +55,7 @@ Built for **CIS 641 (Software Engineering)** at Grand Valley State University.
 - **Notes (November 2026):** a Notion-style notes space with sub-pages, covers (including your own pictures), icons, favorites, course tags and search.
 - **AI in your notes:** edit or explain selected text, `/` AI commands, and the **Notes AI** chat panel that can edit the page for you with steps, Show changes and Undo.
 - **Ask AI knows your notes:** it can search, read, write and add to them.
+- **Reminders:** a morning summary of your priorities, deadline alerts, study-session alerts and a weekly progress email, by email and push notification.
 - **Password reset emails** are sent through Brevo, and the app can be **downloaded** to laptops and phones.
 
 ## How to use the app
@@ -161,13 +163,29 @@ More things you can do in the chat:
 | ■ **Stop** | Stops an answer that is being written |
 | **Chats** panel | Every conversation is saved. Click one to go back to it, or the 🗑 icon to delete it. **New chat** starts a fresh one |
 
-### 9. Choose your look
+### 9. Get reminders
+
+Click **Reminders** in the sidebar and turn on what you want:
+
+- **Morning summary:** your top priorities, what is due today and tomorrow, and today's study sessions, at the hour you choose.
+- **Deadline alerts:** the morning before something is due, and on the day itself.
+- **Study session alerts:** 15 to 30 minutes before a planned session.
+- **Weekly progress:** Sunday evening, hours studied against each course's goal and the week ahead.
+
+Choose where they go: **Email**, and **Notifications on this device** (click **Turn on** on each phone or computer you use; on iPhone, add the app to the Home Screen first). **Send me a test** shows you what they look like. Every email has a one-click link to turn reminder emails off.
+
+<p align="center">
+  <img src="docs/screenshots/reminders.png" alt="The Reminders window with switches for each reminder" width="420" />
+  <img src="docs/screenshots/reminder-email.png" alt="A morning summary email" width="420" />
+</p>
+
+### 10. Choose your look
 
 Click **Appearance** at the bottom of the sidebar to pick a theme (System, Light, Dark, Paper or Midnight) and an accent color.
 
 <p align="center"><img src="docs/screenshots/themes.png" alt="Dark theme with the Appearance menu open" width="900" /></p>
 
-### 10. Download the app to your laptop or phone
+### 11. Download the app to your laptop or phone
 
 Click **Download app** at the top of the welcome page, or in the sidebar once you are signed in.
 
@@ -214,7 +232,7 @@ Any OpenAI-compatible model works: [Groq](https://console.groq.com) (free, used 
 | Database | MongoDB (MongoDB Atlas online), Mongoose |
 | AI | Any OpenAI-compatible chat API with tool calling (Groq online); a vision model for pictures |
 | Voice | The browser's Web Speech API (speech to text and text to speech) |
-| Email | Brevo email API (password reset emails) |
+| Email and notifications | Brevo email API (password reset and reminder emails), Web Push with VAPID keys (`web-push`), a GitHub Actions schedule that wakes the server every 15 minutes |
 | Hosting | Render (one web service serves the API and the built React app) |
 | Phone and desktop app | Installable web app (web app manifest, service worker, one-click install button); Android and Windows store packages made with PWABuilder |
 | Local deployment | Docker Compose (MongoDB, API, and nginx serving the app) |

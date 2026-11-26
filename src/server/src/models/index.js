@@ -37,7 +37,32 @@ export const User = model('User', new Schema({
   // "Forgot password": a fingerprint of the emailed reset code, and when it stops working
   resetTokenHash: { type: String, index: true },
   resetExpires: Date,
+  // Reminders the student turned on (all off until they choose), and how to send them
+  reminders: {
+    daily: { type: Boolean, default: false },       // morning summary
+    deadlines: { type: Boolean, default: false },   // due today / due tomorrow
+    sessions: { type: Boolean, default: false },    // a study session starts soon
+    weekly: { type: Boolean, default: false },      // Sunday evening progress
+    email: { type: Boolean, default: true },
+    push: { type: Boolean, default: false },
+    hour: { type: Number, default: 7, min: 0, max: 23 },             // local hour for the morning reminders
+    timezone: { type: String, default: 'America/Detroit', maxlength: 60 },
+  },
 }, opts));
+
+/** A browser or phone that accepts push notifications for this student */
+export const PushSub = model('PushSub', new Schema({
+  user: ref('User'),
+  endpoint: { type: String, required: true, unique: true, maxlength: 2000 },
+  keys: { p256dh: { type: String, required: true }, auth: { type: String, required: true } },
+  device: { type: String, default: '', maxlength: 120 },
+}, opts));
+
+/** Reminders already sent, so the same one is never sent twice */
+export const ReminderLog = model('ReminderLog', new Schema({
+  user: ref('User'),
+  key: { type: String, required: true, maxlength: 200 },
+}, opts).index({ user: 1, key: 1 }, { unique: true }));
 
 export const Course = model('Course', new Schema({
   user: ref('User'),
