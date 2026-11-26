@@ -42,7 +42,7 @@ Built for **CIS 641 (Software Engineering)** at Grand Valley State University.
 | **Chat history** | Every conversation is saved; go back to any of them or delete them |
 | **Accounts** | Sign up, sign in, and reset a forgotten password through an emailed link (valid for 30 minutes, works once) |
 | **Themes** | Light, Dark, Paper, Midnight or System theme, plus five accent colors |
-| **Phone and desktop app** | Install it from the browser to the phone home screen or the Windows taskbar; it opens in its own window like a normal app |
+| **Download the app** | A **Download app** button installs it on a laptop or phone in one click (Chrome and Edge), or shows the steps for other browsers. The installed app opens full screen in its own window, with an icon on the taskbar, Dock or home screen |
 
 ## How to use the app
 
@@ -128,15 +128,25 @@ Click **Appearance** at the bottom of the sidebar to pick a theme (System, Light
 
 <p align="center"><img src="docs/screenshots/themes.png" alt="Dark theme with the Appearance menu open" width="900" /></p>
 
-### 9. Use it on your phone or computer like an app
+### 9. Download the app to your laptop or phone
 
-The app works on phones, and you can install it so it opens in its own window:
+Click **Download app** at the top of the welcome page, or in the sidebar once you are signed in.
 
-- **iPhone (Safari):** tap **Share**, then **Add to Home Screen**.
-- **Android (Chrome):** tap **⋮**, then **Install app**.
-- **Windows (Edge):** click **⋯**, then **Apps**, then **Install this site as an app**, and tick **Pin to taskbar**.
+- **Chrome or Edge** (Windows, Mac, Chromebook, Android): the browser's **Install** window opens. Click **Install** and the app gets its own window and an icon in the Start menu, taskbar or Dock.
+- **Other browsers:** a short guide shows the steps for your browser:
+  - **iPhone (Safari):** tap **Share**, then **Add to Home Screen**.
+  - **Mac (Safari):** click **File**, then **Add to Dock**.
+  - **Firefox:** open the site in Chrome or Edge instead.
+
+<p align="center">
+  <img src="docs/screenshots/download-app.png" alt="The Download app window with installation steps" width="420" />
+</p>
+
+The installed app fills the whole screen on phones, follows your theme, and updates by itself every time a new version is deployed.
 
 <p align="center"><img src="docs/screenshots/phone.png" alt="The app on a phone: dashboard, Ask AI and the menu" width="760" /></p>
+
+**App stores (in progress):** Android (Google Play) and Windows (Microsoft Store) packages have been built with [PWABuilder](https://www.pwabuilder.com) from this same web app. An iPhone App Store version needs a Mac to build.
 
 ## How the AI works
 
@@ -163,7 +173,7 @@ Any OpenAI-compatible model works: [Groq](https://console.groq.com) (free, used 
 | Voice | The browser's Web Speech API (speech to text and text to speech) |
 | Email | Brevo email API (password reset emails) |
 | Hosting | Render (one web service serves the API and the built React app) |
-| Phone and desktop app | Installable web app (web app manifest and service worker) |
+| Phone and desktop app | Installable web app (web app manifest, service worker, one-click install button); Android and Windows store packages made with PWABuilder |
 | Local deployment | Docker Compose (MongoDB, API, and nginx serving the app) |
 
 ## Team Members and Roles

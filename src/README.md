@@ -54,7 +54,9 @@ One web service runs the API and also serves the built React app.
 | Start Command | `cd server && npm start` |
 | Environment | `MONGO_URI`, `JWT_SECRET`, `NODE_VERSION=22`, plus the AI and email settings above |
 
-In MongoDB Atlas, allow access from anywhere (`0.0.0.0/0`), because Render's address changes. After pushing to GitHub, use **Manual Deploy → Deploy latest commit** if auto-deploy is off.
+In MongoDB Atlas, allow access from anywhere (`0.0.0.0/0`), because Render's address changes.
+
+The server also serves `/.well-known/assetlinks.json` from the built app. Express hides folders that start with a dot, so `app.js` allows that one folder explicitly. After the first Google Play upload, add Google's **App signing key SHA-256** (Play Console, then App integrity) as a second fingerprint in that file, or the Play Store version opens with an address bar. After pushing to GitHub, use **Manual Deploy → Deploy latest commit** if auto-deploy is off.
 
 Uploaded files are saved on the server's disk. On Render's free plan that disk is wiped on every deploy or restart, so uploads there are not permanent.
 
@@ -93,10 +95,11 @@ src/
     src/services/mailer.js password reset emails (Brevo)
     test/engine.test.js    unit tests for the rules
   client/                  React app (Vite)
-    public/                logo, app icons, manifest.webmanifest, sw.js (installable phone app)
+    public/                logo, app icons, manifest.webmanifest, sw.js (installable app)
+    public/.well-known/assetlinks.json   proves to Android that the Google Play app and this website belong together
     src/App.jsx            sidebar, pages and routes
     src/pages/             Landing, Login, ForgotPassword, Dashboard, Courses, Tasks, Schedule, Materials, Chat (Ask AI)
-    src/lib/               api helper, login state, data store, themes, dates
+    src/lib/               api helper, login state, data store, themes, dates, install.jsx (Download app button)
     src/styles.css         design and the four themes
 ```
 
