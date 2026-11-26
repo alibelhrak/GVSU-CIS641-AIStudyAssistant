@@ -82,6 +82,7 @@ All routes start with `/api`. Every route except `/auth/*` and `/health` needs t
 | `POST /auth/logout-all` | Sign out of every other device (tokens carry a session version) |
 | `POST /auth/email/start`, `POST /auth/email/confirm` | Change email: password + new address, then the 6-digit code sent to the new address; the old address gets a notice |
 | `GET /auth/me/export` | Download all of the account's data as one JSON file |
+| `POST /notes/complete` | `{ language, before, after, title }` → `{ text }`: an AI code suggestion for the cursor in a code block (fast model, or `CODE_MODEL`; at most 20 a minute per student) |
 | `POST /auth/forgot` | Emails a reset link (always gives the same answer, so it never reveals who has an account) |
 | `POST /auth/reset` | Sets a new password with the code from the link and signs in |
 | `/courses`, `/tasks`, `/sessions`, `/logs` | List, create (`POST`), update (`PATCH /:id`) and delete (`DELETE /:id`) |

@@ -64,6 +64,8 @@ export const User = model('User', new Schema({
     motion: { type: String, enum: ['system', 'reduce'] },
     weekStart: { type: String, enum: ['mon', 'sun'] },
     startPage: { type: String, enum: ['dashboard', 'chat', 'notes', 'schedule', 'tasks'] },
+    codeAI: { type: String, enum: ['on', 'off'] },   // AI code suggestions in Notes
+    codeTheme: { type: String, enum: ['auto', 'github-dark', 'github-light', 'dracula', 'monokai', 'one-dark-pro', 'one-light', 'tokyo-night', 'nord', 'catppuccin-mocha', 'catppuccin-latte', 'night-owl', 'solarized-dark', 'solarized-light', 'rose-pine', 'ayu-dark'] },   // colors of code blocks in Notes
   },
   // App language (also used for emails sent later)
   language: { type: String, enum: ['en', 'fr', 'es', 'ar', 'zh', 'hi'], default: 'en' },

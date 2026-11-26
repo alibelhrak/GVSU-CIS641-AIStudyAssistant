@@ -54,7 +54,8 @@ Built for **CIS 641 (Software Engineering)** at Grand Valley State University.
 
 ## What's new
 
-- **Code blocks in Notes (November 2026):** type ``` or pick *Code* in the / menu. Choose from about 45 languages (Python, Java, C++, SQL, JavaScript ...), get syntax highlighting in light and dark themes, and copy the code with one click. Code written by the AI is highlighted too.
+- **Code like in VS Code (November 2026):** code blocks in Notes get VS Code shortcuts (Tab / Shift+Tab, `Ctrl+/` comment, `Alt+↑/↓` move lines, `Shift+Alt+↑/↓` copy lines, `Ctrl+Shift+K` delete line, auto-indent, auto-closing brackets) and **AI suggestions** in grey while you type: `Tab` accepts, `Ctrl+→` takes one word, `Esc` hides. Turn suggestions off in Settings › Appearance. The full list is in Settings › About.
+- **Code blocks in Notes (November 2026):** type ``` or pick *Code* in the / menu. Choose from about 45 languages (Python, Java, C++, SQL, JavaScript ...), get syntax highlighting, and copy the code with one click. Pick a code theme (GitHub, Dracula, Monokai, One Dark Pro, Tokyo Night, Nord, Catppuccin, Solarized and more) from the 🎨 button on a code block or in **Settings › Appearance**. Code written by the AI is highlighted too.
 - **Hide the sidebar (November 2026):** click « at the top of the sidebar or press `Ctrl+\` for more room; touch the left edge to peek at it, or click the button in the corner to bring it back.
 - **Settings (November 2026):** one window for your account, appearance, language and region, notifications and your data, with fonts, text size, reduce motion, data export, password and email changes, and "sign out of other devices".
 - **Languages (November 2026):** the app now works in English, French, Spanish, Arabic, Chinese and Hindi. Pick one with the 🌐 menu on the welcome page and the sign-in page, or in **Settings › Language & region**. Your choice is saved to your account.

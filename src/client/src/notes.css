@@ -480,3 +480,22 @@ html[data-theme="midnight"] .note-page .bn-block-content[data-content-type="code
   background:var(--surface);color:var(--muted);font:inherit;font-size:.74rem;font-weight:600;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.08);animation:fade-in .15s ease both}
 .code-copy:hover{color:var(--fg);border-color:var(--line-strong)}
 .code-copy.done{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 40%,transparent)}
+/* Code themes: any theme other than "Match the app" brings its own background and text color */
+.note-editor-wrap:not([data-code-theme="auto"]) .note-page .bn-block-content[data-content-type="codeBlock"],
+.note-editor-wrap:not([data-code-theme="auto"]) .bn-block-content[data-content-type="codeBlock"]{background:var(--prosemirror-highlight-bg,var(--code-bg)) !important;color:var(--prosemirror-highlight,var(--code-fg));border-color:color-mix(in srgb,var(--code-fg) 12%,transparent)}
+.note-editor-wrap:not([data-code-theme="auto"]) .code-lang-btn{color:color-mix(in srgb,var(--code-fg) 70%,transparent)}
+.note-editor-wrap:not([data-code-theme="auto"]) .code-lang-btn:hover,.note-editor-wrap:not([data-code-theme="auto"]) .code-lang-btn.open{background:color-mix(in srgb,var(--code-fg) 12%,transparent);color:var(--code-fg)}
+.code-theme-btn{position:absolute;z-index:5;display:grid;place-items:center;width:28px;height:26px;padding:0;border:1px solid var(--line);border-radius:7px;background:var(--surface);
+  color:var(--muted);cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.08);animation:fade-in .15s ease both}
+.code-theme-btn:hover,.code-theme-btn.open{color:var(--fg);border-color:var(--line-strong)}
+.code-theme-menu{width:250px}
+.code-menu-title{margin:2px 6px 4px;font-size:.7rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
+.code-theme-menu .code-lang-list{max-height:330px}
+.code-theme-menu .code-lang-list button{justify-content:flex-start}
+.code-theme-menu .code-lang-list button svg{margin-inline-start:auto}
+.code-swatch{display:inline-flex;align-items:center;gap:3px;flex:none;padding:5px 6px;border:1px solid;border-radius:6px}
+.code-swatch i{display:block;width:6px;height:6px;border-radius:50%}
+/* AI code suggestion: grey "ghost text" after the cursor, with a small Tab hint */
+.code-ghost{opacity:.42;pointer-events:none;user-select:none;white-space:pre}
+.code-ghost-hint{display:inline-block;margin-inline-start:8px;padding:0 5px;border:1px solid currentColor;border-radius:4px;font-family:var(--font);font-size:.62rem;
+  font-weight:600;line-height:1.5;vertical-align:1px;opacity:.9}

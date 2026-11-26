@@ -30,7 +30,7 @@ export const SIZES = [
   { id: 'xl', label: 'Extra large' },
 ];
 /** Other preferences, with their defaults */
-const PREF_DEFAULTS = { font: 'default', size: 'm', motion: 'system', weekStart: 'mon', startPage: 'dashboard' };
+const PREF_DEFAULTS = { font: 'default', size: 'm', motion: 'system', weekStart: 'mon', startPage: 'dashboard', codeTheme: 'auto', codeAI: 'on' };
 
 /** Load a font from Google Fonts the first time it is picked */
 export function loadFont(id) {

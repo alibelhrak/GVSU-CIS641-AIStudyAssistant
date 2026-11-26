@@ -246,6 +246,8 @@ const PREF_VALUES = {
   motion: ['system', 'reduce'],
   weekStart: ['mon', 'sun'],
   startPage: ['dashboard', 'chat', 'notes', 'schedule', 'tasks'],
+  codeAI: ['on', 'off'],
+  codeTheme: ['auto', 'github-dark', 'github-light', 'dracula', 'monokai', 'one-dark-pro', 'one-light', 'tokyo-night', 'nord', 'catppuccin-mocha', 'catppuccin-latte', 'night-owl', 'solarized-dark', 'solarized-light', 'rose-pine', 'ayu-dark'],
 };
 r.patch('/me', requireAuth, h(async (req, res) => {
   const { language, name, prefs } = req.body || {};

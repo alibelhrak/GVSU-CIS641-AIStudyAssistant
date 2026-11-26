@@ -17,6 +17,76 @@ import { langOf, LANG_NAMES } from '../i18n.js';
 import { fetchLLM, isGarbled } from '../services/llmGuard.js';
 
 const r = Router();
+
+// ---------- AI code suggestions ("ghost text", like Copilot in VS Code) ----------
+// Short and fast: the recommendation model (or CODE_MODEL), no streaming, at most 20 per minute per student.
+const codeCalls = new Map();   // userId -> times of recent requests
+function codeQuota(userId) {
+  const now = Date.now();
+  const recent = (codeCalls.get(userId) || []).filter((t) => now - t < 60000);
+  if (recent.length >= 20) return false;
+  recent.push(now);
+  codeCalls.set(userId, recent);
+  if (codeCalls.size > 5000) codeCalls.delete(codeCalls.keys().next().value);
+  return true;
+}
+const CODE_SYSTEM = `You are a code completion engine, like GitHub Copilot, inside a student's notes app.
+Continue the code exactly at <CURSOR>. Reply with ONLY the text to insert at the cursor:
+- no explanation, no Markdown, no code fences, no quotes around it;
+- never repeat code that is already before the cursor, and do not repeat what comes after it;
+- finish the current line, and add up to 8 more lines only when they clearly belong (for example the body of a function);
+- match the existing indentation, naming and style; keep it correct and simple, as for a student;
+- if nothing useful fits, reply with an empty answer.`;
+
+/** Clean what the model returned so it can be inserted as is */
+export function cleanCompletion(raw, before, after) {
+  let text = String(raw || '').replace(/<think>[\s\S]*?<\/think>/g, '');
+  const fence = text.match(/```[\w+#-]*\n?([\s\S]*?)(?:```|$)/);
+  if (fence) text = fence[1];
+  text = text.replace(/<\/?CURSOR\/?>/g, '').replace(/\s+$/, '');
+  // The model sometimes repeats the start of the current line: drop the repeated part
+  const line = before.slice(before.lastIndexOf('\n') + 1);
+  if (line.trim() && text.startsWith(line)) text = text.slice(line.length);
+  else if (line.trim() && text.trimStart().startsWith(line.trim()) && line.trim().length > 2) text = text.trimStart().slice(line.trim().length);
+  // ...or what already follows the cursor
+  const next = after.split('\n')[0].trim();
+  if (next && text.endsWith(next)) text = text.slice(0, -next.length);
+  return text.length > 1200 ? text.slice(0, 1200) : text;
+}
+
+r.post('/complete', h(async (req, res) => {
+  const model = process.env.CODE_MODEL || config.llm.model || config.llm.chatModel;
+  if (!config.llm.baseUrl || !model) return res.json({ text: '' });
+  if (!codeQuota(String(req.userId))) return res.json({ text: '', limited: true });
+  const b = req.body || {};
+  const language = String(b.language || 'text').replace(/[^\w+#-]/g, '').slice(0, 30) || 'text';
+  const before = String(b.before || '').slice(-3000);
+  const after = String(b.after || '').slice(0, 800);
+  if (!before.trim()) return res.json({ text: '' });
+  const user = `Note title: ${String(b.title || '').slice(0, 120) || '(none)'}
+Language: ${language === 'text' ? 'unknown (guess from the code)' : language}
+
+${before}<CURSOR>${after}`;
+  let upstream;
+  try {
+    upstream = await fetchLLM(`${config.llm.baseUrl}/chat/completions`, {
+      method: 'POST',
+      signal: AbortSignal.timeout(9000),
+      headers: { 'Content-Type': 'application/json', ...(config.llm.apiKey ? { Authorization: `Bearer ${config.llm.apiKey}` } : {}) },
+      body: JSON.stringify({
+        model, temperature: 0.15, max_tokens: 220,
+        ...(/gpt-oss/i.test(model) ? { reasoning_effort: 'low' } : {}),
+        messages: [{ role: 'system', content: CODE_SYSTEM }, { role: 'user', content: user }],
+      }),
+    }, { retries: 0 });
+  } catch {
+    return res.json({ text: '' });
+  }
+  if (!upstream.ok) return res.json({ text: '', busy: upstream.status === 429 });
+  const data = await upstream.json().catch(() => null);
+  const text = cleanCompletion(data?.choices?.[0]?.message?.content, before, after);
+  res.json({ text });   // (no garble check: code is full of symbols)
+}));
 const MAX_CONTENT = 3_000_000;          // characters of editor data per note (pictures included)
 const LIST_FIELDS = 'title icon parent course favorite updatedAt createdAt';
 

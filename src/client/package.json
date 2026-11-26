@@ -15,7 +15,13 @@
     "@blocknote/react": "0.57.0",
     "@mantine/core": "8.3.18",
     "@mantine/hooks": "8.3.18",
+    "@shikijs/core": "4.6.0",
+    "@shikijs/engine-javascript": "4.6.0",
+    "@shikijs/langs-precompiled": "4.6.0",
+    "@shikijs/themes": "4.6.0",
     "pdfjs-dist": "5.7.284",
+    "prosemirror-state": "1.4.4",
+    "prosemirror-view": "1.44.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.28.0"

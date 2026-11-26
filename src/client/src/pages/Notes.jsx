@@ -1,7 +1,9 @@
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { BlockNoteSchema, createCodeBlockSpec, defaultBlockSpecs, filterSuggestionItems } from '@blocknote/core';
-import { codeBlockOptions, syntaxHighlighter } from '@blocknote/code-block';
+import { SyntaxHighlightingExtension } from '@blocknote/core/extensions';
+import { codeBlockOptions } from '@blocknote/code-block';
+import { CODE_THEMES, codeThemeInfo, highlighterFor } from '../lib/shiki.js';
 import { en, fr, es, ar, zh } from '@blocknote/core/locales';
 import { getLang, locale, t } from '../lib/i18n.jsx';
 import {
@@ -10,7 +12,8 @@ import {
 } from '@blocknote/react';
 import { BlockNoteView } from '@blocknote/mantine';
 import '@blocknote/mantine/style.css';
-import { api } from '../lib/api.js';
+import { api, getToken } from '../lib/api.js';
+import { codeGhostExtension, handleCodeKey, hideGhost, showGhost, suggestionRequest } from '../lib/codeEditing.js';
 import { useData } from '../lib/store.jsx';
 import { useTheme } from '../lib/theme.jsx';
 import { Icon } from '../icons.jsx';
@@ -236,9 +239,36 @@ const DICTIONARY = {
 const englishEditor = base === en;
 
 /** Code blocks like Notion: a language picker and syntax highlighting for about 45 languages */
-const SCHEMA = BlockNoteSchema.create({
-  blockSpecs: { ...defaultBlockSpecs, codeBlock: createCodeBlockSpec({ ...codeBlockOptions, defaultLanguage: 'text' }) },
-});
+const codeSpec = createCodeBlockSpec({ ...codeBlockOptions, defaultLanguage: 'text' });
+// No red spell-check lines under code
+const drawCode = codeSpec.implementation.render;
+codeSpec.implementation.render = function render(...args) {
+  const out = drawCode.apply(this, args);
+  out?.dom?.setAttribute?.('spellcheck', 'false');
+  out?.contentDOM?.setAttribute?.('spellcheck', 'false');
+  return out;
+};
+const SCHEMA = BlockNoteSchema.create({ blockSpecs: { ...defaultBlockSpecs, codeBlock: codeSpec } });
+
+/** The color-theme menu of code blocks (one choice for all code, saved in Settings) */
+function CodeThemeMenu({ value, onPick }) {
+  return (
+    <div className="code-lang-menu code-theme-menu" onMouseDown={(e) => e.stopPropagation()} role="listbox" aria-label="Code theme">
+      <p className="code-menu-title">Code theme</p>
+      <div className="code-lang-list">
+        {CODE_THEMES.map((th) => (
+          <button key={th.id} type="button" role="option" aria-selected={th.id === value} className={th.id === value ? 'on' : ''} onClick={() => onPick(th.id)}>
+            <span className="code-swatch" style={{ background: th.bg, borderColor: th.id === 'auto' ? 'var(--line)' : th.bg }} aria-hidden="true">
+              <i style={{ background: th.k }} /><i style={{ background: th.s }} /><i style={{ background: th.f }} />
+            </span>
+            <span className="code-theme-name" data-no-translate={th.id !== 'auto' ? '' : undefined}>{th.label}</span>
+            {th.id === value && <Icon name="tick" size={14} />}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 const LANGUAGES = Object.entries(codeBlockOptions.supportedLanguages)
   .map(([id, l]) => ({ id, name: l.name, aliases: l.aliases || [] }))
@@ -279,7 +309,8 @@ function LanguageMenu({ value, onPick, onClose }) {
 /** On the code block under the mouse: the language button (top left) and Copy (top right) */
 function CodeTools({ wrap, editor }) {
   const [box, setBox] = useState(null);     // { id, top, left, right }
-  const [open, setOpen] = useState(false);  // language menu
+  const [open, setOpen] = useState(false);  // false, 'lang' or 'theme'
+  const { prefs, setPref } = useTheme();
   const [copied, setCopied] = useState(false);
   const openRef = useRef(false);
   openRef.current = open;
@@ -303,7 +334,7 @@ function CodeTools({ wrap, editor }) {
   // Close the menu when clicking elsewhere
   useEffect(() => {
     if (!open) return undefined;
-    const away = (e) => { if (!e.target.closest?.('.code-lang-menu, .code-lang-btn')) { setOpen(false); setBox(null); } };
+    const away = (e) => { if (!e.target.closest?.('.code-lang-menu, .code-lang-btn, .code-theme-btn')) { setOpen(false); setBox(null); } };
     document.addEventListener('mousedown', away);
     return () => document.removeEventListener('mousedown', away);
   }, [open]);
@@ -323,12 +354,22 @@ function CodeTools({ wrap, editor }) {
   return (
     <>
       <button type="button" className={`code-tools code-lang-btn ${open ? 'open' : ''}`} style={{ top: box.top, left: box.left }}
-        onMouseDown={(e) => e.preventDefault()} onClick={() => setOpen((o) => !o)} aria-haspopup="listbox" aria-expanded={open}>
+        onMouseDown={(e) => e.preventDefault()} onClick={() => setOpen((o) => (o === 'lang' ? false : 'lang'))} aria-haspopup="listbox" aria-expanded={open === 'lang'}>
         <span data-no-translate>{langName(language)}</span><Icon name="chevronDown" size={13} />
       </button>
-      {open && (
+      {open === 'lang' && (
         <div className="code-lang-pop" style={{ top: box.top + 32, left: box.left }}>
           <LanguageMenu value={language} onPick={pick} onClose={() => setOpen(false)} />
+        </div>
+      )}
+      <button type="button" className={`code-tools code-theme-btn ${open === 'theme' ? 'open' : ''}`} style={{ top: box.top, right: box.right + 78 }}
+        onMouseDown={(e) => e.preventDefault()} onClick={() => setOpen((o) => (o === 'theme' ? false : 'theme'))}
+        aria-label="Code theme" title={`Code theme: ${codeThemeInfo(prefs.codeTheme).label}`}>
+        <Icon name="palette" size={14} />
+      </button>
+      {open === 'theme' && (
+        <div className="code-lang-pop" style={{ top: box.top + 32, right: box.right }}>
+          <CodeThemeMenu value={prefs.codeTheme} onPick={(id) => { setPref('codeTheme', id); setOpen(false); setBox(null); }} />
         </div>
       )}
       <button type="button" className={`code-tools code-copy ${copied ? 'done' : ''}`} style={{ top: box.top, right: box.right }}
@@ -339,15 +380,89 @@ function CodeTools({ wrap, editor }) {
   );
 }
 
+// BlockNote keeps one highlighter for the whole page (in a global cache); a new code theme needs a fresh one
+let cachedCodeTheme = null;
+function useCodeTheme(theme) {
+  if (cachedCodeTheme !== theme) {
+    delete globalThis[Symbol.for('blocknote.shikiHighlighterPromise')];
+    delete globalThis[Symbol.for('blocknote.shikiParser')];
+    cachedCodeTheme = theme;
+  }
+}
+
 function NoteEditor({ note, dark, onChange, onReady, onAi }) {
   const wrap = useRef(null);
+  const { prefs: { codeTheme, codeAI } } = useTheme();
+  const latest = useRef(null);   // the page as last typed, so switching code theme keeps everything
+  useCodeTheme(codeTheme);
+  // A new code theme needs a new highlighter, so the editor is rebuilt (with the same content)
   const editor = useCreateBlockNote({
     schema: SCHEMA,
-    extensions: [syntaxHighlighter],
-    initialContent: note.content?.length ? note.content : undefined,
+    extensions: [SyntaxHighlightingExtension({ createHighlighter: () => highlighterFor(codeTheme) }), codeGhostExtension],
+    initialContent: latest.current?.length ? latest.current : note.content?.length ? note.content : undefined,
     uploadFile,
     dictionary: DICTIONARY,
-  });
+  }, [codeTheme]);
+  const theme = codeThemeInfo(codeTheme);
+
+  // ---- AI code suggestions (grey ghost text after a short pause, like VS Code) ----
+  const ai = useRef({ timer: 0, ctrl: null, last: 0 });
+  const titleRef = useRef(note.title);
+  titleRef.current = note.title;
+  const askAI = async (now = false) => {
+    const view = editor.prosemirrorView;
+    if (!view || (!now && codeAI === 'off')) return;
+    const req = suggestionRequest(view);
+    if (!req) return;
+    ai.current.ctrl?.abort();
+    const ctrl = new AbortController();
+    ai.current.ctrl = ctrl;
+    ai.current.last = Date.now();
+    const doc = view.state.doc;
+    try {
+      const res = await fetch('/api/notes/complete', {
+        method: 'POST', signal: ctrl.signal,
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+        body: JSON.stringify({ language: req.language, before: req.before, after: req.after, title: titleRef.current }),
+      });
+      const { text } = await res.json();
+      // Show it only if nothing moved while the AI was thinking
+      if (!ctrl.signal.aborted && text && view.state.doc === doc && view.state.selection.empty && view.state.selection.from === req.pos) showGhost(view, req.pos, text);
+    } catch { /* cancelled or offline: no suggestion */ }
+  };
+  const scheduleAI = () => {
+    clearTimeout(ai.current.timer);
+    ai.current.ctrl?.abort();
+    if (codeAI === 'off') return;
+    const wait = Math.max(700, 1500 - (Date.now() - ai.current.last));   // at most about one request every 1.5 s
+    ai.current.timer = setTimeout(() => askAI(false), wait);
+  };
+  useEffect(() => () => { clearTimeout(ai.current.timer); ai.current.ctrl?.abort(); }, []);
+
+  // ---- VS Code shortcuts inside code blocks (caught before the editor's own keys) ----
+  useEffect(() => {
+    const root = wrap.current;
+    if (!root) return undefined;
+    const key = (e) => {
+      const view = editor.prosemirrorView;
+      if (!view || !root.contains(e.target)) return;
+      // Shift+Enter leaves the code block (a new paragraph below it)
+      if (e.key === 'Enter' && e.shiftKey && !e.ctrlKey && !e.metaKey) {
+        const block = editor.getTextCursorPosition().block;
+        if (block?.type === 'codeBlock') {
+          e.preventDefault(); e.stopPropagation();
+          const [made] = editor.insertBlocks([{ type: 'paragraph' }], block, 'after');
+          editor.setTextCursorPosition(made, 'start');
+          return;
+        }
+      }
+      if (handleCodeKey(view, e, { onAskAI: () => askAI(true) })) { e.preventDefault(); e.stopPropagation(); }
+    };
+    root.addEventListener('keydown', key, true);
+    const blur = () => { const v = editor.prosemirrorView; if (v) hideGhost(v); };
+    root.addEventListener('focusout', blur);
+    return () => { root.removeEventListener('keydown', key, true); root.removeEventListener('focusout', blur); };
+  }, [editor, codeAI]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     onReady(editor);
     // Markdown written by Ask AI in the chat: turn it into real blocks once.
@@ -365,10 +480,10 @@ function NoteEditor({ note, dark, onChange, onReady, onAi }) {
   const getItems = async (query) => { slashQuery.text = query; return filterSuggestionItems(slashItems(editor, onAi), query); };
 
   return (
-    <div className="note-editor-wrap" ref={wrap}>
+    <div className="note-editor-wrap" ref={wrap} data-code-theme={codeTheme} style={{ '--code-bg': theme.bg, '--code-fg': theme.fg }}>
     <CodeTools wrap={wrap} editor={editor} />
     <BlockNoteView editor={editor} theme={dark ? { dark: EDITOR_THEME, light: EDITOR_THEME } : EDITOR_THEME}
-      data-color-scheme={dark ? 'dark' : 'light'} onChange={() => onChange(editor.document)}
+      data-color-scheme={dark ? 'dark' : 'light'} onChange={() => { latest.current = editor.document; onChange(editor.document); scheduleAI(); }}
       slashMenu={false} formattingToolbar={false}>
       <SuggestionMenuController triggerCharacter="/" getItems={getItems} suggestionMenuComponent={SlashMenu} />
       <FormattingToolbarController formattingToolbar={() => (

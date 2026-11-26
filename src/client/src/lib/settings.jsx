@@ -7,6 +7,7 @@ import { ACCENTS, FONTS, SIZES, THEMES, loadFont, useTheme } from './theme.jsx';
 import { LANGS, getLang, locale, setLang, t } from './i18n.jsx';
 import { Icon } from '../icons.jsx';
 import { DeleteAccount } from '../pages/Privacy.jsx';
+import { CODE_THEMES } from './shiki.js';
 
 const SECTIONS = [
   { id: 'account', label: 'Account', icon: 'user' },
@@ -249,6 +250,14 @@ function Appearance() {
         <Segmented label="Text size" options={SIZES} value={prefs.size} onChange={(v) => setPref('size', v)} />
       </Row>
       <p className="set-preview">The quick brown fox studies for the midterm.</p>
+      <Row title="Code theme" desc="Colors of code blocks in your notes.">
+        <select className="set-input" value={prefs.codeTheme} onChange={(e) => setPref('codeTheme', e.target.value)} aria-label="Code theme">
+          {CODE_THEMES.map((th) => <option key={th.id} value={th.id}>{th.id === 'auto' ? t(th.label) : th.label}</option>)}
+        </select>
+      </Row>
+      <Row title="AI code suggestions" desc="While you write code in a note, the AI suggests the rest in grey. Press Tab to accept.">
+        <Toggle label="AI code suggestions" on={prefs.codeAI !== 'off'} onChange={(on) => setPref('codeAI', on ? 'on' : 'off')} />
+      </Row>
       <Row title="Reduce motion" desc="Turns off animations and moving effects.">
         <Toggle label="Reduce motion" on={prefs.motion === 'reduce'} onChange={(on) => setPref('motion', on ? 'reduce' : 'system')} />
       </Row>
@@ -351,6 +360,20 @@ function DataPrivacy({ onClose }) {
 }
 
 // ---------------- About ----------------
+const CODE_KEYS = [
+  [['Tab'], 'Accept the AI suggestion (or indent)'],
+  [[MOD, '→'], 'Accept the next word of the suggestion'],
+  [['Alt', '\\'], 'Ask the AI for a suggestion now'],
+  [['Shift', 'Tab'], 'Outdent'],
+  [[MOD, '/'], 'Comment or uncomment lines'],
+  [['Alt', '↑ ↓'], 'Move lines up or down'],
+  [['Shift', 'Alt', '↑ ↓'], 'Copy lines up or down'],
+  [[MOD, 'Shift', 'K'], 'Delete the line'],
+  [[MOD, 'Enter'], 'New line below'],
+  [['Shift', 'Enter'], 'Leave the code block'],
+  [[MOD, 'A'], 'Select all the code in the block'],
+];
+
 function About() {
   const keys = [
     [[MOD, ','], 'Open Settings'],
@@ -378,6 +401,15 @@ function About() {
       <h3 className="set-h">Keyboard shortcuts</h3>
       <div className="set-keys">
         {keys.map(([combo, what]) => (
+          <div key={what} className="set-key">
+            <span>{what}</span>
+            <span className="set-kbd" data-no-translate>{combo.map((k) => <kbd key={k}>{k}</kbd>)}</span>
+          </div>
+        ))}
+      </div>
+      <h3 className="set-h">In code blocks (like VS Code)</h3>
+      <div className="set-keys">
+        {CODE_KEYS.map(([combo, what]) => (
           <div key={what} className="set-key">
             <span>{what}</span>
             <span className="set-kbd" data-no-translate>{combo.map((k) => <kbd key={k}>{k}</kbd>)}</span>
