@@ -34,22 +34,24 @@ Built for **CIS 641 (Software Engineering)** at Grand Valley State University.
 | Area | What the student can do |
 |---|---|
 | **Dashboard** | See what to study next, hours studied this week against each course's goal, today's sessions and what is due soon |
-| **Courses** | Add courses with a weekly study-hour goal and a color |
+| **Courses** | Add courses with a color and an optional weekly study-hour goal; **Edit course** changes the code, name, goal and color |
 | **Assignments & Exams** | Add tasks with a type, due date, priority and the hours they need; tick them off when done |
 | **Study Schedule** | Plan study sessions on a weekly calendar and tick them off; deadlines show in red |
 | **Materials** | Upload files (PDFs, slides, notes, up to 20 MB) or save links for each course |
-| **Notes** | Notion-style pages with sub-pages, emoji icons, covers (gradients or your own picture), favorites, course tags and search. Type **/** for headings, lists, to-dos, tables, code, quotes and pictures. Saves while you type |
+| **Notes** | Notion-style pages with sub-pages, emoji icons, covers (gradients or your own picture), favorites, course tags and search. The list groups pages **by course** and into **your own folders**. Each page can use small, default or large text and full width. Type **/** for headings, lists, to-dos, tables, code, quotes and pictures. Saves while you type |
+| **Code in notes** | Code blocks for about 45 languages with 16 color themes, VS Code shortcuts and AI completions. **Run** Python, JavaScript, SQL and HTML right in the page; the output appears below the code (it runs in your browser, never on the server) |
 | **AI in your notes** | Select text or press **Ctrl+J** to have AI improve, shorten, explain, translate or turn it into a table; or type **/** for Continue writing, Summarize, Key takeaways, Practice quiz and Flashcards. Every answer is a preview first: **Replace**, **Insert**, **Try again** or **Discard** |
 | **Notes AI chat** | An **Ask AI** panel next to every page, like Notion AI: ask about the page, attach files or pictures, or ask it to fix, rewrite or add to the page. Each change is listed as a step, highlighted in the page, and can be undone in one click. Answers have Copy, Add to page, 👍 / 👎 and Undo |
 | **AI recommendations** | Advice on what to study next, with a session plan the student can **accept** (added to the schedule) or **dismiss** |
 | **Ask AI** | Chat with an AI study coach that sees the student's courses, deadlines, hours and notes. It explains, plans and quizzes, and it can **add courses, exams, assignments and study sessions**, and **search, read and write notes**, each change with an **Undo** button |
 | **Files, pictures and voice** | Attach PDFs, notes, code or screenshots to a question; dictate with the microphone; or use **Voice mode** to talk and hear the answers |
 | **Chat history** | Every conversation is saved; go back to any of them or delete them |
+| **Trash** | Anything you delete (courses, tasks, sessions, files, pages, chats) waits in the Trash for 30 days. **Undo** right after deleting, or **Restore** it later |
 | **Reminders** | Turn on a morning summary of your top priorities, deadline alerts, study-session alerts and a Sunday progress email, sent by **email** and as **push notifications** on your phone or computer |
 | **Accounts** | Sign up with a 6-digit code sent to your email (so nobody can use someone else's address), sign in, reset a forgotten password through an emailed link (valid for 30 minutes, works once), and delete the account with all its data from the [privacy page](https://gvsu-cis641-aistudyassistant.onrender.com/privacy) |
 | **Languages** | Use the whole app in **English, Français, Español, العربية (right to left), 中文 or हिन्दी**. The AI answers, the advice on what to study, the reminder emails and the password emails follow your language |
-| **Settings** | A Notion-style Settings window (sidebar, or `Ctrl+,`): edit your name, change email (with a code) and password, sign out of other devices, delete the account; theme, accent, font (Default, Serif, Mono, Easy to read), text size and reduce motion; language, time zone, first day of the week and start page; export all your data. Preferences follow you to every device |
-| **Themes** | Light, Dark, Paper, Midnight or System theme, plus five accent colors. Small animations throughout (respecting "reduce motion"), and thin scrollbars in the theme's colors |
+| **Settings** | A Notion-style Settings window (sidebar, or `Ctrl+,`): edit your name, change email (with a code) and password, sign out of other devices, delete the account; profile picture; theme, accent, font (Default, Serif, Mono, Easy to read), text size and reduce motion; language, time zone, first day of the week and start page; export all your data. Preferences follow you to every device |
+| **Themes** | Light, Dark, Paper, Midnight or System theme, plus five accent colors. Drag the edges of the sidebar, the notes list, the Notes AI panel and the chat list to resize them. Small animations throughout (respecting "reduce motion"), and thin scrollbars in the theme's colors |
 | **Download the app** | A **Download app** button installs it on a laptop or phone in one click (Chrome and Edge), or shows the steps for other browsers. The installed app opens full screen in its own window, with an icon on the taskbar, Dock or home screen |
 
 ## What's new
@@ -88,7 +90,7 @@ Forgot your password? On the sign-in page, click **Forgot password?**, type your
 
 ### 2. Add your courses
 
-Go to **Courses**. Fill in the **Course code** (for example `CIS 641`), the **Course name**, your **Weekly study goal (hrs)** and a **Color**, then click **Add course**. Each course card shows its open tasks, the hours you studied this week and its materials.
+Go to **Courses**. Fill in the **Course code** (for example `CIS 641`), the **Course name**, your **Weekly study goal (hrs)** (optional: clear it with × for no goal) and a **Color**, then click **Add course**. Each course card shows its open tasks, the hours you studied this week, its weekly goal and its materials. Click **Edit course** on a card to change its code, name, goal or color.
 
 <p align="center"><img src="docs/screenshots/courses.png" alt="Courses page" width="900" /></p>
 
@@ -134,6 +136,10 @@ Go to **Notes** and pick a template (Lecture notes, Study guide, Assignment plan
 - Click **+** next to a page in the list, or **Add a sub-page** at the bottom, to put pages inside pages.
 - Use the ⭐ to add a page to **Favorites**, the course menu to tag it with a course, and **Search notes** to find any word.
 
+**Organize your pages.** The list on the left groups your pages **by course** (from each page's course tag). Make your own **folders** with the folder button next to *Folders*, then drag a page onto a folder, or hover a page and click its folder icon. Click a group to open or close it. Drag the edge of the list to make it wider. The **T** button at the top of a page sets its **text size** and **full width**.
+
+<p align="center"><img src="docs/screenshots/notes-folders.png" alt="The notes list with folders, course groups and the Move to folder menu" width="900" /></p>
+
 <p align="center"><img src="docs/screenshots/notes-slash.png" alt="The / menu with AI actions and blocks" width="900" /></p>
 
 **AI inside your notes.** Select some text and click **Ask AI** in the toolbar (or press **Ctrl+J**, or type **/ai**). Choose **Improve writing**, **Fix spelling & grammar**, **Make shorter**, **Explain this**, **Translate**, **Turn into a table** and more, or type your own request. The answer appears as a preview first; then click **Replace selection**, **Insert below**, **Try again** or **Discard**, or type a follow-up such as *"make it simpler"*. Press **Ctrl+Z** to undo an insert.
@@ -143,6 +149,12 @@ Go to **Notes** and pick a template (Lecture notes, Study guide, Assignment plan
 **Chat with the AI next to your page.** Click **Ask AI** at the top of a note to open the **Notes AI** panel. It reads the page (the page chip in the message box; click it to leave the page out), and you can attach files or pictures with **+** or by dropping them on the panel. Ask a question, or ask it to change the page, for example *"Fix the spelling and formatting everywhere"* or *"Add a practice quiz at the end"*. The changes appear in the page right away and are highlighted; click **N steps** to see each one, **Show changes** to see before and after, and **Undo** to put the page back. Under each answer: **Copy**, **+** (add the answer to the page), 👍 / 👎 and **Undo**.
 
 <p align="center"><img src="docs/screenshots/notes-chat.png" alt="The Notes AI panel after editing the page, with steps, Show changes and Undo" width="900" /></p>
+
+Drag the left edge of the Notes AI panel to make it wider or narrower.
+
+**Write and run code.** Type ```` ``` ```` or choose *Code* in the **/** menu, then pick the language at the top of the block. Code is colored as you type (choose a color theme with the 🎨 button) and works like VS Code: `Tab` / `Shift+Tab` indent, `Ctrl+/` comments, `Alt+↑/↓` moves lines, and grey **AI suggestions** appear as you type (`Tab` accepts). For **Python, JavaScript, SQL and HTML**, click **▷ Run** (or press `Ctrl+Enter`): the output appears in a block right under the code, and HTML opens in a preview window. Code runs in your own browser, so it is private and free, and a run is stopped after 10 to 20 seconds in case of an endless loop. The first Python run downloads Python once (about 10 MB).
+
+<p align="center"><img src="docs/screenshots/code-run.png" alt="Python and SQL code blocks with their output under them" width="900" /></p>
 
 ### 8. Ask the AI
 
@@ -188,9 +200,11 @@ Choose where they go: **Email**, and **Notifications on this device** (click **T
   <img src="docs/screenshots/reminder-email.png" alt="A morning summary email" width="420" />
 </p>
 
-### 10. Choose your look
+### 10. Settings and your look
 
-Click **Appearance** at the bottom of the sidebar to pick a theme (System, Light, Dark, Paper or Midnight) and an accent color.
+Click **Settings** at the bottom of the sidebar (or press `Ctrl+,`). **Account** has your profile picture (click it to upload one), name, email, password, *sign out of other devices* and *delete account*. **Appearance** has the theme (System, Light, Dark, Paper or Midnight), accent color, font, text size, code colors and *reduce motion*. **Language & region**, **Notifications**, **Data & privacy** (export everything) and **About** (all keyboard shortcuts) are there too.
+
+<p align="center"><img src="docs/screenshots/settings.png" alt="Settings › Account with a profile picture" width="900" /></p>
 
 <p align="center"><img src="docs/screenshots/themes.png" alt="Dark theme with the Appearance menu open" width="900" /></p>
 
@@ -218,7 +232,13 @@ The installed app fills the whole screen on phones, follows your theme, and upda
 
 <p align="center"><img src="docs/screenshots/phone.png" alt="The app on a phone: dashboard, Ask AI and the menu" width="760" /></p>
 
-**App stores (in progress):** Android (Google Play) and Windows (Microsoft Store) packages have been built with [PWABuilder](https://www.pwabuilder.com) from this same web app. An iPhone App Store version needs a Mac to build.
+**App stores:** the Windows app passed **Microsoft Store** certification in November 2026 ([Store page](https://apps.microsoft.com/detail/9PJZX6KSS8TH)). An Android (Google Play) package has been built too. Both are made with [PWABuilder](https://www.pwabuilder.com) from this same web app, so they update whenever the website does. An iPhone App Store version needs a Mac to build.
+
+### 13. Undo a mistake with the Trash
+
+Deleting never loses your work right away. When you delete a course, task, study session, file, page or chat, a message says **Moved to Trash** with an **Undo** button. Later, click **Trash** at the bottom of the sidebar to search what you deleted and **Restore** it, or **Delete for good**. A deleted course comes back with its tasks, sessions and files. Things in the Trash are deleted for good after 30 days.
+
+<p align="center"><img src="docs/screenshots/trash.png" alt="The Trash window with restore buttons" width="900" /></p>
 
 ## How the AI works
 
@@ -242,7 +262,8 @@ Any OpenAI-compatible model works: [Groq](https://console.groq.com) (free, used 
 
 | Part | Technology |
 |---|---|
-| Front end | React 18, Vite, React Router, plain CSS, PDF.js for reading attached PDFs, [BlockNote](https://www.blocknotejs.org) (with Mantine) for the Notion-style notes editor |
+| Front end | React 18, Vite, React Router, plain CSS, PDF.js for reading attached PDFs, [BlockNote](https://www.blocknotejs.org) (with Mantine) for the Notion-style notes editor, Shiki for code colors |
+| Running code | [Pyodide](https://pyodide.org) (Python in WebAssembly), [sql.js](https://sql.js.org) (SQLite), web workers and a sandboxed iframe, all in the browser |
 | Back end | Node.js 22, Express 5, JSON Web Token login, bcrypt password hashing, Multer file uploads |
 | Database | MongoDB (MongoDB Atlas online), Mongoose |
 | AI | Any OpenAI-compatible chat API with tool calling (Groq online); a vision model for pictures |
