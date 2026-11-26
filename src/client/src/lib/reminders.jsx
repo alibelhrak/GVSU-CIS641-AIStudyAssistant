@@ -43,7 +43,7 @@ function deviceName() {
 function Switch({ on, onChange, label, disabled }) {
   return (
     <button type="button" role="switch" aria-checked={on} aria-label={label} disabled={disabled}
-      className={`switch ${on ? 'on' : ''}`} onClick={() => onChange(!on)}><span /></button>
+      className={`toggle ${on ? 'on' : ''}`} onClick={() => onChange(!on)}><span /></button>
   );
 }
 

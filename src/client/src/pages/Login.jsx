@@ -8,10 +8,10 @@ import '../landing.css';
 export default function Login() {
   const { authenticate } = useAuth();
   const { resolved, setTheme } = useTheme();
-  const { pathname } = useLocation();
+  const { pathname, state } = useLocation();
   const navigate = useNavigate();
   const mode = pathname === '/signup' ? 'register' : 'login';   // /signup shows "Create account"
-  const [form, setForm] = useState({ name: '', email: '', password: '' });
+  const [form, setForm] = useState({ name: '', email: state?.email || '', password: '' });
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
@@ -24,7 +24,8 @@ export default function Login() {
     try { await authenticate(mode, form); } catch (err) { setError(err.message); setBusy(false); }
   };
 
-  const switchMode = () => { setError(''); navigate(mode === 'login' ? '/signup' : '/login'); };
+  const switchMode = () => { setError(''); navigate(mode === 'login' ? '/signup' : '/login', { state: { email: form.email } }); };
+  const exists = mode === 'register' && /already exists/i.test(error);
 
   return (
     <div className="login">
@@ -53,8 +54,17 @@ export default function Login() {
             placeholder="At least 8 characters" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} /></label>
         </div>
 
-        {error && <p className="error" role="alert">{error}</p>}
         {mode === 'login' && <Link className="linklike" to="/forgot-password" style={{ justifySelf: 'end', fontSize: '.85rem', marginTop: -6 }}>Forgot password?</Link>}
+        {error && (exists ? (
+          <div className="error-box" role="alert">
+            <b>You already have an account with this email.</b>
+            <span>
+              <button className="linklike" type="button" onClick={switchMode}>Sign in instead</button>
+              {' · '}
+              <Link className="linklike" to="/forgot-password" state={{ email: form.email }}>Forgot your password?</Link>
+            </span>
+          </div>
+        ) : <p className="error" role="alert">{error}</p>)}
         <button className="btn primary block" type="submit" disabled={busy}>
           {busy ? <span className="spinner" aria-label="Please wait" /> : mode === 'login' ? 'Sign in' : 'Create account'}
         </button>

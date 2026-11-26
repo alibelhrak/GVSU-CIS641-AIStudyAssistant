@@ -12,12 +12,12 @@ import '../landing.css';
  */
 export default function ForgotPassword() {
   const { authenticate } = useAuth();
-  const { pathname, search } = useLocation();
+  const { pathname, search, state } = useLocation();
   const navigate = useNavigate();
   const token = new URLSearchParams(search).get('token') || '';
   const resetting = pathname === '/reset-password';
 
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(state?.email || '');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [sent, setSent] = useState(false);
