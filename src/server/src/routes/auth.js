@@ -66,9 +66,14 @@ r.post('/forgot', h(async (req, res) => {
   <p style="font-size:13px;color:#666">If this was not you, you can ignore this email. Your password will not change.</p>
 </div>`,
       });
+      console.log('Password reset email handed to Brevo for', user.email);
     } catch (err) {
       console.error('Password reset email failed:', err.message);
     }
+  } else if (user) {
+    console.log('Password reset skipped: a link was already sent less than a minute ago');
+  } else {
+    console.log('Password reset asked for an email with no account:', email);
   }
   res.json({ ok: true, message: 'If an account uses that email, a reset link is on its way.' });
 }));
