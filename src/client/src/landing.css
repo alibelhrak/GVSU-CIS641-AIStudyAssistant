@@ -20,6 +20,27 @@
 .lp-links a{color:var(--muted);text-decoration:none;font-weight:500;padding:6px 12px;border-radius:8px;font-size:.92rem;transition:background-color .15s,color .15s}
 .lp-links a:hover{background:var(--hover);color:var(--fg)}
 .lp-cta{margin-left:auto;display:flex;align-items:center;gap:8px}
+/* Nothing in the top bar may wrap onto two lines; things hide step by step instead */
+.lp-nav .lp-wrap{max-width:1280px}
+.lp-brand,.lp-links a,.lp-cta .btn{white-space:nowrap}
+.lp-brand,.lp-cta,.lp-cta>*{flex:none}
+.lp-links{flex:1 1 auto;min-width:0;overflow:hidden}
+.lp-links a{flex:none}
+.lp-links a[hidden]{display:none}
+.lp-cta .btn{height:36px;min-height:36px;padding:0 14px;font-size:.9rem}
+.lp-cta .install-btn svg{flex:none}
+@media (max-width:1240px){
+  .lp-cta .install-btn{width:36px;padding:0;justify-content:center}
+  .lp-cta .install-btn span{display:none}
+}
+@media (max-width:1100px){ .lp-links{display:none} }
+@media (max-width:560px){
+  .lp-brand{font-size:.95rem}
+  .lp-cta{gap:6px}
+  .lang-btn .lang-name{display:none}
+  .lang-btn{padding:0 8px;gap:4px}
+}
+@media (max-width:420px){ .lp-brand{font-size:0;gap:0} }
 .btn.lg{padding:12px 20px;font-size:1rem;border-radius:10px;min-height:46px}
 .btn.lg svg{transition:transform .2s var(--ease)}
 .btn.lg:hover svg{transform:translateX(3px)}

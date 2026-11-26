@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Icon } from '../icons.jsx';
 import '../landing.css';
@@ -223,7 +223,33 @@ const STEPS = [
   { n: '4', who: 'You', title: 'Accept or dismiss', text: 'Accepting puts the sessions straight into your schedule.', code: 'one click' },
 ];
 
+/** Top-bar links: show as many as fit (in order), never squeeze or cut one. Re-checks when the width or the words change. */
+function useFitLinks() {
+  const ref = useRef(null);
+  useEffect(() => {
+    const nav = ref.current;
+    if (!nav) return undefined;
+    let frame = 0;
+    const fit = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const links = [...nav.children];
+        links.forEach((a) => { a.hidden = false; });
+        for (let i = links.length - 1; i >= 0 && nav.scrollWidth > nav.clientWidth + 1; i -= 1) links[i].hidden = true;
+      });
+    };
+    const ro = new ResizeObserver(fit);
+    ro.observe(nav.parentElement);
+    const mo = new MutationObserver(fit);
+    mo.observe(nav, { subtree: true, characterData: true, childList: true });
+    fit();
+    return () => { ro.disconnect(); mo.disconnect(); cancelAnimationFrame(frame); };
+  }, []);
+  return ref;
+}
+
 export default function Landing() {
+  const linksRef = useFitLinks();
   useReveal();
   const { theme, setTheme, resolved } = useTheme();
   const [scrolled, setScrolled] = useState(false);
@@ -241,7 +267,7 @@ export default function Landing() {
       <header className={`lp-nav ${scrolled ? 'scrolled' : ''}`}>
         <div className="lp-wrap lp-nav-in">
           <a className="lp-brand" href="#top"><img src="/logo.png" alt="" width={30} height={30} style={{ display: 'block' }} />Study Assistant</a>
-          <nav className="lp-links">
+          <nav className="lp-links" ref={linksRef}>
             <a href="#features">Features</a>
             <a href="#ask-ai">Ask AI</a>
             <a href="#notes">Notes</a>
@@ -249,7 +275,7 @@ export default function Landing() {
             <a href="#themes">Themes</a>
           </nav>
           <div className="lp-cta">
-            <LanguageSelect compact />
+            <LanguageSelect />
             <button className="icon-btn" type="button" onClick={() => setTheme(isDark ? 'light' : 'dark')}
               aria-label={isDark ? 'Switch to light theme' : 'Switch to dark theme'}><Icon name={isDark ? 'sun' : 'moon'} /></button>
             <InstallButton />

@@ -8,7 +8,7 @@
  *
  * The choice is saved in this browser and on the account, so emails and the AI use it too.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Icon } from '../icons.jsx';
 
 export const LANGS = [
@@ -181,16 +181,89 @@ export function useLang() {
   return { lang, setLang, locale: locale(), rtl: langInfo().dir === 'rtl' };
 }
 
-/** A small language menu (globe icon + names in their own language) */
-export function LanguageSelect({ compact = false }) {
+/** Each language's name in the language the app is shown in ("French", "Französisch"...) */
+function localName(code) {
+  try { return new Intl.DisplayNames([locale()], { type: 'language' }).of(code); } catch { return ''; }
+}
+
+/**
+ * The language picker: a button that opens a small menu of the six languages.
+ *   variant="pill"  globe + current language, for the welcome and sign-in pages
+ *   variant="side"  a sidebar row "Language · English" that opens upward
+ */
+export function LanguageSelect({ variant = 'pill' }) {
   const { lang: current } = useLang();
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(null);
+  const box = useRef(null);
+  const trigger = useRef(null);
+  const items = useRef([]);
+  const info = LANGS.find((l) => l.code === current) || LANGS[0];
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const outside = (e) => { if (!box.current?.contains(e.target)) setOpen(false); };
+    const keys = (e) => {
+      if (e.key === 'Escape') { setOpen(false); trigger.current?.focus(); return; }
+      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End') return;
+      e.preventDefault();
+      const list = items.current.filter(Boolean);
+      const at = list.indexOf(document.activeElement);
+      const next = e.key === 'Home' ? 0 : e.key === 'End' ? list.length - 1
+        : (at + (e.key === 'ArrowDown' ? 1 : -1) + list.length) % list.length;
+      list[next]?.focus();
+    };
+    document.addEventListener('pointerdown', outside);
+    document.addEventListener('keydown', keys);
+    // Focus the current language when the menu opens
+    requestAnimationFrame(() => items.current[LANGS.findIndex((l) => l.code === current)]?.focus());
+    return () => { document.removeEventListener('pointerdown', outside); document.removeEventListener('keydown', keys); };
+  }, [open, current]);
+
+  const choose = async (code) => {
+    if (code === current) { setOpen(false); return; }
+    setBusy(code);
+    await setLang(code);
+  };
+
   return (
-    <label className={`lang-select ${compact ? 'compact' : ''}`} title={t('Language')} data-no-translate>
-      <Icon name="globe" size={16} />
-      {!compact && <span className="sr-only">{t('Language')}</span>}
-      <select value={current} onChange={(e) => setLang(e.target.value)} aria-label={t('Language')}>
-        {LANGS.map((l) => <option key={l.code} value={l.code}>{l.native}</option>)}
-      </select>
-    </label>
+    <div className={`lang-menu lang-${variant} ${open ? 'open' : ''}`} ref={box}>
+      {variant === 'side' ? (
+        <button ref={trigger} type="button" className="side-link" onClick={() => setOpen((o) => !o)}
+          aria-haspopup="menu" aria-expanded={open}>
+          <Icon name="globe" /><span>Language</span>
+          <span className="lang-current" data-no-translate>{info.native}</span>
+        </button>
+      ) : (
+        <button ref={trigger} type="button" className="lang-btn" onClick={() => setOpen((o) => !o)}
+          aria-haspopup="menu" aria-expanded={open} aria-label={`${t('Language')}: ${info.native}`} title={t('Language')}>
+          <Icon name="globe" size={16} />
+          <span className="lang-name" data-no-translate>{info.native}</span>
+          <Icon name="chevronDown" size={14} className="lang-caret" />
+        </button>
+      )}
+      {open && (
+        <div className="lang-pop" role="menu" aria-label={t('Language')} data-no-translate>
+          <p className="lang-pop-title">{t('Language')}</p>
+          {LANGS.map((l, i) => {
+            const sub = localName(l.code);
+            const on = l.code === current;
+            return (
+              <button key={l.code} ref={(el) => { items.current[i] = el; }} type="button" role="menuitemradio" aria-checked={on}
+                className={`lang-item ${on ? 'on' : ''}`} onClick={() => choose(l.code)} disabled={Boolean(busy)}
+                style={{ '--i': i }}>
+                <span className="lang-code">{l.code.toUpperCase()}</span>
+                <span className="lang-text">
+                  <b lang={l.code} dir={l.dir || 'ltr'}>{l.native}</b>
+                  {sub && sub.toLowerCase() !== l.native.toLowerCase() && <small>{sub}</small>}
+                </span>
+                {busy === l.code ? <span className="lang-spin" aria-hidden="true" />
+                  : on && <Icon name="tick" size={16} className="lang-tick" />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }

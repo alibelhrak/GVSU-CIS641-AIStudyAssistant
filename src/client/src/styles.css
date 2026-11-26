@@ -456,13 +456,41 @@ input[type=checkbox]:checked::after{transform:rotate(45deg) scale(1)}
 @media (max-width:600px){.install-overlay:has(.rem-card){align-items:end;padding:0}.rem-card{border-radius:18px 18px 0 0;max-height:92dvh;padding-bottom:calc(22px + env(safe-area-inset-bottom))}}
 
 /* ---------- Language menu ---------- */
-.lang-select{position:relative;display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 10px;border:1px solid var(--line);border-radius:10px;
-  background:var(--surface);color:var(--muted);cursor:pointer;transition:border-color .15s,color .15s}
-.lang-select:hover{border-color:var(--line-strong);color:var(--fg)}
-.lang-select select{appearance:none;-webkit-appearance:none;border:0;background:none;padding:0 2px;min-height:0;width:auto;font:inherit;font-size:.86rem;color:var(--fg);cursor:pointer;box-shadow:none !important}
-.lang-select.compact select{max-width:88px}
-.theme-menu .lang-select{width:100%}
-.theme-menu .lang-select select{flex:1}
+.lang-menu{position:relative}
+.lang-btn{display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 10px 0 11px;border:1px solid var(--line);border-radius:10px;
+  background:var(--surface);color:var(--muted);font:inherit;font-size:.88rem;font-weight:600;white-space:nowrap;cursor:pointer;
+  transition:border-color .15s,color .15s,background-color .15s,box-shadow .15s}
+.lang-btn:hover,.lang-menu.open .lang-btn{border-color:var(--line-strong);color:var(--fg);background:var(--hover)}
+.lang-btn:focus-visible{outline:none;box-shadow:0 0 0 3px var(--accent-soft);border-color:var(--accent)}
+.lang-name{color:var(--fg)}
+.lang-caret{opacity:.6;transition:transform .2s var(--ease)}
+.lang-menu.open .lang-caret{transform:rotate(180deg)}
+.lang-current{margin-inline-start:auto;font-size:.8rem;color:var(--faint);font-weight:500}
+
+.lang-pop{position:absolute;top:calc(100% + 8px);inset-inline-end:0;width:244px;padding:6px;z-index:60;
+  background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow-lg);
+  display:grid;gap:2px;transform-origin:top right;animation:lang-in .18s var(--ease)}
+[dir="rtl"] .lang-pop{transform-origin:top left}
+.lang-side .lang-pop{top:auto;bottom:calc(100% + 6px);inset-inline:0;width:auto;transform-origin:bottom center}
+.lang-pop-title{margin:4px 8px 6px;font-size:.7rem;font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:.07em}
+.lang-item{display:flex;align-items:center;gap:11px;width:100%;padding:7px 9px;border:0;border-radius:9px;background:none;color:var(--fg);
+  font:inherit;text-align:start;cursor:pointer;transition:background-color .12s;animation:lang-item .22s var(--ease) both;animation-delay:calc(var(--i) * 18ms)}
+.lang-item:hover,.lang-item:focus-visible{background:var(--hover);outline:none}
+.lang-item:disabled{cursor:default}
+.lang-item.on{background:var(--accent-soft)}
+.lang-code{flex:none;display:grid;place-items:center;width:30px;height:24px;border-radius:7px;border:1px solid var(--line);background:var(--bg);
+  font-size:.66rem;font-weight:700;letter-spacing:.04em;color:var(--muted);direction:ltr}
+.lang-item.on .lang-code{background:var(--accent);border-color:var(--accent);color:#fff}
+.lang-text{flex:1;min-width:0;display:grid;line-height:1.25}
+.lang-text b{font-size:.92rem;font-weight:600;unicode-bidi:isolate;text-align:start;justify-self:start}
+.lang-text small{justify-self:start}
+.lang-text small{font-size:.75rem;color:var(--faint)}
+.lang-tick{flex:none;color:var(--accent)}
+.lang-spin{flex:none;width:15px;height:15px;border-radius:50%;border:2px solid var(--accent-soft);border-top-color:var(--accent);animation:spin .7s linear infinite}
+@keyframes lang-in{from{opacity:0;transform:translateY(-4px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes lang-item{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+@media (max-width:560px){.lang-pill .lang-pop{position:fixed;top:62px;inset-inline:12px;width:auto}}
+@media (prefers-reduced-motion:reduce){.lang-pop,.lang-item{animation:none}}
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .login-lang{position:absolute;top:18px;right:66px;z-index:2}
 

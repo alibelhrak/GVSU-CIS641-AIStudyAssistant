@@ -77,8 +77,6 @@ function ThemeMenu({ onClose }) {
           </button>
         ))}
       </div>
-      <p className="menu-label">Language</p>
-      <LanguageSelect />
       <p className="menu-label">Accent</p>
       <div className="accent-row">
         {ACCENTS.map((a) => (
@@ -133,6 +131,7 @@ function Sidebar({ onNavigate }) {
         {menu && <ThemeMenu onClose={() => setMenu(false)} />}
         <InstallButton variant="side" />
         <button className="side-link" type="button" onClick={() => setReminders(true)}><Icon name="bell" /><span>Reminders</span></button>
+        <LanguageSelect variant="side" />
         <button className="side-link" type="button" onClick={() => setMenu((m) => !m)} aria-expanded={menu}>
           <Icon name="palette" /><span>Appearance</span>
         </button>

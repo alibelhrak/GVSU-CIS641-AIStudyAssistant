@@ -32,7 +32,7 @@ export default function Login() {
     <div className="login">
       <div className="blob b1" /><div className="blob b2" /><div className="blob b3" />
       <Link className="back-home" to="/"><Icon name="back" size={16} /> Home</Link>
-      <div className="login-lang"><LanguageSelect compact /></div>
+      <div className="login-lang"><LanguageSelect /></div>
       <button className="icon-btn login-theme" type="button" onClick={() => setTheme(isDark ? 'light' : 'dark')}
         aria-label={isDark ? 'Switch to light theme' : 'Switch to dark theme'}>
         <Icon name={isDark ? 'sun' : 'moon'} />
