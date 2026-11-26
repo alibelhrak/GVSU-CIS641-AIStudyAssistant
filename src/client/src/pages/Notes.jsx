@@ -13,6 +13,7 @@ import { useData } from '../lib/store.jsx';
 import { useTheme } from '../lib/theme.jsx';
 import { Icon } from '../icons.jsx';
 import { NoteAI, WRITE_ACTIONS, aiContext } from './NoteAI.jsx';
+import { NotesChat } from './NotesChat.jsx';
 import '../notes.css';
 
 /*
@@ -21,6 +22,7 @@ import '../notes.css';
  * drag handles and a formatting toolbar. Pages can hold sub-pages, have an emoji and a course tag,
  * and save by themselves while you type.
  * AI works inside the page too (see NoteAI.jsx): select text, type /ai, or press Ctrl+J.
+ * "Ask AI" opens a chat panel next to the page that can read and edit it (see NotesChat.jsx).
  */
 
 const EMOJIS = ['📘', '📗', '📕', '📙', '📓', '📒', '📝', '📄', '📚', '🧠', '💡', '🎯', '✅', '⭐', '🔥', '📌',
@@ -87,12 +89,6 @@ const COVERS = {
   graphite: { label: 'Graphite', bg: 'linear-gradient(135deg,#232526,#414345)' },
 };
 
-const CHAT_ACTIONS = [
-  { label: 'Summarize this note', prompt: 'Summarize my note in a few bullet points, then list the 3 most important things to remember.' },
-  { label: 'Quiz me on it', prompt: 'Quiz me on my note. Ask 5 questions one at a time and tell me if my answer is right.' },
-  { label: 'Explain it simply', prompt: 'Explain the ideas in my note simply, with an example for each.' },
-  { label: 'Make a study plan', prompt: 'Using my note and my deadlines, plan study sessions to learn this material. Add them to my schedule.' },
-];
 
 const wide = () => typeof window !== 'undefined' && window.innerWidth > 900;
 const titleOf = (n) => n?.title?.trim() || 'Untitled';
@@ -436,10 +432,15 @@ export default function Notes() {
   const [q, setQ] = useState('');
   const [results, setResults] = useState(null);
   const [emojiOpen, setEmojiOpen] = useState(false);
-  const [aiOpen, setAiOpen] = useState(false);
   const [delOpen, setDelOpen] = useState(false);
   const [ai, setAi] = useState(null);
   const [coverOpen, setCoverOpen] = useState(false);
+  const [chatOpen, setChatOpenState] = useState(() => { try { return localStorage.getItem('notes-ai-open') === '1' && wide(); } catch { return false; } });
+  const setChatOpen = (fn) => setChatOpenState((v) => {
+    const next = typeof fn === 'function' ? fn(v) : fn;
+    try { localStorage.setItem('notes-ai-open', next ? '1' : '0'); } catch { /* ignore */ }
+    return next;
+  });
   const [entering, setEntering] = useState(false);    // blocks fade in one after another when a page opens                 // the AI writer: { ctx, start, key }
 
   const editorRef = useRef(null);
@@ -481,7 +482,7 @@ export default function Notes() {
 
   useEffect(() => {
     flush();
-    setEmojiOpen(false); setAiOpen(false); setDelOpen(false); setStatus(''); setAi(null); setCoverOpen(false);
+    setEmojiOpen(false); setDelOpen(false); setStatus(''); setAi(null); setCoverOpen(false);
     editorRef.current = null;
     if (!id) { setCurrent(null); return; }
     setLoadingNote(true);
@@ -566,19 +567,12 @@ export default function Notes() {
     queue(current.id, patch, now);
   };
 
-  const askAi = (prompt) => {
-    setAiOpen(false);
-    const editor = editorRef.current;
-    const markdown = editor ? editor.blocksToMarkdownLossy(editor.document) : '';
-    flush();
-    navigate('/chat', { state: { note: { name: `${titleOf(current)}.md`, text: `# ${titleOf(current)}\n\n${markdown}`.slice(0, 16000), prompt } } });
-  };
 
   /** Opens the AI writer. selection: use the selected text; start: run an action straight away */
   const openAi = ({ selection = false, start = null, end = false } = {}) => {
     const editor = editorRef.current;
     if (!editor) return;
-    setAiOpen(false);
+
     const ctx = end ? { blocks: [], selection: '', anchor: null } : aiContext(editor, { useSelection: selection || !start });
     setAi({ ctx, start, key: Date.now() });
   };
@@ -698,23 +692,10 @@ export default function Notes() {
                 aria-label={current.favorite ? 'Remove from favorites' : 'Add to favorites'} title={current.favorite ? 'Remove from favorites' : 'Add to favorites'}>
                 <Icon name="star" size={17} />
               </button>
-              <div className="pop-wrap">
-                <button className="btn sm ai-btn" type="button" onClick={() => setAiOpen((v) => !v)} aria-expanded={aiOpen}>
-                  <img src="/logo.png" alt="" width={16} height={16} /> Ask AI
-                </button>
-                {aiOpen && (
-                  <div className="pop-menu" role="menu">
-                    <p className="pop-label">Write in this page</p>
-                    <button type="button" role="menuitem" onClick={() => openAi({ end: true })}>✨ Ask AI to write… <kbd>Ctrl J</kbd></button>
-                    {WRITE_ACTIONS.slice(1, 5).map((a) => (
-                      <button key={a.id} type="button" role="menuitem" onClick={() => openAi({ end: true, start: { action: a.id } })}>{a.icon} {a.label}</button>
-                    ))}
-                    <p className="pop-label">Chat about this note</p>
-                    {CHAT_ACTIONS.map((a) => <button key={a.label} type="button" role="menuitem" onClick={() => askAi(a.prompt)}>{a.label}</button>)}
-                    <button type="button" role="menuitem" onClick={() => askAi('')}>Ask anything about it…</button>
-                  </div>
-                )}
-              </div>
+              <button className={`btn sm ai-btn ${chatOpen ? 'on' : ''}`} type="button" onClick={() => setChatOpen((v) => !v)} aria-pressed={chatOpen}
+                title="Chat with AI about this page. It can edit the page for you.">
+                <img src="/logo.png" alt="" width={16} height={16} /> Ask AI
+              </button>
               <div className="pop-wrap">
                 <button className="icon-btn" type="button" onClick={() => setDelOpen((v) => !v)} aria-label="Delete page" title="Delete page"><Icon name="trash" size={16} /></button>
                 {delOpen && (
@@ -809,6 +790,9 @@ export default function Notes() {
           )}
         </div>
       </div>
+      {chatOpen && current && (
+        <NotesChat note={current} getEditor={() => editorRef.current} notify={notify} onClose={() => setChatOpen(false)} />
+      )}
     </div>
   );
 }

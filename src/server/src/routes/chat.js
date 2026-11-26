@@ -137,7 +137,7 @@ STUDENT DATA
 `;
 
 /** Keep only well-formed attachments, within the size limits. */
-function cleanAttachments(list) {
+export function cleanAttachments(list) {
   if (!Array.isArray(list)) return [];
   let chars = 0;
   let images = 0;
@@ -160,7 +160,7 @@ function cleanAttachments(list) {
 }
 
 /** One chat message in the format the AI API expects. */
-function toApiMessage(m, withFiles) {
+export function toApiMessage(m, withFiles) {
   if (m.role !== 'user' || !m.attachments.length) return { role: m.role, content: m.content };
   const files = m.attachments.map((a) => {
     if (withFiles && a.type === 'text') {

@@ -8,10 +8,11 @@
  */
 import { Router } from 'express';
 import mongoose from 'mongoose';
-import { Note, Course } from '../models/index.js';
+import { Note, Course, Feedback } from '../models/index.js';
 import { h, HttpError } from '../middleware/error.js';
 import { config, chatEnabled } from '../config.js';
 import { thinkFilter } from './chat.js';
+import notesChat from './notesChat.js';
 
 const r = Router();
 const MAX_CONTENT = 3_000_000;          // characters of editor data per note (pictures included)
@@ -193,6 +194,18 @@ r.post('/ai', h(async (req, res) => {
     clearTimeout(timer);
     res.end();
   }
+}));
+
+// The AI chat panel next to a note (see notesChat.js)
+r.post('/chat', h(notesChat));
+
+// Thumbs up / down on an AI answer
+r.post('/feedback', h(async (req, res) => {
+  const b = req.body || {};
+  if (b.rating !== 'up' && b.rating !== 'down') throw new HttpError(400, 'Rating must be up or down');
+  await Feedback.create({ user: req.userId, where: 'notes-ai', rating: b.rating,
+    prompt: String(b.prompt || '').slice(0, 2000), answer: String(b.answer || '').slice(0, 4000) });
+  res.status(201).json({ ok: true });
 }));
 
 // Search titles and text

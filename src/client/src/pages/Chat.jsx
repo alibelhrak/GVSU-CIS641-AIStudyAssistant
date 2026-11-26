@@ -15,7 +15,7 @@ const SUGGESTIONS = [
 ];
 
 // ---------- Limits for attachments (the server checks them again) ----------
-const MAX_FILES = 5;
+export const MAX_FILES = 5;
 const MAX_IMAGES = 3;
 const MAX_TEXT = 16000;                 // characters of text taken from one message's files
 const MAX_FILE_MB = 20;
@@ -107,7 +107,7 @@ async function shrinkImage(file) {
   return canvas.toDataURL('image/jpeg', 0.85);
 }
 
-async function readFile(file, imagesSoFar) {
+export async function readFile(file, imagesSoFar) {
   if (file.size > MAX_FILE_MB * 1048576) throw new Error(`${file.name} is larger than ${MAX_FILE_MB} MB`);
   const base = { id: nextId++, name: file.name || 'pasted image', size: file.size };
   if (/^image\/(png|jpe?g|webp|gif)$/.test(file.type)) {
@@ -200,7 +200,7 @@ function groupOf(when) {
 }
 const wide = () => typeof window !== 'undefined' && window.innerWidth > 900;
 
-function AttachmentChip({ a, onRemove }) {
+export function AttachmentChip({ a, onRemove }) {
   return (
     <div className={`att ${a.type === 'image' ? 'att-img' : ''}`} title={a.name}>
       {a.type === 'image'

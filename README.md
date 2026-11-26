@@ -37,6 +37,7 @@ Built for **CIS 641 (Software Engineering)** at Grand Valley State University.
 | **Study Schedule** | Plan study sessions on a weekly calendar and tick them off; deadlines show in red |
 | **Materials** | Upload files (PDFs, slides, notes, up to 20 MB) or save links for each course |
 | **Notes** | Notion-style pages with sub-pages, emoji icons, covers (gradients or your own picture), favorites, course tags and search. Type **/** for headings, lists, to-dos, tables, code, quotes and pictures. Saves while you type |
+| **Notes AI chat** | An **Ask AI** panel next to every page, like Notion AI: ask about the page, attach files or pictures, or ask it to fix, rewrite or add to the page. Each change is listed as a step, highlighted in the page, and can be undone in one click. Answers have Copy, Add to page, 👍 / 👎 and Undo |
 | **AI in your notes** | Select text or press **Ctrl+J** to have AI improve, shorten, explain, translate or turn it into a table; or type **/** for Continue writing, Summarize, Key takeaways, Practice quiz and Flashcards. Every answer is a preview first: **Replace**, **Insert**, **Try again** or **Discard** |
 | **AI recommendations** | Advice on what to study next, with a session plan the student can **accept** (added to the schedule) or **dismiss** |
 | **Ask AI** | Chat with an AI study coach that sees the student's courses, deadlines and hours. It explains, plans and quizzes, and it can **add courses, exams, assignments and study sessions** for the student, each with an **Undo** button |
@@ -116,7 +117,9 @@ Go to **Notes** and pick a template (Lecture notes, Study guide, Assignment plan
 
 <p align="center"><img src="docs/screenshots/notes-ai.png" alt="AI explaining a selected sentence, with Replace, Insert, Try again and Discard" width="900" /></p>
 
-On a phone, the **Ask AI** button at the top of a page has the same actions: write in the page (summary, takeaways, quiz, flashcards) or chat about the note.
+**Chat with the AI next to your page.** Click **Ask AI** at the top of a note to open the **Notes AI** panel. It reads the page (the page chip in the message box; click it to leave the page out), and you can attach files or pictures with **+** or by dropping them on the panel. Ask a question, or ask it to change the page, for example *"Fix the spelling and formatting everywhere"* or *"Add a practice quiz at the end"*. The changes appear in the page right away and are highlighted; click **N steps** to see each one, **Show changes** to see before and after, and **Undo** to put the page back. Under each answer: **Copy**, **+** (add the answer to the page), 👍 / 👎 and **Undo**.
+
+<p align="center"><img src="docs/screenshots/notes-chat.png" alt="The Notes AI panel after editing the page, with steps, Show changes and Undo" width="900" /></p>
 
 ### 8. Ask the AI
 

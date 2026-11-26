@@ -79,6 +79,8 @@ All routes start with `/api`. Every route except `/auth/*` and `/health` needs t
 | `POST /chat` | Ask AI: sends the conversation (with attached file text and pictures) and streams the answer back, one JSON object per line: `text` pieces and `action` cards. The AI can call tools to add courses, tasks and study sessions, log time, update tasks, and search, read, write or add to notes |
 | `/notes` | Notes: list without content (`GET`), `GET /notes/search?q=`, open (`GET /:id`), create (`POST`), save (`PATCH /:id`: title, icon, cover, coverY, favorite, parent, course, content) and delete (`DELETE /:id`, also deletes its sub-pages) |
 | `POST /notes/ai` | AI inside a note: sends `{ action, prompt, selection, page, title, language }` and streams back Markdown as plain text. Actions: improve, fix, shorter, longer, simplify, professional, explain, bullets, table, translate, continue, summary, takeaways, quiz, flashcards, todos, outline, brainstorm |
+| `POST /notes/chat` | The Notes AI panel: sends `{ title, blocks: [{ id, md }], messages }` and streams back one JSON object per line: `text`, `edit` (a change for the browser to apply: edit, insert, delete a block, or rewrite the page) and `error` |
+| `POST /notes/feedback` | Saves a 👍 or 👎 on an AI answer (`{ rating, prompt, answer }`) in the Feedback collection |
 | `/conversations` | Chat history: list (`GET`), open (`GET /:id`), save (`POST`, `PATCH /:id`) and delete (`DELETE /:id`) |
 
 ## Project structure
@@ -91,8 +93,8 @@ src/
     src/index.js           start-up: connects to MongoDB, starts the server
     src/app.js             routes; also serves the built app online
     src/config.js          reads the settings above
-    src/models/            Mongoose models: User, Course, Task, StudySession, StudyLog, Material, Recommendation, Conversation, Note
-    src/routes/            auth, courses, tasks, sessions, logs, materials, recommendations, chat, conversations, notes (and the notes AI)
+    src/models/            Mongoose models: User, Course, Task, StudySession, StudyLog, Material, Recommendation, Conversation, Note, Feedback
+    src/routes/            auth, courses, tasks, sessions, logs, materials, recommendations, chat, conversations, notes (and the notes AI), notesChat (the Notes AI panel)
     src/services/recommendationEngine.js   rules: study gap, ranking, session plan
     src/services/llm.js    recommendation text from the model, with rule-based fallback
     src/services/chatTools.js  the actions Ask AI can take (checked and limited to the student's own data)
@@ -102,7 +104,7 @@ src/
     public/                logo, app icons, manifest.webmanifest, sw.js (installable app)
     public/.well-known/assetlinks.json   proves to Android that the Google Play app and this website belong together
     src/App.jsx            sidebar, pages and routes
-    src/pages/             Landing, Login, ForgotPassword, Dashboard, Courses, Tasks, Schedule, Materials, Notes, NoteAI (AI inside notes), Chat (Ask AI)
+    src/pages/             Landing, Login, ForgotPassword, Dashboard, Courses, Tasks, Schedule, Materials, Notes, NoteAI (AI inside notes), NotesChat (the Notes AI panel), Chat (Ask AI)
     src/lib/               api helper, login state, data store, themes, dates, install.jsx (Download app button)
     src/styles.css         design, the four themes and the scrollbars
     src/notes.css          the notes page, the / menu, covers and their animations

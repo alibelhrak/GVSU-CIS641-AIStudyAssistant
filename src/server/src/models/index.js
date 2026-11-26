@@ -126,3 +126,12 @@ export const Note = model('Note', new Schema({
   markdown: { type: String, default: '' },   // a note written by Ask AI; the editor turns it into blocks when first opened
 }, opts));
 
+
+/** Thumbs up / down on an AI answer, so the team can see what works */
+export const Feedback = model('Feedback', new Schema({
+  user: ref('User'),
+  where: { type: String, default: 'notes-ai', maxlength: 30 },
+  rating: { type: String, enum: ['up', 'down'], required: true },
+  prompt: { type: String, default: '', maxlength: 2000 },
+  answer: { type: String, default: '', maxlength: 4000 },
+}, opts));
