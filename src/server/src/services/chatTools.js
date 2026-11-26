@@ -30,7 +30,7 @@ export const TOOLS = [
         properties: {
           code: { type: 'string', description: 'Short course code, for example "CIS 641"' },
           name: { type: 'string', description: 'Course name, for example "Software Engineering"' },
-          weeklyGoalHours: { type: 'number', description: 'Hours the student wants to study each week (default 5)' },
+          weeklyGoalHours: { type: 'number', description: 'Hours the student wants to study each week (default 5). Use 0 for no weekly goal.' },
         },
         required: ['code', 'name'],
       },
@@ -219,12 +219,12 @@ const RUN = {
     if (same) return { result: { ok: true, note: 'This course already exists, nothing was added.', course: `${same.code} ${same.name}` } };
     const doc = await Course.create({
       user: userId, code, name,
-      weeklyGoalHours: hours(a.weeklyGoalHours, { min: 0, max: 80, fallback: 5 }),
+      weeklyGoalHours: hours(a.weeklyGoalHours, { min: 0, max: 80, fallback: 5 }) || null,   // 0 = no goal
       color: PALETTE[existing.length % PALETTE.length],
     });
     return {
       result: { ok: true, added: `course ${doc.code} ${doc.name}` },
-      action: { icon: 'book', title: 'Added course', detail: `${doc.code} · ${doc.name} · goal ${doc.weeklyGoalHours} h/week`,
+      action: { icon: 'book', title: 'Added course', detail: `${doc.code} · ${doc.name} · ${doc.weeklyGoalHours ? `goal ${doc.weeklyGoalHours} h/week` : 'no weekly goal'}`,
         page: '/courses', undo: { method: 'DELETE', path: `/courses/${doc.id}` } },
     };
   },

@@ -3,7 +3,8 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { User, Course, Task, StudySession, StudyLog, Material, Recommendation, Conversation, Note, Feedback, PushSub, ReminderLog } from '../models/index.js';
+import { User, Course, Task, StudySession, StudyLog, Material, Recommendation, Conversation, Note, Folder, Feedback, PushSub, ReminderLog } from '../models/index.js';
+import { deleteForever } from '../services/trash.js';
 import { config } from '../config.js';
 import { h, HttpError } from '../middleware/error.js';
 import { requireAuth, signToken, forgetSessions } from '../middleware/auth.js';
@@ -250,7 +251,7 @@ const PREF_VALUES = {
   codeTheme: ['auto', 'github-dark', 'github-light', 'dracula', 'monokai', 'one-dark-pro', 'one-light', 'tokyo-night', 'nord', 'catppuccin-mocha', 'catppuccin-latte', 'night-owl', 'solarized-dark', 'solarized-light', 'rose-pine', 'ayu-dark'],
 };
 r.patch('/me', requireAuth, h(async (req, res) => {
-  const { language, name, prefs } = req.body || {};
+  const { language, name, prefs, avatar } = req.body || {};
   const set = {};
   if (language !== undefined) {
     if (!isLang(language)) throw new HttpError(400, 'Unknown language');
@@ -260,6 +261,13 @@ r.patch('/me', requireAuth, h(async (req, res) => {
     const clean = typeof name === 'string' ? name.replace(/\s+/g, ' ').trim() : '';
     if (!clean || clean.length > 80) throw new HttpError(400, 'Enter a name (up to 80 characters)');
     set.name = clean;
+  }
+  if (avatar !== undefined) {
+    // A small square picture made in the browser (about 256 px), or '' to remove it
+    const ok = avatar === '' || (typeof avatar === 'string' && avatar.length <= 120_000
+      && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/.test(avatar));
+    if (!ok) throw new HttpError(400, 'That picture is too big or not a picture. Try a JPG or PNG.');
+    set.avatar = avatar;
   }
   if (prefs !== undefined) {
     if (!prefs || typeof prefs !== 'object') throw new HttpError(400, 'Invalid preferences');
@@ -361,14 +369,14 @@ r.get('/me/export', requireAuth, h(async (req, res) => {
   const user = await User.findById(req.userId);
   if (!user) throw new HttpError(401, 'Account not found');
   const mine = { user: user._id };
-  const [courses, tasks, sessions, logs, materials, notes, conversations, recommendations] = await Promise.all(
-    [Course, Task, StudySession, StudyLog, Material, Note, Conversation, Recommendation].map((M) => M.find(mine)),
+  const [courses, tasks, sessions, logs, materials, notes, folders, conversations, recommendations] = await Promise.all(
+    [Course, Task, StudySession, StudyLog, Material, Note, Folder, Conversation, Recommendation].map((M) => M.find(mine)),
   );
   const data = {
     exportedAt: new Date().toISOString(),
     app: 'StudyPilot (AI Study Assistant)',
     account: { name: user.name, email: user.email, language: user.language, createdAt: user.createdAt, reminders: user.reminders, prefs: user.prefs },
-    courses, tasks, sessions, studyLogs: logs, materials, notes, conversations, recommendations,
+    courses, tasks, sessions, studyLogs: logs, materials, notes, folders, conversations, recommendations,
   };
   const day = new Date().toISOString().slice(0, 10);
   res.setHeader('Content-Disposition', `attachment; filename="studypilot-export-${day}.json"`);
@@ -384,7 +392,8 @@ r.delete('/me', requireAuth, h(async (req, res) => {
   const files = await Material.find({ user: user._id, kind: 'file' }).lean();
   await Promise.all(files.map((m) => fs.rm(path.join(config.uploadDir, m.storedName), { force: true })));
   const mine = { user: user._id };
-  await Promise.all([Course, Task, StudySession, StudyLog, Material, Recommendation, Conversation, Note, Feedback, PushSub, ReminderLog]
+  await deleteForever(mine);   // the Trash and its files
+  await Promise.all([Course, Task, StudySession, StudyLog, Material, Recommendation, Conversation, Note, Folder, Feedback, PushSub, ReminderLog]
     .map((M) => M.deleteMany(mine)));
   await User.deleteOne({ _id: user._id });
   forgetSessions(user.id);

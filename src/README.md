@@ -77,11 +77,13 @@ All routes start with `/api`. Every route except `/auth/*` and `/health` needs t
 | `POST /auth/login` | Sign in; returns a token and the user, or `403 { needsVerification, ticket }` if the email was never confirmed |
 | `GET /auth/me` | The signed-in user |
 | `DELETE /auth/me` | Delete the account and all its data (`{ password }`); used by the Privacy page |
-| `PATCH /auth/me` | Save `{ name, language, prefs }`; `prefs` = theme, accent, font, size, motion, weekStart, startPage (synced to every device) |
+| `PATCH /auth/me` | Save `{ name, language, avatar, prefs }` (`avatar`: a small square picture as a data URL, or `""` to remove); `prefs` = theme, accent, font, size, motion, weekStart, startPage (synced to every device) |
 | `POST /auth/password` | `{ current, next }`: change the password; signs out every other device and returns a new token |
 | `POST /auth/logout-all` | Sign out of every other device (tokens carry a session version) |
 | `POST /auth/email/start`, `POST /auth/email/confirm` | Change email: password + new address, then the 6-digit code sent to the new address; the old address gets a notice |
 | `GET /auth/me/export` | Download all of the account's data as one JSON file |
+| `/trash` | The Trash: list (`GET`, with `expiresAt`), `POST /trash/:id/restore`, delete one for good (`DELETE /:id`) or empty it (`DELETE /trash`) |
+| `/folders` | Folders in the notes list: list, create `{ name }`, rename (`PATCH /:id`), delete (`DELETE /:id`, its pages are kept). A page joins a folder with `PATCH /notes/:id { folder }` |
 | `POST /notes/complete` | `{ language, before, after, title }` → `{ text }`: an AI code suggestion for the cursor in a code block (fast model, or `CODE_MODEL`; at most 20 a minute per student) |
 | `POST /auth/forgot` | Emails a reset link (always gives the same answer, so it never reveals who has an account) |
 | `POST /auth/reset` | Sets a new password with the code from the link and signs in |
@@ -119,6 +121,15 @@ The app works in English, French, Spanish, Arabic (right to left), Chinese and H
 - **Server:** the browser sends `X-Lang` with each request, and the account keeps `language` for emails sent later by the scheduler. `server/src/i18n.js` holds the email, push and recommendation texts; the AI prompts add "answer in <language>".
 - **Add a language:** add it to `LANGS` in `i18n.jsx`, a locale file, the `User.language` list, and its column in `server/src/i18n.js`.
 
+## Trash
+
+Deleting a course, task, session, logged hours, material, page or chat does not remove it right away. `server/src/services/trash.js` first copies the record, and everything removed with it, into a `TrashItem` (a course takes its tasks, sessions, logged hours and materials; a page takes its sub-pages), then deletes the originals. The delete answers `{ ok, trashId }`, which the app uses for the **Undo** button.
+
+- **Restore** puts the same records back with the same ids and dates. A task, session or material whose course is gone asks for the course to be restored first. A page whose parent page, course or folder is gone comes back at the top level / without it. A restored course gets its tag back on the notes that had it.
+- **Uploaded files** stay on disk while their material is in the Trash and are removed when it is deleted for good.
+- **After 30 days** items are deleted for good: by the scheduled reminder run (`runReminders`), and whenever the student opens the Trash.
+- Deleting the account also empties its Trash.
+
 ## Running code in Notes
 
 The **Run** button on code blocks runs the code in the student's browser, never on the server, so it costs nothing and can't harm the server. `client/src/lib/runCode.js` picks the runner:
@@ -142,12 +153,13 @@ src/
     src/index.js           start-up: connects to MongoDB, starts the server
     src/app.js             routes; also serves the built app online
     src/config.js          reads the settings above
-    src/models/            Mongoose models: User, Course, Task, StudySession, StudyLog, Material, Recommendation, Conversation, Note, Feedback, PushSub, ReminderLog
+    src/models/            Mongoose models: User, Course, Task, StudySession, StudyLog, Material, Recommendation, Conversation, Note, Folder, TrashItem, Feedback, PushSub, ReminderLog
     src/routes/            auth, courses, tasks, sessions, logs, materials, recommendations, chat, conversations, notes (and the notes AI), notesChat (the Notes AI panel)
     src/services/recommendationEngine.js   rules: study gap, ranking, session plan
     src/services/llm.js    recommendation text from the model, with rule-based fallback
     src/services/chatTools.js  the actions Ask AI can take (checked and limited to the student's own data)
     src/services/mailer.js password reset and reminder emails (Brevo)
+    src/services/trash.js  moving to the Trash, restoring, and deleting for good after 30 days
     src/services/reminders.js  morning summary, deadline, session and weekly reminders (email and push)
     test/engine.test.js    unit tests for the rules
   client/                  React app (Vite)
@@ -155,7 +167,7 @@ src/
     public/.well-known/assetlinks.json   proves to Android that the Google Play app and this website belong together
     src/App.jsx            sidebar, pages and routes
     src/pages/             Landing, Login, ForgotPassword, Dashboard, Courses, Tasks, Schedule, Materials, Notes, NoteAI (AI inside notes), NotesChat (the Notes AI panel), Chat (Ask AI)
-    src/lib/               api helper, login state, data store, themes, dates, install.jsx (Download app button), runCode.js (Run in code blocks)
+    src/lib/               api helper, login state, data store, themes, dates, install.jsx (Download app button), runCode.js (Run in code blocks), trash.jsx (Trash window), avatar.jsx (profile picture), resize.jsx (drag to resize)
     src/run/               the Python (Pyodide) and SQL (SQLite) workers
     src/styles.css         design, the four themes and the scrollbars
     src/notes.css          the notes page, the / menu, covers and their animations

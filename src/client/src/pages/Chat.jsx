@@ -230,7 +230,7 @@ export function AttachmentChip({ a, onRemove }) {
 
 export default function Chat() {
   const { user } = useAuth();
-  const { notify, reload } = useData();
+  const { notify, reload, trashed } = useData();
   const navigate = useNavigate();
   const location = useLocation();
   // "Ask AI" on a note opens a new chat with the note attached: { name, text, prompt }
@@ -296,6 +296,12 @@ export default function Chat() {
   const flush = () => { saveChain.current = saveChain.current.then(save).catch(() => {}); return saveChain.current; };
 
   // Load the list, and the conversation that was open last time
+  // a chat restored from the Trash comes back in the list
+  useEffect(() => {
+    const again = () => api.get('/conversations').then(setHistory).catch(() => {});
+    window.addEventListener('sa-restored', again);
+    return () => window.removeEventListener('sa-restored', again);
+  }, []);
   useEffect(() => {
     api.get('/conversations').then(setHistory).catch(() => {});
     if (fromNote) {   // don't open the note again after a reload or Back
@@ -351,7 +357,7 @@ export default function Chat() {
   const removeConversation = async (id) => {
     setConfirmDel(null);
     try {
-      await api.del(`/conversations/${id}`);
+      const res = await api.del(`/conversations/${id}`);
       setHistory((h) => h.filter((c) => c.id !== id));
       if (id === convRef.current) {
         runId.current += 1;
@@ -361,7 +367,7 @@ export default function Chat() {
         openId(null);
         setMessages([]);
       }
-      notify('Conversation deleted');
+      trashed(res);
     } catch (err) {
       notify(err.message);
     }
@@ -477,7 +483,11 @@ export default function Chat() {
   const undo = async (i, k) => {
     const part = messages[i].parts[k];
     try {
-      if (part.undo.method === 'DELETE') await api.del(part.undo.path);
+      if (part.undo.method === 'DELETE') {
+        // undoing an AI addition removes it for good (it doesn't go to the Trash)
+        const res = await api.del(part.undo.path);
+        if (res?.trashId) await api.del(`/trash/${res.trashId}`).catch(() => {});
+      }
       else await api.patch(part.undo.path, part.undo.body);
       setMessages((m) => m.map((msg, mi) => (mi !== i ? msg
         : { ...msg, parts: msg.parts.map((p, pk) => (pk === k ? { ...p, undone: true } : p)) })));

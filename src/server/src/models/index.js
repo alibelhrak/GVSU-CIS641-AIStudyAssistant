@@ -54,6 +54,7 @@ export const User = model('User', new Schema({
   verifySentAt: Date,
   verifySends: { type: [Date], default: undefined },   // when codes were sent (limits resends)
   tokenVersion: { type: Number, default: 0 },   // raised to sign out every device
+  avatar: { type: String, default: '', maxlength: 120_000 },   // profile picture: a small square JPEG/WebP as a data URL
   pendingEmail: { type: String, lowercase: true, trim: true },   // new email waiting for its code
   // Look and feel, saved to the account so it follows the student to every device
   prefs: {
@@ -100,7 +101,7 @@ export const Course = model('Course', new Schema({
   user: ref('User'),
   code: { type: String, required: [true, 'Course code is required'], trim: true },
   name: { type: String, required: [true, 'Course name is required'], trim: true },
-  weeklyGoalHours: { type: Number, default: 5, min: 0 },
+  weeklyGoalHours: { type: Number, default: 5, min: 0, max: 168 },   // null = no weekly goal
   color: { type: String, default: '#2b4fd8' },
 }, opts));
 
@@ -174,6 +175,9 @@ export const Note = model('Note', new Schema({
   user: ref('User'),
   parent: { type: Schema.Types.ObjectId, ref: 'Note', default: null, index: true },
   course: { type: Schema.Types.ObjectId, ref: 'Course', default: null },
+  folder: { type: Schema.Types.ObjectId, ref: 'Folder', default: null },   // the student's own folder in the notes list
+  wide: { type: Boolean, default: false },                                  // full-width page
+  textSize: { type: String, enum: ['s', 'm', 'l'], default: 'm' },          // small, default or large text
   title: { type: String, default: '', trim: true, maxlength: 200 },
   icon: { type: String, default: '', maxlength: 16 },
   cover: { type: String, default: '', maxlength: 1_500_000 },   // a preset name or a picture (data URL)
@@ -193,3 +197,28 @@ export const Feedback = model('Feedback', new Schema({
   prompt: { type: String, default: '', maxlength: 2000 },
   answer: { type: String, default: '', maxlength: 4000 },
 }, opts));
+
+/** A folder the student made in the notes list (pages can be put inside) */
+export const Folder = model('Folder', new Schema({
+  user: ref('User'),
+  name: { type: String, required: [true, 'Name the folder'], trim: true, maxlength: 60 },
+  color: { type: String, default: '', maxlength: 20 },
+  order: { type: Number, default: 0 },
+}, opts));
+
+export const TRASH_KINDS = ['course', 'task', 'session', 'log', 'material', 'note', 'chat'];
+
+/**
+ * Something the student deleted, kept for 30 days so it can be restored.
+ * `items` holds copies of every record that was removed with it (a course takes its tasks, sessions ...).
+ * Uploaded files stay on disk until the item is deleted for good.
+ */
+export const TrashItem = model('TrashItem', new Schema({
+  user: ref('User'),
+  kind: { type: String, enum: TRASH_KINDS, required: true },
+  title: { type: String, default: '', maxlength: 200 },
+  detail: { type: String, default: '', maxlength: 200 },
+  items: [{ _id: false, model: String, docs: [Schema.Types.Mixed] }],
+  files: { type: [String], default: [] },
+  notes: { type: [Schema.Types.ObjectId], default: [] },   // notes that lost this course's tag (given back on restore)
+}, opts).index({ user: 1, createdAt: -1 }));

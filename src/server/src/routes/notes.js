@@ -8,7 +8,8 @@
  */
 import { Router } from 'express';
 import mongoose from 'mongoose';
-import { Note, Course, Feedback } from '../models/index.js';
+import { Note, Course, Feedback, Folder } from '../models/index.js';
+import { moveToTrash } from '../services/trash.js';
 import { h, HttpError } from '../middleware/error.js';
 import { config, chatEnabled } from '../config.js';
 import { thinkFilter } from './chat.js';
@@ -88,7 +89,7 @@ ${before}<CURSOR>${after}`;
   res.json({ text });   // (no garble check: code is full of symbols)
 }));
 const MAX_CONTENT = 3_000_000;          // characters of editor data per note (pictures included)
-const LIST_FIELDS = 'title icon parent course favorite updatedAt createdAt';
+const LIST_FIELDS = 'title icon parent course folder favorite updatedAt createdAt';
 
 const mine = (req) => {
   if (!mongoose.isValidObjectId(req.params.id)) throw new HttpError(404, 'Note not found');
@@ -115,7 +116,10 @@ export function blocksToText(blocks, depth = 0) {
   }).filter(Boolean).join('\n');
 }
 
-async function checkRefs(userId, { parent, course }, selfId) {
+async function checkRefs(userId, { parent, course, folder }, selfId) {
+  if (folder && (!mongoose.isValidObjectId(folder) || !(await Folder.exists({ _id: folder, user: userId })))) {
+    throw new HttpError(400, 'Folder not found');
+  }
   if (parent) {
     if (!mongoose.isValidObjectId(parent) || !(await Note.exists({ _id: parent, user: userId }))) throw new HttpError(400, 'Parent page not found');
     // A page cannot be moved inside itself or one of its own sub-pages
@@ -143,6 +147,9 @@ function pick(body = {}) {
   if (typeof body.coverY === 'number' && Number.isFinite(body.coverY)) out.coverY = Math.min(100, Math.max(0, Math.round(body.coverY)));
   if (body.parent !== undefined) out.parent = body.parent || null;
   if (body.course !== undefined) out.course = body.course || null;
+  if (body.folder !== undefined) out.folder = body.folder || null;
+  if (typeof body.wide === 'boolean') out.wide = body.wide;
+  if (['s', 'm', 'l'].includes(body.textSize)) out.textSize = body.textSize;
   if (typeof body.markdown === 'string') out.markdown = body.markdown.slice(0, 100000);
   if (body.content !== undefined) {
     if (!Array.isArray(body.content)) throw new HttpError(400, 'Invalid note content');
@@ -320,15 +327,11 @@ r.patch('/:id', h(async (req, res) => {
 
 // Deleting a page also deletes its sub-pages
 r.delete('/:id', h(async (req, res) => {
-  const root = await Note.findOne(mine(req)).select('_id');
+  const root = await Note.findOne(mine(req)).lean();
   if (!root) throw new HttpError(404, 'Note not found');
-  const ids = [root._id];
-  for (let level = [root._id]; level.length; ) {
-    level = (await Note.find({ user: req.userId, parent: { $in: level } }).select('_id').lean()).map((n) => n._id);
-    ids.push(...level);
-  }
-  await Note.deleteMany({ user: req.userId, _id: { $in: ids } });
-  res.json({ deleted: ids.length });
+  // the page and its sub-pages go to the Trash together
+  const trashId = await moveToTrash('note', root, req.userId);
+  res.json({ ok: true, trashId });
 }));
 
 export default r;

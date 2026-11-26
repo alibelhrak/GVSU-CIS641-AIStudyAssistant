@@ -13,6 +13,7 @@ import { User, Course, Task, StudySession, StudyLog, PushSub, ReminderLog } from
 import { buildCandidates, addDays, daysBetween } from './recommendationEngine.js';
 import { sendMail } from './mailer.js';
 import { tr, trn, kindName, dirOf, LOCALES } from '../i18n.js';
+import { purgeOld } from './trash.js';
 
 // A wrong key must not stop the whole server: push is then simply off
 let pushReady = false;
@@ -229,8 +230,9 @@ export async function remindUser(user, now = new Date(), { force = null } = {}) 
     const progress = data.courseList.map((c) => {
       const h = studied(String(c._id));
       const goal = c.weeklyGoalHours || 0;
-      const mark = goal && h >= goal ? '✅' : goal && h >= goal / 2 ? '🟡' : '🔴';
-      const line = T('ofGoalItem', { h: hours(h), goal: hours(goal) });
+      // a course without a weekly goal just shows its hours
+      const mark = !goal ? '' : h >= goal ? '✅' : h >= goal / 2 ? '🟡' : '🔴';
+      const line = goal ? T('ofGoalItem', { h: hours(h), goal: hours(goal) }) : T('studiedItem', { h: hours(h) });
       return { text: `${c.code}: ${line} ${mark}`, html: `<b>${esc(c.code)}</b> · ${esc(line)} ${mark}`, color: c.color, h, goal };
     });
     const ahead = tasks.filter((t) => t.dueDate > today && t.dueDate <= addDays(today, 7)).sort((a, b) => a.dueDate.localeCompare(b.dueDate));
@@ -251,6 +253,7 @@ export async function remindUser(user, now = new Date(), { force = null } = {}) 
 export async function runReminders(now = new Date()) {
   // Sign-ups whose email was never confirmed are removed after 7 days (they hold no data)
   await User.deleteMany({ emailVerified: false, createdAt: { $lt: new Date(now.getTime() - 7 * 86400000) } }).catch(() => {});
+  await purgeOld(now).catch(() => {});   // Trash items older than 30 days
   const users = await User.find({ $or: [{ 'reminders.daily': true }, { 'reminders.deadlines': true }, { 'reminders.sessions': true }, { 'reminders.weekly': true }] });
   const report = { users: users.length, sent: 0, errors: 0 };
   for (const user of users) {

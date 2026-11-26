@@ -2,8 +2,41 @@ import { useState } from 'react';
 import { api } from '../lib/api.js';
 import { useData } from '../lib/store.jsx';
 import { daysUntil, fmtH, relDay } from '../lib/dates.js';
+import { Icon } from '../icons.jsx';
 
-const BLANK = { code: '', name: '', weeklyGoalHours: 5, color: '#2b4fd8' };
+const BLANK = { code: '', name: '', weeklyGoalHours: '5', color: '#2b4fd8' };
+// An empty box (or 0) means "no weekly goal"
+const goalOf = (v) => { const n = Number(v); return v === '' || v === null || !Number.isFinite(n) || n <= 0 ? null : Math.min(168, n); };
+
+/** The weekly goal on a course card: shows it, and lets the student change it or set it to none */
+function GoalEditor({ course }) {
+  const { run } = useData();
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState('');
+  const save = async (goal) => {
+    setEditing(false);
+    if (goal === (course.weeklyGoalHours ?? null)) return;
+    await run(() => api.patch(`/courses/${course.id}`, { weeklyGoalHours: goal }), goal ? 'Weekly goal saved' : 'Weekly goal removed');
+  };
+  if (!editing) {
+    return (
+      <button type="button" className="goal-chip" onClick={() => { setValue(course.weeklyGoalHours ? String(course.weeklyGoalHours) : ''); setEditing(true); }} title="Change the weekly goal">
+        <Icon name="target" size={14} />
+        {course.weeklyGoalHours ? <span>{`Goal: ${fmtH(course.weeklyGoalHours)} h a week`}</span> : <span>No weekly goal</span>}
+        <Icon name="pencil" size={12} />
+      </button>
+    );
+  }
+  return (
+    <form className="goal-edit" onSubmit={(e) => { e.preventDefault(); save(goalOf(value)); }}>
+      <input type="number" min="0" max="168" step="0.5" value={value} onChange={(e) => setValue(e.target.value)} placeholder="None" aria-label="Weekly study goal (hours)" autoFocus
+        onKeyDown={(e) => { if (e.key === 'Escape') setEditing(false); }} />
+      <span className="note">h / week</span>
+      <button className="btn sm primary" type="submit">Save</button>
+      <button className="btn sm" type="button" onClick={() => save(null)}>None</button>
+    </form>
+  );
+}
 
 export default function Courses() {
   const { courses, tasks, materials, hoursSince, weekStart, run } = useData();
@@ -13,7 +46,7 @@ export default function Courses() {
 
   const submit = async (e) => {
     e.preventDefault();
-    const ok = await run(() => api.post('/courses', { ...form, weeklyGoalHours: Number(form.weeklyGoalHours) || 0 }), 'Course added');
+    const ok = await run(() => api.post('/courses', { ...form, weeklyGoalHours: goalOf(form.weeklyGoalHours) }), 'Course added');
     if (ok) setForm(BLANK);
   };
 
@@ -24,7 +57,12 @@ export default function Courses() {
         <form className="inline" onSubmit={submit}>
           <label>Course code<input type="text" placeholder="e.g. CIS 162" value={form.code} onChange={set('code')} required /></label>
           <label>Course name<input type="text" placeholder="e.g. Computer Science I" value={form.name} onChange={set('name')} required /></label>
-          <label>Weekly study goal (hrs)<input type="number" min="0" step="0.5" value={form.weeklyGoalHours} onChange={set('weeklyGoalHours')} /></label>
+          <label>Weekly study goal (hrs, optional)
+            <span className="goal-input">
+              <input type="number" min="0" max="168" step="0.5" placeholder="None" value={form.weeklyGoalHours} onChange={set('weeklyGoalHours')} />
+              {form.weeklyGoalHours !== '' && <button type="button" className="goal-clear" onClick={() => setForm({ ...form, weeklyGoalHours: '' })} title="No weekly goal" aria-label="No weekly goal"><Icon name="close" size={13} /></button>}
+            </span>
+          </label>
           <label>Color<input type="color" value={form.color} onChange={set('color')} /></label>
           <button className="btn primary" type="submit">Add course</button>
         </form>
@@ -43,10 +81,11 @@ export default function Courses() {
                 <div><b>{fmtH(hoursSince(c.id, weekStart))}h</b>this week</div>
                 <div><b>{materials.filter((m) => m.course === c.id).length}</b>materials</div>
               </div>
+              <GoalEditor course={c} />
               <div className="note">{next ? <>{'Next:'} <span data-no-translate>{next.title}</span> · {relDay(daysUntil(next.dueDate))}</> : 'No upcoming work'}</div>
               {confirming === c.id ? (
                 <div className="rec-actions">
-                  <span className="note">Remove this course and all its tasks, sessions and files?</span>
+                  <span className="note">Move this course and its tasks, sessions and files to the Trash? You can restore it for 30 days.</span>
                   <button className="btn sm danger" type="button" onClick={() => run(() => api.del(`/courses/${c.id}`), 'Course removed')}>Remove</button>
                   <button className="btn sm" type="button" onClick={() => setConfirming(null)}>Keep</button>
                 </div>

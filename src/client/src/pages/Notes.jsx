@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useParams } from 'react-router-dom';
 import { BlockNoteSchema, createCodeBlockSpec, defaultBlockSpecs, filterSuggestionItems } from '@blocknote/core';
@@ -18,6 +18,7 @@ import { canRun, runCode } from '../lib/runCode.js';
 import { codeGhostExtension, handleCodeKey, hideGhost, showGhost, suggestionRequest } from '../lib/codeEditing.js';
 import { useData } from '../lib/store.jsx';
 import { useTheme } from '../lib/theme.jsx';
+import { useResizable } from '../lib/resize.jsx';
 import { Icon } from '../icons.jsx';
 import { NoteAI, WRITE_ACTIONS, aiContext } from './NoteAI.jsx';
 import { NotesChat } from './NotesChat.jsx';
@@ -676,7 +677,31 @@ function Cover({ note, setMeta, open, setOpen, notify }) {
   );
 }
 
-function TreeItem({ note, depth, byParent, currentId, expanded, toggle, onOpen, onAdd, confirmDel, setConfirmDel, onDelete, courseColor }) {
+/** "Move to" menu of a page in the list: folders, or out of its folder */
+function MoveMenu({ note, folders, onMove, onNewFolder, close }) {
+  useEffect(() => {
+    const away = (e) => { if (!e.target.closest?.('.move-menu')) close(); };
+    const esc = (e) => { if (e.key === 'Escape') close(); };
+    setTimeout(() => document.addEventListener('mousedown', away), 0);
+    document.addEventListener('keydown', esc);
+    return () => { document.removeEventListener('mousedown', away); document.removeEventListener('keydown', esc); };
+  }, [close]);
+  return (
+    <div className="pop-menu move-menu" role="menu">
+      <p className="code-menu-title">Move to folder</p>
+      {folders.map((f) => (
+        <button key={f.id} type="button" role="menuitem" className={note.folder === f.id ? 'on' : ''} onClick={() => { close(); onMove(note.id, { folder: f.id }); }}>
+          <Icon name="folder" size={15} style={f.color ? { color: f.color } : undefined} /><span className="ellipsis" data-no-translate>{f.name}</span>
+          {note.folder === f.id && <Icon name="tick" size={14} />}
+        </button>
+      ))}
+      {note.folder && <button type="button" role="menuitem" onClick={() => { close(); onMove(note.id, { folder: null }); }}><Icon name="close" size={15} /><span>Take out of the folder</span></button>}
+      <button type="button" role="menuitem" onClick={() => { close(); onNewFolder(note.id); }}><Icon name="folderPlus" size={15} /><span>New folder…</span></button>
+    </div>
+  );
+}
+
+function TreeItem({ note, depth, byParent, currentId, expanded, toggle, onOpen, onAdd, confirmDel, setConfirmDel, onDelete, courseColor, moveOpen, setMoveOpen, folders, onMove, onNewFolder }) {
   const kids = byParent.get(note.id) || [];
   const open = expanded.has(note.id);
   return (
@@ -684,8 +709,8 @@ function TreeItem({ note, depth, byParent, currentId, expanded, toggle, onOpen, 
       <div className={`tree-item ${note.id === currentId ? 'active' : ''}`} style={{ paddingLeft: 6 + depth * 14 }}>
         {confirmDel === note.id ? (
           <div className="history-confirm">
-            <span>Delete "{titleOf(note)}"{kids.length ? ' and its sub-pages' : ''}?</span>
-            <button className="btn danger sm" type="button" onClick={() => onDelete(note.id)}>Delete</button>
+            <span>{kids.length ? 'Move this page and its sub-pages to the Trash?' : 'Move this page to the Trash?'}</span>
+            <button className="btn danger sm" type="button" onClick={() => onDelete(note.id)}>Move</button>
             <button className="btn sm" type="button" onClick={() => setConfirmDel(null)}>Cancel</button>
           </div>
         ) : (
@@ -694,22 +719,117 @@ function TreeItem({ note, depth, byParent, currentId, expanded, toggle, onOpen, 
               aria-label={open ? 'Collapse' : 'Expand'} tabIndex={kids.length ? 0 : -1}>
               <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M3 2l4 3-4 3" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
             </button>
-            <button type="button" className="tree-open" onClick={() => onOpen(note.id)} title={titleOf(note)}>
+            <button type="button" className="tree-open" onClick={() => onOpen(note.id)} title={titleOf(note)} draggable
+              onDragStart={(e) => { e.dataTransfer.setData('text/x-sa-note', note.id); e.dataTransfer.effectAllowed = 'move'; document.documentElement.classList.add('dragging-note'); }}
+              onDragEnd={() => document.documentElement.classList.remove('dragging-note')}>
               <span className="tree-icon">{note.icon || <Icon name="file" size={15} />}</span>
               <span className="ellipsis">{titleOf(note)}</span>
               {note.course && courseColor(note.course) && <span className="dot" style={{ background: courseColor(note.course) }} />}
             </button>
             <span className="tree-actions">
               <button type="button" onClick={() => onAdd(note.id)} title="Add a sub-page" aria-label="Add a sub-page"><Icon name="plus" size={14} /></button>
-              <button type="button" onClick={() => setConfirmDel(note.id)} title="Delete" aria-label={`Delete ${titleOf(note)}`}><Icon name="trash" size={13} /></button>
+              {depth === 0 && <button type="button" onClick={() => setMoveOpen(moveOpen === note.id ? null : note.id)} title="Move to folder" aria-label="Move to folder" aria-expanded={moveOpen === note.id}><Icon name="folder" size={14} /></button>}
+              <button type="button" onClick={() => setConfirmDel(note.id)} title="Move to Trash" aria-label={`Move ${titleOf(note)} to the Trash`}><Icon name="trash" size={13} /></button>
             </span>
+            {moveOpen === note.id && <MoveMenu note={note} folders={folders} onMove={onMove} onNewFolder={onNewFolder} close={() => setMoveOpen(null)} />}
           </>
         )}
       </div>
       {open && <div className="tree-kids">{kids.map((k) => (
         <TreeItem key={k.id} note={k} depth={depth + 1} byParent={byParent} currentId={currentId} expanded={expanded} toggle={toggle}
-          onOpen={onOpen} onAdd={onAdd} confirmDel={confirmDel} setConfirmDel={setConfirmDel} onDelete={onDelete} courseColor={courseColor} />
+          onOpen={onOpen} onAdd={onAdd} confirmDel={confirmDel} setConfirmDel={setConfirmDel} onDelete={onDelete} courseColor={courseColor}
+          moveOpen={moveOpen} setMoveOpen={setMoveOpen} folders={folders} onMove={onMove} onNewFolder={onNewFolder} />
       ))}</div>}
+    </div>
+  );
+}
+
+/** A group in the notes list (a folder, a course, or "Other pages"): opens and closes, and pages can be dropped on it */
+function GroupHead({ label, lead, count, collapsed, onToggle, onDropNote, onAdd, addTitle, children, editing }) {
+  const [over, setOver] = useState(false);
+  return (
+    <div className={`group-head ${over ? 'drop' : ''}`}
+      onDragOver={onDropNote ? (e) => { if (e.dataTransfer.types.includes('text/x-sa-note')) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setOver(true); } } : undefined}
+      onDragLeave={() => setOver(false)}
+      onDrop={onDropNote ? (e) => { e.preventDefault(); setOver(false); const nid = e.dataTransfer.getData('text/x-sa-note'); if (nid) onDropNote(nid); } : undefined}>
+      {editing || (
+        <button type="button" className="group-toggle" onClick={onToggle} aria-expanded={!collapsed}>
+          <svg className={`group-caret ${collapsed ? '' : 'open'}`} width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M3 2l4 3-4 3" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          {lead}
+          <span className="ellipsis">{label}</span>
+          {count > 0 && <span className="group-count">{count}</span>}
+        </button>
+      )}
+      {!editing && (
+        <span className="tree-actions">
+          {children}
+          {onAdd && <button type="button" onClick={onAdd} title={addTitle} aria-label={addTitle}><Icon name="plus" size={14} /></button>}
+        </span>
+      )}
+    </div>
+  );
+}
+
+/** Name box for a new folder or a renamed one */
+function FolderName({ value = '', onDone, onCancel }) {
+  const [name, setName] = useState(value);
+  const done = () => { const v = name.trim(); if (v && v !== value) onDone(v); else onCancel(); };
+  return (
+    <form className="folder-name" onSubmit={(e) => { e.preventDefault(); done(); }}>
+      <Icon name="folder" size={15} />
+      <input value={name} onChange={(e) => setName(e.target.value)} maxLength={60} placeholder="Folder name" aria-label="Folder name" autoFocus
+        onBlur={done} onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); onCancel(); } }} />
+    </form>
+  );
+}
+
+/** Which groups are closed in the notes list (remembered on this device) */
+function useCollapsed() {
+  const [set, setSet] = useState(() => { try { return new Set(JSON.parse(localStorage.getItem('sa-notes-closed') || '[]')); } catch { return new Set(); } });
+  const toggle = (key) => setSet((old) => {
+    const next = new Set(old);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    try { localStorage.setItem('sa-notes-closed', JSON.stringify([...next])); } catch { /* ignore */ }
+    return next;
+  });
+  return [set, toggle];
+}
+
+const TEXT_SIZES = [{ id: 's', label: 'Small' }, { id: 'm', label: 'Default' }, { id: 'l', label: 'Large' }];
+
+/** Page options: text size and full width (saved with the page) */
+function PageLook({ note, setMeta }) {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!open) return undefined;
+    const away = (e) => { if (!e.target.closest?.('.look-wrap')) setOpen(false); };
+    const esc = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', away);
+    document.addEventListener('keydown', esc);
+    return () => { document.removeEventListener('mousedown', away); document.removeEventListener('keydown', esc); };
+  }, [open]);
+  const size = note.textSize || 'm';
+  return (
+    <div className="pop-wrap look-wrap">
+      <button className={`icon-btn ${open ? 'on' : ''}`} type="button" onClick={() => setOpen((v) => !v)} aria-label="Page style" title="Text size and page width" aria-expanded={open}>
+        <Icon name="type" size={17} />
+      </button>
+      {open && (
+        <div className="pop-menu look-menu" role="dialog" aria-label="Page style">
+          <p className="code-menu-title">Text size</p>
+          <div className="look-sizes" role="radiogroup" aria-label="Text size">
+            {TEXT_SIZES.map((o) => (
+              <button key={o.id} type="button" role="radio" aria-checked={size === o.id} className={size === o.id ? 'on' : ''} onClick={() => setMeta({ textSize: o.id }, true)}>
+                <span className={`look-aa s-${o.id}`} aria-hidden="true">Aa</span>{o.label}
+              </button>
+            ))}
+          </div>
+          <button type="button" role="switch" aria-checked={Boolean(note.wide)} className="look-row" onClick={() => setMeta({ wide: !note.wide }, true)}>
+            <Icon name="width" size={16} /><span>Full width</span>
+            <span className={`toggle ${note.wide ? 'on' : ''}`} aria-hidden="true"><span /></span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -717,11 +837,18 @@ function TreeItem({ note, depth, byParent, currentId, expanded, toggle, onOpen, 
 export default function Notes() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { courses, notify } = useData();
+  const { courses, notify, trashed } = useData();
   const { resolved } = useTheme();
   const dark = resolved === 'dark' || resolved === 'midnight';
 
   const [notes, setNotes] = useState(null);           // list without content; null while loading
+  const [folders, setFolders] = useState([]);         // the student's own folders
+  const [newFolder, setNewFolder] = useState(null);   // null, or { note } (a page to put in it) while naming a new folder
+  const [renaming, setRenaming] = useState(null);     // folder id
+  const [folderDel, setFolderDel] = useState(null);   // folder id waiting for "Delete?"
+  const [moveOpen, setMoveOpen] = useState(null);     // page whose "Move to" menu is open
+  const [closed, toggleGroup] = useCollapsed();
+  const listW = useResizable('sa-notes-w', { initial: 260, min: 200, max: 480 });
   const [current, setCurrent] = useState(null);       // the open note, with content
   const [loadingNote, setLoadingNote] = useState(false);
   const [status, setStatus] = useState('');           // '', 'saving', 'saved', 'error'
@@ -777,7 +904,16 @@ export default function Notes() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---------- Loading ----------
-  useEffect(() => { api.get('/notes').then(setNotes).catch((err) => { setNotes([]); notify(err.message); }); }, [notify]);
+  const loadList = useCallback(() => Promise.all([
+    api.get('/notes').then(setNotes).catch((err) => { setNotes((n) => n || []); notify(err.message); }),
+    api.get('/folders').then(setFolders).catch(() => {}),
+  ]), [notify]);
+  useEffect(() => { loadList(); }, [loadList]);
+  // a page restored from the Trash comes back in the list
+  useEffect(() => {
+    window.addEventListener('sa-restored', loadList);
+    return () => window.removeEventListener('sa-restored', loadList);
+  }, [loadList]);
 
   useEffect(() => {
     flush();
@@ -825,10 +961,10 @@ export default function Notes() {
   const open = (nid) => { navigate(`/notes/${nid}`); if (!wide()) setPanel(false); };
 
   // ---------- Changing pages ----------
-  const create = async (parent = null, template = TEMPLATES[0]) => {
+  const create = async (parent = null, template = TEMPLATES[0], extra = {}) => {
     await flush();
     try {
-      const n = await api.post('/notes', { title: template.title, icon: template.icon === '📄' ? '' : template.icon, parent, content: template.blocks });
+      const n = await api.post('/notes', { title: template.title, icon: template.icon === '📄' ? '' : template.icon, parent, content: template.blocks, ...extra });
       setNotes((ns) => [n, ...(ns || [])]);
       if (parent) setExpanded((set) => new Set(set).add(parent));
       navigate(`/notes/${n.id}`);
@@ -844,7 +980,7 @@ export default function Notes() {
     setDelOpen(false);
     try {
       if (pending.current.id === nid) pending.current = { id: null, body: {} };
-      await api.del(`/notes/${nid}`);
+      const res = await api.del(`/notes/${nid}`);
       // remove the page and everything under it from the list
       const gone = new Set([nid]);
       let grew = true;
@@ -854,10 +990,50 @@ export default function Notes() {
         const parent = byId.get(nid)?.parent;
         navigate(parent && !gone.has(parent) ? `/notes/${parent}` : '/notes', { replace: true });
       }
-      notify(gone.size > 1 ? `Deleted ${gone.size} pages` : 'Page deleted');
+      trashed(res);
     } catch (err) {
       notify(err.message);
     }
+  };
+
+  // ---------- Folders and groups ----------
+  /** Put a page in a folder, a course group or "Other pages" (it becomes a top-level page) */
+  const move = async (nid, change) => {
+    if (pending.current.id === nid) await flush();
+    const patch = { ...change };
+    if (patch.folder || patch.course !== undefined) patch.parent = null;
+    try {
+      const meta = await api.patch(`/notes/${nid}`, patch);
+      setNotes((ns) => ns.map((n) => (n.id === nid ? { ...n, ...meta } : n)));
+      if (current?.id === nid) setCurrent((c) => ({ ...c, ...meta }));
+      if (patch.folder) { const f = folders.find((x) => x.id === patch.folder); if (f) notify(t('Moved to {name}').replace('{name}', f.name)); }
+    } catch (err) {
+      notify(err.message);
+    }
+  };
+  const addFolder = async (name, noteId) => {
+    setNewFolder(null);
+    try {
+      const f = await api.post('/folders', { name });
+      setFolders((list) => [...list, f]);
+      if (noteId) await move(noteId, { folder: f.id });
+    } catch (err) { notify(err.message); }
+  };
+  const renameFolder = async (fid, name) => {
+    setRenaming(null);
+    try {
+      const f = await api.patch(`/folders/${fid}`, { name });
+      setFolders((list) => list.map((x) => (x.id === fid ? f : x)));
+    } catch (err) { notify(err.message); }
+  };
+  const deleteFolder = async (fid) => {
+    setFolderDel(null);
+    try {
+      await api.del(`/folders/${fid}`);
+      setFolders((list) => list.filter((x) => x.id !== fid));
+      setNotes((ns) => ns.map((n) => (n.folder === fid ? { ...n, folder: null } : n)));
+      notify(t('Folder deleted. Its pages were kept.'));
+    } catch (err) { notify(err.message); }
   };
 
   const setMeta = (patch, now = false) => {
@@ -909,11 +1085,22 @@ export default function Notes() {
   const children = current ? byParent.get(current.id) || [] : [];
   const favorites = (notes || []).filter((n) => n.favorite);
   const roots = byParent.get('root') || [];
-  const treeProps = { byParent, currentId: id, expanded, toggle, onOpen: open, onAdd: (p) => create(p), confirmDel, setConfirmDel, onDelete: remove, courseColor };
+  const treeProps = { byParent, currentId: id, expanded, toggle, onOpen: open, onAdd: (p) => create(p), confirmDel, setConfirmDel, onDelete: remove, courseColor,
+    moveOpen, setMoveOpen, folders, onMove: move, onNewFolder: (nid) => setNewFolder({ note: nid }) };
+  // Top-level pages, grouped: the student's folders first, then one group per course, then the rest
+  const folderIds = new Set(folders.map((f) => f.id));
+  const courseIds = new Set(courses.map((c) => c.id));
+  const inFolder = (fid) => roots.filter((n) => n.folder === fid);
+  const inCourse = (cid) => roots.filter((n) => !folderIds.has(n.folder) && n.course === cid);
+  const others = roots.filter((n) => !folderIds.has(n.folder) && !courseIds.has(n.course));
+  const courseGroups = courses.map((c) => ({ c, list: inCourse(c.id) })).filter((g) => g.list.length);
+  const grouped = folders.length > 0 || courseGroups.length > 0;
+  const sorted = (list) => [...list].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 
   return (
-    <div className={`notes ${panel ? 'panel-open' : ''}`}>
+    <div className={`notes ${panel ? 'panel-open' : ''}`} style={{ '--notes-side-w': `${listW.width}px` }}>
       <aside className="notes-side" aria-label="Your pages">
+        <div className={`notes-resize ${listW.dragging ? 'on' : ''}`} {...listW.handleProps} aria-label="Resize the list of pages" />
         <div className="history-head">
           <b>Notes</b>
           <span>
@@ -952,9 +1139,71 @@ export default function Notes() {
                   ))}
                 </>
               )}
-              <p className="history-group">Pages</p>
+              <div className="history-group group-label">
+                <span>Folders</span>
+                <button type="button" className="group-add" onClick={() => setNewFolder({})} title="New folder" aria-label="New folder"><Icon name="folderPlus" size={15} /></button>
+              </div>
+              {newFolder && <FolderName onDone={(name) => addFolder(name, newFolder.note)} onCancel={() => setNewFolder(null)} />}
+              {folders.length === 0 && !newFolder && <p className="history-empty small">Make folders to group pages your way. Drag a page onto a folder to move it.</p>}
+              {folders.map((f) => {
+                const list = sorted(inFolder(f.id));
+                const isClosed = closed.has(`f:${f.id}`);
+                return (
+                  <div key={f.id} className="note-group">
+                    {folderDel === f.id ? (
+                      <div className="history-confirm">
+                        <span>Delete this folder? Its pages are kept.</span>
+                        <button className="btn danger sm" type="button" onClick={() => deleteFolder(f.id)}>Delete</button>
+                        <button className="btn sm" type="button" onClick={() => setFolderDel(null)}>Cancel</button>
+                      </div>
+                    ) : (
+                      <GroupHead label={<span data-no-translate>{f.name}</span>} count={list.length} collapsed={isClosed} onToggle={() => toggleGroup(`f:${f.id}`)}
+                        lead={<Icon name="folder" size={15} className="group-icon" />}
+                        editing={renaming === f.id && <FolderName value={f.name} onDone={(name) => renameFolder(f.id, name)} onCancel={() => setRenaming(null)} />}
+                        onDropNote={(nid) => move(nid, { folder: f.id })}
+                        onAdd={() => create(null, TEMPLATES[0], { folder: f.id })} addTitle="New page in this folder">
+                        <button type="button" onClick={() => setRenaming(f.id)} title="Rename" aria-label="Rename folder"><Icon name="pencil" size={13} /></button>
+                        <button type="button" className="danger-hover" onClick={() => setFolderDel(f.id)} title="Delete folder" aria-label="Delete folder"><Icon name="trash" size={13} /></button>
+                      </GroupHead>
+                    )}
+                    {!isClosed && (
+                      <div className="group-body">
+                        {list.length === 0 && <p className="history-empty small">Empty. Drag pages here.</p>}
+                        {list.map((n) => <TreeItem key={n.id} note={n} depth={0} {...treeProps} />)}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+
+              {courseGroups.length > 0 && <p className="history-group">Courses</p>}
+              {courseGroups.map(({ c, list }) => {
+                const isClosed = closed.has(`c:${c.id}`);
+                return (
+                  <div key={c.id} className="note-group">
+                    <GroupHead label={<span data-no-translate>{c.code}</span>} count={list.length} collapsed={isClosed} onToggle={() => toggleGroup(`c:${c.id}`)}
+                      lead={<span className="dot" style={{ background: c.color }} />}
+                      onDropNote={(nid) => move(nid, { course: c.id, folder: null })}
+                      onAdd={() => create(null, TEMPLATES[0], { course: c.id })} addTitle="New page for this course" />
+                    {!isClosed && <div className="group-body">{sorted(list).map((n) => <TreeItem key={n.id} note={n} depth={0} {...treeProps} />)}</div>}
+                  </div>
+                );
+              })}
+
+              {grouped ? (
+                <div className="note-group">
+                  <GroupHead label={courseGroups.length ? 'Other pages' : 'Pages'} count={others.length} collapsed={closed.has('other')} onToggle={() => toggleGroup('other')}
+                    onDropNote={(nid) => move(nid, { course: null, folder: null })}
+                    onAdd={() => create()} addTitle="New page" />
+                  {!closed.has('other') && <div className="group-body">{sorted(others).map((n) => <TreeItem key={n.id} note={n} depth={0} {...treeProps} />)}</div>}
+                </div>
+              ) : (
+                <>
+                  <p className="history-group">Pages</p>
+                  {roots.map((n) => <TreeItem key={n.id} note={n} depth={0} {...treeProps} />)}
+                </>
+              )}
               {roots.length === 0 && <p className="history-empty">No pages yet. Click + to write your first note.</p>}
-              {roots.map((n) => <TreeItem key={n.id} note={n} depth={0} {...treeProps} />)}
             </>
           )}
         </div>
@@ -995,12 +1244,13 @@ export default function Notes() {
                 title="Chat with AI about this page. It can edit the page for you.">
                 <img src="/logo.png" alt="" width={16} height={16} /> Ask AI
               </button>
+              <PageLook note={current} setMeta={setMeta} />
               <div className="pop-wrap">
-                <button className="icon-btn" type="button" onClick={() => setDelOpen((v) => !v)} aria-label="Delete page" title="Delete page"><Icon name="trash" size={16} /></button>
+                <button className="icon-btn" type="button" onClick={() => setDelOpen((v) => !v)} aria-label="Move page to Trash" title="Move to Trash"><Icon name="trash" size={16} /></button>
                 {delOpen && (
                   <div className="pop-menu confirm" role="dialog">
-                    <span>Delete this page{children.length ? ' and its sub-pages' : ''}?</span>
-                    <div><button className="btn danger sm" type="button" onClick={() => remove(current.id)}>Delete</button>
+                    <span>{children.length ? 'Move this page and its sub-pages to the Trash? You can restore it for 30 days.' : 'Move this page to the Trash? You can restore it for 30 days.'}</span>
+                    <div><button className="btn danger sm" type="button" onClick={() => remove(current.id)}>Move to Trash</button>
                       <button className="btn sm" type="button" onClick={() => setDelOpen(false)}>Cancel</button></div>
                   </div>
                 )}
@@ -1017,7 +1267,7 @@ export default function Notes() {
             {coverStyle(current) && (
               <Cover note={current} setMeta={setMeta} open={coverOpen} setOpen={setCoverOpen} notify={notify} />
             )}
-            <article className={`note-page ${coverStyle(current) ? 'has-cover' : ''} ${entering ? 'entering' : ''}`}>
+            <article className={`note-page ${coverStyle(current) ? 'has-cover' : ''} ${entering ? 'entering' : ''} ${current.wide ? 'wide' : ''} text-${current.textSize || 'm'}`}>
               {current.icon && (
                 <div className="note-icon-row">
                   <div className="pop-wrap">

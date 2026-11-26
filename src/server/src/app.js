@@ -15,6 +15,8 @@ import recommendationRoutes from './routes/recommendations.js';
 import chatRoutes from './routes/chat.js';
 import conversationRoutes from './routes/conversations.js';
 import noteRoutes from './routes/notes.js';
+import folderRoutes from './routes/folders.js';
+import trashRoutes from './routes/trash.js';
 import reminderRoutes, { publicReminders } from './routes/reminders.js';
 
 export function createApp() {
@@ -37,6 +39,8 @@ export function createApp() {
   app.use('/api/chat', chatRoutes);
   app.use('/api/conversations', conversationRoutes);
   app.use('/api/notes', noteRoutes);
+  app.use('/api/folders', folderRoutes);
+  app.use('/api/trash', trashRoutes);
   app.use('/api/reminders', reminderRoutes);
 
   // Online (Render): also serve the built React app from client/dist.

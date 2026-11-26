@@ -8,7 +8,7 @@
   background:var(--bg);overflow:hidden;animation:rise .45s var(--ease) both}
 
 /* ---------- Page list ---------- */
-.notes-side{width:260px;flex:none;display:none;flex-direction:column;gap:8px;padding:10px 8px;border-right:1px solid var(--line);background:var(--sidebar)}
+.notes-side{position:relative;width:var(--notes-side-w,260px);flex:none;display:none;flex-direction:column;gap:8px;padding:10px 8px;border-right:1px solid var(--line);background:var(--sidebar)}
 .notes.panel-open .notes-side{display:flex}
 .notes-side .history-head span{display:flex;gap:2px}
 .notes-search{display:flex;align-items:center;gap:8px;margin:0 2px;padding:0 10px;border-radius:8px;background:var(--surface-2);color:var(--faint)}
@@ -517,3 +517,62 @@ html[data-theme="midnight"] .note-page .bn-block-content[data-content-type="code
   border:1px solid var(--line);box-shadow:var(--shadow-lg);animation:rem-in .25s var(--ease) both}
 .html-preview-head{display:flex;align-items:center;justify-content:space-between;padding:8px 10px 8px 16px;border-bottom:1px solid var(--line)}
 .html-preview iframe{flex:1;width:100%;border:0;background:#fff}
+
+/* ---------- Notes list: resize, folders and course groups ---------- */
+.notes-resize{position:absolute;top:0;bottom:0;right:-4px;width:8px;z-index:4;cursor:col-resize;touch-action:none}
+.notes-resize::after{content:"";position:absolute;inset:0 3px;border-radius:2px;background:var(--accent);opacity:0;transition:opacity .15s}
+.notes-resize:hover::after,.notes-resize:focus-visible::after,.notes-resize.on::after{opacity:.8}
+.notes-resize:focus-visible{outline:none}
+[dir="rtl"] .notes-resize{right:auto;left:-4px}
+.group-label{display:flex;align-items:center;justify-content:space-between;padding-right:4px}
+.group-add{width:24px;height:24px;border:0;background:none;border-radius:6px;color:var(--faint);display:grid;place-items:center;cursor:pointer}
+.group-add:hover{background:var(--hover);color:var(--fg)}
+.history-empty.small{font-size:.76rem;padding:2px 10px 8px;color:var(--faint)}
+.note-group{display:grid}
+.group-head{position:relative;display:flex;align-items:center;min-height:30px;border-radius:7px;transition:background-color .15s,box-shadow .15s}
+.group-head:hover{background:var(--hover)}
+.group-head.drop{background:var(--accent-soft);box-shadow:inset 0 0 0 1.5px var(--accent)}
+.group-head:hover .tree-actions,.group-head:focus-within .tree-actions{opacity:1}
+.group-head .tree-actions button.danger-hover:hover,.group-head .tree-actions button:last-child:hover{background:var(--hover);color:var(--fg)}
+.group-head .tree-actions button.danger-hover:hover{background:var(--crit-bg);color:var(--crit)}
+.group-toggle{flex:1;min-width:0;display:flex;align-items:center;gap:7px;border:0;background:none;padding:6px 6px;font:inherit;font-size:.84rem;font-weight:600;color:var(--muted);cursor:pointer;text-align:start}
+.group-toggle:hover{color:var(--fg)}
+.group-toggle .dot{width:8px;height:8px;border-radius:50%;flex:none}
+.group-icon{flex:none;color:var(--faint)}
+.group-caret{flex:none;color:var(--faint);transition:transform .2s var(--ease)}
+.group-caret.open{transform:rotate(90deg)}
+[dir="rtl"] .group-caret{transform:scaleX(-1)}
+[dir="rtl"] .group-caret.open{transform:rotate(90deg)}
+.group-count{margin-inline-start:auto;font-size:.72rem;font-weight:600;color:var(--faint);padding:0 4px}
+@keyframes group-open{from{opacity:0}to{opacity:1}}
+.group-body{padding-inline-start:10px;animation:group-open .2s var(--ease)}
+/* an open "Move to" menu stays above the groups below it */
+.note-group:has(.move-menu),.tree-item:has(.move-menu){position:relative;z-index:8}
+.folder-name{display:flex;align-items:center;gap:7px;padding:3px 6px;color:var(--faint);flex:1}
+.folder-name input{flex:1;min-width:0;min-height:28px;padding:3px 8px;font-size:.85rem;border-radius:7px}
+html.dragging-note .group-head{outline:1px dashed var(--line-strong);outline-offset:-1px}
+.tree-item .move-menu{top:calc(100% + 2px);right:4px;min-width:210px;max-height:300px;overflow-y:auto}
+.move-menu > button{display:flex;align-items:center;gap:8px}
+.move-menu > button.on{font-weight:600}
+.move-menu > button > svg:last-child:not(:first-child){margin-inline-start:auto;color:var(--accent)}
+[dir="rtl"] .tree-item .move-menu{right:auto;left:4px}
+
+/* ---------- Page style: text size and full width ---------- */
+.look-menu{min-width:250px;gap:6px;padding:10px}
+.look-sizes{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.look-sizes button{display:grid;justify-items:center;gap:2px;padding:8px 4px;border:1px solid var(--line);border-radius:10px;background:none;font:inherit;font-size:.76rem;color:var(--muted);cursor:pointer;transition:border-color .15s,background-color .15s}
+.look-sizes button:hover{background:var(--hover)}
+.look-sizes button.on{border-color:var(--accent);background:var(--accent-soft);color:var(--fg);font-weight:600}
+.look-aa{font-weight:700;color:var(--fg);line-height:1.2}
+.look-aa.s-s{font-size:.9rem}.look-aa.s-m{font-size:1.1rem}.look-aa.s-l{font-size:1.35rem}
+.look-menu > .look-row{display:flex;align-items:center;gap:10px;margin-top:4px;padding:8px 6px}
+.look-row .toggle{margin-inline-start:auto;transform:scale(.85);pointer-events:none}
+.icon-btn.on{background:var(--hover);color:var(--fg)}
+.note-page.wide{max-width:none;padding-inline:24px}
+/* a full-width page also lets the Notes box use the whole screen */
+.page.page-wide:has(.note-page.wide){max-width:none}
+.note-page.text-s .bn-editor{font-size:14px}
+.note-page.text-l .bn-editor{font-size:18.5px}
+.note-page.text-s .note-title{font-size:2.1rem}
+.note-page.text-l .note-title{font-size:2.9rem}
+@media (max-width:900px){.notes-resize{display:none}.note-page.wide{padding-inline:0}}

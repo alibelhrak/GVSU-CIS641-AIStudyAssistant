@@ -81,8 +81,10 @@ function Progress() {
           const pct = c.weeklyGoalHours ? Math.min(100, (h / c.weeklyGoalHours) * 100) : 0;
           return (
             <div className="prog-item" key={c.id}>
-              <div className="lab"><span>{c.code}</span><span className="mono">{fmtH(h)} / {fmtH(c.weeklyGoalHours)} h</span></div>
-              <div className="bar-track"><span style={{ width: `${pct}%`, background: c.color }} /></div>
+              <div className="lab"><span>{c.code}</span>
+                {c.weeklyGoalHours ? <span className="mono">{fmtH(h)} / {fmtH(c.weeklyGoalHours)} h</span>
+                  : <span><span className="mono">{fmtH(h)} h</span> <span className="faint">· no goal</span></span>}</div>
+              <div className={`bar-track ${c.weeklyGoalHours ? '' : 'no-goal'}`}><span style={{ width: `${pct}%`, background: c.color }} /></div>
             </div>
           );
         })}

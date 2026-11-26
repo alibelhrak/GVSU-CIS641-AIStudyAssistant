@@ -7,6 +7,7 @@ import { config } from '../config.js';
 import { Material } from '../models/index.js';
 import { h, HttpError } from '../middleware/error.js';
 import { assertOwnsCourse } from './crud.js';
+import { moveToTrash } from '../services/trash.js';
 
 const upload = multer({
   storage: multer.diskStorage({
@@ -63,12 +64,11 @@ r.get('/:id/file', h(async (req, res) => {
   res.download(path.join(config.uploadDir, m.storedName), m.name);
 }));
 
-// Delete a file or link
+// Delete a file or link: it goes to the Trash (the file stays on disk until it is deleted for good)
 r.delete('/:id', h(async (req, res) => {
-  const m = await Material.findOneAndDelete({ _id: req.params.id, user: req.userId });
+  const m = await Material.findOne({ _id: req.params.id, user: req.userId }).lean();
   if (!m) throw new HttpError(404, 'Not found');
-  if (m.kind === 'file') await fs.rm(path.join(config.uploadDir, m.storedName), { force: true });
-  res.status(204).end();
+  res.json({ ok: true, trashId: await moveToTrash('material', m, req.userId) });
 }));
 
 export default r;

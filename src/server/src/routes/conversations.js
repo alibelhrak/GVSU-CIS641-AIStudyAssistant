@@ -6,6 +6,7 @@ import { Router } from 'express';
 import mongoose from 'mongoose';
 import { Conversation } from '../models/index.js';
 import { h, HttpError } from '../middleware/error.js';
+import { moveToTrash } from '../services/trash.js';
 
 const r = Router();
 const text = (v, max) => String(v ?? '').slice(0, max);
@@ -72,9 +73,9 @@ r.patch('/:id', h(async (req, res) => {
 }));
 
 r.delete('/:id', h(async (req, res) => {
-  const doc = await Conversation.findOneAndDelete(mine(req));
+  const doc = await Conversation.findOne(mine(req)).lean();
   if (!doc) throw new HttpError(404, 'Conversation not found');
-  res.status(204).end();
+  res.json({ ok: true, trashId: await moveToTrash('chat', doc, req.userId) });
 }));
 
 export default r;

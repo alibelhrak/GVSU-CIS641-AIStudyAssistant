@@ -8,6 +8,7 @@ import { LANGS, getLang, locale, setLang, t } from './i18n.jsx';
 import { Icon } from '../icons.jsx';
 import { DeleteAccount } from '../pages/Privacy.jsx';
 import { CODE_THEMES } from './shiki.js';
+import { AvatarPicker } from './avatar.jsx';
 
 const SECTIONS = [
   { id: 'account', label: 'Account', icon: 'user' },
@@ -183,12 +184,14 @@ function SessionsRow() {
 
 function Account() {
   const { user } = useAuth();
+  const [flash, flashView] = useFlash();
   return (
     <>
       <div className="set-profile">
-        <span className="set-avatar">{user.name.trim()[0]?.toUpperCase() || '?'}</span>
+        <AvatarPicker flash={flash} />
         <div><b data-no-translate>{user.name}</b><span data-no-translate>{user.email}</span></div>
       </div>
+      {flashView}
       <h3 className="set-h">Profile</h3>
       <NameRow />
       <EmailRow />

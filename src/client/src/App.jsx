@@ -21,6 +21,9 @@ import Tasks from './pages/Tasks.jsx';
 import Schedule from './pages/Schedule.jsx';
 import Materials from './pages/Materials.jsx';
 import Chat from './pages/Chat.jsx';
+import { TrashPanel } from './lib/trash.jsx';
+import { Avatar } from './lib/avatar.jsx';
+import { useResizable } from './lib/resize.jsx';
 
 // The notes editor is big, so it loads only when Notes is opened
 const Notes = lazy(() => import('./pages/Notes.jsx'));
@@ -52,7 +55,7 @@ const PAGES = [
 const SIDE_KEY = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘\\' : 'Ctrl+\\';
 const readHidden = () => { try { return localStorage.getItem('sa-sidebar') === 'hidden'; } catch { return false; } };
 
-function Sidebar({ onNavigate, onSettings, onHide, onLeave }) {
+function Sidebar({ onNavigate, onSettings, onTrash, onHide, onLeave }) {
   const { user } = useAuth();
   const { courses, tasks, recs } = useData();
   const dueSoon = tasks.filter((t) => !t.done && daysUntil(t.dueDate) >= 0 && daysUntil(t.dueDate) <= 7).length;
@@ -62,7 +65,7 @@ function Sidebar({ onNavigate, onSettings, onHide, onLeave }) {
     <aside className="sidebar" onMouseLeave={onLeave}>
       <div className="side-top">
         <button type="button" className="workspace" onClick={() => { onNavigate(); onSettings('account'); }} title="Account settings">
-          <span className="avatar">{user.name.trim()[0]?.toUpperCase() || '?'}</span>
+          <Avatar user={user} />
           <div className="ws-text"><b>{user.name.split(' ')[0]}'s Study Space</b><span>{user.email}</span></div>
         </button>
         <button className="icon-btn only-mobile" type="button" onClick={onNavigate} aria-label="Close menu"><Icon name="close" /></button>
@@ -92,6 +95,9 @@ function Sidebar({ onNavigate, onSettings, onHide, onLeave }) {
 
       <div className="side-bottom">
         <InstallButton variant="side" />
+        <button className="side-link" type="button" onClick={() => { onNavigate(); onTrash(); }}>
+          <Icon name="trash" /><span>Trash</span>
+        </button>
         <button className="side-link" type="button" onClick={() => { onNavigate(); onSettings('account'); }}>
           <Icon name="settings" /><span>Settings</span><kbd className="side-kbd" data-no-translate>{/Mac|iPhone|iPad/.test(navigator.platform) ? '⌘,' : 'Ctrl+,'}</kbd>
         </button>
@@ -157,6 +163,9 @@ function Shell() {
   const [open, setOpen] = useState(false);
   const [settings, setSettings] = useState(null);     // null, or the section to open
   const [reminders, setReminders] = useState(false);
+  const [trash, setTrash] = useState(false);
+  // The sidebar's width can be dragged (remembered on this device)
+  const side = useResizable('sa-side-w', { initial: 252, min: 200, max: 420 });
   // Desktop: the sidebar can be hidden (remembered on this device); while hidden it can "peek" on hover
   const [hidden, setHidden] = useState(readHidden);
   const [peek, setPeek] = useState(false);
@@ -181,8 +190,9 @@ function Shell() {
   }, []);
 
   return (
-    <div className={`app ${open ? 'menu-open' : ''} ${hidden ? 'side-hidden' : ''} ${hidden && peek ? 'peek' : ''}`}>
-      <Sidebar onNavigate={() => setOpen(false)} onSettings={setSettings} onHide={() => hide(true)} onLeave={() => setPeek(false)} />
+    <div className={`app ${open ? 'menu-open' : ''} ${hidden ? 'side-hidden' : ''} ${hidden && peek ? 'peek' : ''}`} style={{ '--side-w': `${side.width}px` }}>
+      <Sidebar onNavigate={() => setOpen(false)} onSettings={setSettings} onTrash={() => setTrash(true)} onHide={() => hide(true)} onLeave={() => setPeek(false)} />
+      {!hidden && <div className={`side-resize ${side.dragging ? 'on' : ''}`} {...side.handleProps} aria-label="Resize the sidebar" />}
       {hidden && (
         <>
           <div className="side-edge" onMouseEnter={() => setPeek(true)} aria-hidden="true" />
@@ -192,6 +202,7 @@ function Shell() {
       )}
       {settings && <SettingsPanel start={settings} onClose={() => setSettings(null)} onOpenReminders={() => { setSettings(null); setReminders(true); }} />}
       {reminders && <RemindersPanel onClose={() => setReminders(false)} />}
+      {trash && <TrashPanel onClose={() => setTrash(false)} />}
       <div className="scrim" onClick={() => setOpen(false)} aria-hidden="true" />
       <div className="content">
         <div className="topbar">

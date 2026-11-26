@@ -86,6 +86,7 @@ const T = {
   ofGoal: { en: ' of {h}', fr: ' sur {h}', es: ' de {h}', ar: ' من {h}', zh: '/{h}', hi: ' / {h}' },
   hoursPerCourse: { en: 'Hours per course (last 7 days)', fr: 'Heures par cours (7 derniers jours)', es: 'Horas por curso (últimos 7 días)', ar: 'الساعات لكل مقرر (آخر 7 أيام)', zh: '各课程学习时长（最近 7 天）', hi: 'हर कोर्स के घंटे (पिछले 7 दिन)' },
   ofGoalItem: { en: '{h} of {goal} goal', fr: '{h} sur {goal} d’objectif', es: '{h} de {goal} de meta', ar: '{h} من هدف {goal}', zh: '{h} / 目标 {goal}', hi: '{goal} लक्ष्य में से {h}' },
+  studiedItem: { en: '{h} studied', fr: '{h} d’étude', es: '{h} de estudio', ar: '{h} من الدراسة', zh: '已学习 {h}', hi: '{h} पढ़ाई' },
   dueNext7: { en: 'Due in the next 7 days', fr: 'À rendre dans les 7 prochains jours', es: 'Vence en los próximos 7 días', ar: 'مستحق خلال الأيام السبعة القادمة', zh: '未来 7 天内到期', hi: 'अगले 7 दिनों में बाकी' },
   deadlinesNextWeek: { en: '{n} deadlines next week.', fr: '{n} échéances la semaine prochaine.', es: '{n} fechas límite la próxima semana.', ar: '{n} مواعيد نهائية الأسبوع القادم.', zh: '下周有 {n} 个截止日期。', hi: 'अगले हफ़्ते {n} डेडलाइन।' },
   openApp: { en: 'Open the app to see your day.', fr: 'Ouvrez l’app pour voir votre journée.', es: 'Abre la app para ver tu día.', ar: 'افتح التطبيق لترى يومك.', zh: '打开应用查看今天的安排。', hi: 'अपना दिन देखने के लिए ऐप खोलें।' },
