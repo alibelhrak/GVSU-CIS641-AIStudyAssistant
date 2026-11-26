@@ -10,6 +10,8 @@
   ·
   <a href="#how-to-use-the-app">How to use it</a>
   ·
+  <a href="#7-write-your-notes">Notes</a>
+  ·
   <a href="src/README.md">Developer guide</a>
   ·
   <a href="docs/software_requirements_specification.md">Requirements</a>
@@ -37,16 +39,22 @@ Built for **CIS 641 (Software Engineering)** at Grand Valley State University.
 | **Study Schedule** | Plan study sessions on a weekly calendar and tick them off; deadlines show in red |
 | **Materials** | Upload files (PDFs, slides, notes, up to 20 MB) or save links for each course |
 | **Notes** | Notion-style pages with sub-pages, emoji icons, covers (gradients or your own picture), favorites, course tags and search. Type **/** for headings, lists, to-dos, tables, code, quotes and pictures. Saves while you type |
-| **Notes AI chat** | An **Ask AI** panel next to every page, like Notion AI: ask about the page, attach files or pictures, or ask it to fix, rewrite or add to the page. Each change is listed as a step, highlighted in the page, and can be undone in one click. Answers have Copy, Add to page, 👍 / 👎 and Undo |
 | **AI in your notes** | Select text or press **Ctrl+J** to have AI improve, shorten, explain, translate or turn it into a table; or type **/** for Continue writing, Summarize, Key takeaways, Practice quiz and Flashcards. Every answer is a preview first: **Replace**, **Insert**, **Try again** or **Discard** |
+| **Notes AI chat** | An **Ask AI** panel next to every page, like Notion AI: ask about the page, attach files or pictures, or ask it to fix, rewrite or add to the page. Each change is listed as a step, highlighted in the page, and can be undone in one click. Answers have Copy, Add to page, 👍 / 👎 and Undo |
 | **AI recommendations** | Advice on what to study next, with a session plan the student can **accept** (added to the schedule) or **dismiss** |
-| **Ask AI** | Chat with an AI study coach that sees the student's courses, deadlines and hours. It explains, plans and quizzes, and it can **add courses, exams, assignments and study sessions** for the student, each with an **Undo** button |
+| **Ask AI** | Chat with an AI study coach that sees the student's courses, deadlines, hours and notes. It explains, plans and quizzes, and it can **add courses, exams, assignments and study sessions**, and **search, read and write notes**, each change with an **Undo** button |
 | **Files, pictures and voice** | Attach PDFs, notes, code or screenshots to a question; dictate with the microphone; or use **Voice mode** to talk and hear the answers |
-| **Ask AI and your notes** | The chat can search and read your notes, write a new note for you, or add to an existing one |
 | **Chat history** | Every conversation is saved; go back to any of them or delete them |
 | **Accounts** | Sign up, sign in, and reset a forgotten password through an emailed link (valid for 30 minutes, works once) |
-| **Themes** | Light, Dark, Paper, Midnight or System theme, plus five accent colors |
+| **Themes** | Light, Dark, Paper, Midnight or System theme, plus five accent colors. Small animations throughout (respecting "reduce motion"), and thin scrollbars in the theme's colors |
 | **Download the app** | A **Download app** button installs it on a laptop or phone in one click (Chrome and Edge), or shows the steps for other browsers. The installed app opens full screen in its own window, with an icon on the taskbar, Dock or home screen |
+
+## What's new
+
+- **Notes (November 2026):** a Notion-style notes space with sub-pages, covers (including your own pictures), icons, favorites, course tags and search.
+- **AI in your notes:** edit or explain selected text, `/` AI commands, and the **Notes AI** chat panel that can edit the page for you with steps, Show changes and Undo.
+- **Ask AI knows your notes:** it can search, read, write and add to them.
+- **Password reset emails** are sent through Brevo, and the app can be **downloaded** to laptops and phones.
 
 ## How to use the app
 
@@ -102,7 +110,7 @@ Go to **Materials**. Choose a course under **Add to a course**, then drop files 
 
 ### 7. Write your notes
 
-Go to **Notes** and pick a template (Lecture notes, Study guide, Assignment plan) or start from an empty page. Everything saves by itself while you type.
+Go to **Notes** and pick a template (Lecture notes, Study guide, Assignment plan) or start from an empty page. Your pages are listed on the left, the page is in the middle, and **Ask AI** opens the AI panel on the right. Everything saves by itself while you type.
 
 <p align="center"><img src="docs/screenshots/notes.png" alt="A note with a cover, emoji icon, headings, lists and a table" width="900" /></p>
 
@@ -133,9 +141,9 @@ Go to **Ask AI**. Ask anything about your studies, or click one of the suggestio
 
 Each change appears as a card. Click **View** to open the page, or **Undo** to take the change back. The AI can add courses, assignments, exams and study sessions, log study time, change or finish tasks, and write notes. It cannot delete anything.
 
-<p align="center"><img src="docs/screenshots/ask-ai-actions.png" alt="Ask AI adding an exam and study sessions, with Undo buttons" width="900" /></p>
-
 It also knows your notes. Try *"What did I write about lifelines?"*, *"Quiz me on my Sequence diagrams note"* or *"Save a study guide for exam 2 as a note"*.
+
+<p align="center"><img src="docs/screenshots/ask-ai-actions.png" alt="Ask AI adding an exam and study sessions, with Undo buttons" width="900" /></p>
 
 More things you can do in the chat:
 
@@ -188,6 +196,8 @@ The AI recommendations are designed so that the language model **can never inven
 The **Ask AI** chat sends the model a short summary of the student's own data (courses, open tasks, the computed study gaps and planned sessions) with each question, plus a guide to the app's pages. When the student asks it to add or change something, the model asks the server to run a **tool** (add a course, add a task, plan a session, log time, update a task, write a note or add to one, search or read a note). The server checks every value, finds the course or task by name, saves the change for that student only, and returns the result to the model. Nothing can be deleted this way, and every change can be undone.
 
 **AI in the notes** sends the page (as Markdown), the selected text and the chosen action to the server, which asks the model for Markdown only and streams it back. The editor shows it as a preview and turns it into real blocks only when the student clicks Insert or Replace.
+
+The **Notes AI panel** sends the page as a list of blocks, each with its id, plus the conversation and any attached files. The model answers, or changes the page with four tools: edit a block, insert blocks, delete a block, or rewrite the page. The server checks every change (the block must exist on that page) and streams it to the browser, which applies it to the editor right away, highlights it, and keeps a copy of the page from before the answer so **Undo** restores it exactly. Thumbs up / down are saved so the team can see which answers help.
 
 Any OpenAI-compatible model works: [Groq](https://console.groq.com) (free, used online), OpenAI, or a local model through [Ollama](https://ollama.com). Without a model, the app still works and uses rule-based text; only the chat is turned off.
 

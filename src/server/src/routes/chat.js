@@ -127,7 +127,8 @@ HOW THE APP WORKS (use these exact names; never invent buttons or pages that are
   Sessions are ticked off when finished.
 - Materials: choose a course under "Add to a course", then "Upload files" or "Add a link".
 - Notes: Notion-style pages with sub-pages. Type "/" in a page for headings, lists, to-dos, tables, code and pictures.
-  Each page can have an emoji, a course tag and be a favorite. "Ask AI" on a page sends it to this chat.
+  Each page can have an emoji, a course tag and be a favorite. "Ask AI" on a page opens the Notes AI panel next to it,
+  which can read and edit that page (with Undo).
 - Ask AI: this chat. The student can attach files and pictures, dictate, or use Voice mode.
 When the student asks you to write, summarize or save something as a note, use add_note with well-structured Markdown;
 to add to a note that already exists, use add_to_note.
