@@ -405,9 +405,12 @@ export default function Landing() {
 
       <footer className="lp-foot lp-wrap">
         <span><b>AI Study Assistant</b> · CIS 641 term project by Ali Belhrak · Grand Valley State University</span>
-        <a href="https://github.com/alibelhrak/GVSU-CIS641-AIStudyAssistant" target="_blank" rel="noopener noreferrer">
-          <Icon name="github" size={16} /> Source on GitHub
-        </a>
+        <span className="lp-foot-links">
+          <Link to="/privacy">Privacy</Link>
+          <a href="https://github.com/alibelhrak/GVSU-CIS641-AIStudyAssistant" target="_blank" rel="noopener noreferrer">
+            <Icon name="github" size={16} /> Source on GitHub
+          </a>
+        </span>
       </footer>
     </div>
   );

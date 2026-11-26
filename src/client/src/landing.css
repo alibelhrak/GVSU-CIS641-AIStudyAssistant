@@ -283,3 +283,4 @@
   .sc-window:hover{transform:none}
 }
 @media (prefers-reduced-motion:reduce){.sc-window *{animation:none !important}}
+.lp-foot-links{display:inline-flex;align-items:center;gap:20px}
