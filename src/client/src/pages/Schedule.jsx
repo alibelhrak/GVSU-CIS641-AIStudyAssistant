@@ -1,11 +1,12 @@
 import { useState } from 'react';
+import { locale } from '../lib/i18n.jsx';
 import { api } from '../lib/api.js';
 import { useData } from '../lib/store.jsx';
 import { addDays, fmtH, iso, today0, todayIso } from '../lib/dates.js';
 import { CourseSelect } from '../components.jsx';
 
 const blank = () => ({ course: '', date: todayIso(), startTime: '18:00', hours: 1.5, note: '' });
-const short = (d) => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+const short = (d) => d.toLocaleDateString(locale(), { month: 'short', day: 'numeric' });
 
 export default function Schedule() {
   const { sessions, tasks, course, run } = useData();
@@ -53,7 +54,7 @@ export default function Schedule() {
               const di = iso(d);
               return (
                 <div className={`day ${di === todayIso() ? 'today' : ''}`} key={di}>
-                  <div className="day-h"><span>{d.toLocaleDateString(undefined, { weekday: 'short' })}</span><span className="mono">{d.getDate()}</span></div>
+                  <div className="day-h"><span>{d.toLocaleDateString(locale(), { weekday: 'short' })}</span><span className="mono">{d.getDate()}</span></div>
                   {/* Deadlines on this day */}
                   {tasks.filter((k) => k.dueDate === di && !k.done).map((k) => (
                     <div className="dl" key={k.id}>Due: {course(k.course).code} {k.title}</div>

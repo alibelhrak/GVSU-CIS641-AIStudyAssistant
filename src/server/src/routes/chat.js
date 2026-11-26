@@ -23,6 +23,7 @@ import { h, HttpError } from '../middleware/error.js';
 import { addDays, buildCandidates, daysBetween } from '../services/recommendationEngine.js';
 import { TOOLS, runTool } from '../services/chatTools.js';
 import { fetchLLM, isGarbled } from '../services/llmGuard.js';
+import { langOf, replyIn } from '../i18n.js';
 
 const r = Router();
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
@@ -247,7 +248,7 @@ r.post('/', h(async (req, res) => {
     throw new HttpError(400, 'Reading pictures is not set up yet. The server needs VISION_MODEL (for Groq: qwen/qwen3.8-27b). Files and text work without it.');
   }
   const model = hasImages ? config.llm.visionModel : config.llm.chatModel;
-  const convo = [{ role: 'system', content: SYSTEM + await studentContext(req.userId, today) }, ...apiMessages];
+  const convo = [{ role: 'system', content: SYSTEM + replyIn(langOf(req)) + await studentContext(req.userId, today) }, ...apiMessages];
 
   // Stop asking the model if the student closes the page or presses Stop
   const controller = new AbortController();

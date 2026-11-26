@@ -8,7 +8,8 @@ import mongoose from 'mongoose';
 import { config, mailEnabled, pushEnabled } from '../config.js';
 import { User, PushSub } from '../models/index.js';
 import { h, HttpError } from '../middleware/error.js';
-import { runReminders, remindUser, sendPush, unsubscribeToken, validTimezone } from '../services/reminders.js';
+import { tr, dirOf } from '../i18n.js';
+import { runReminders, remindUser, sendPush, unsubscribeToken, validTimezone, pushWorks } from '../services/reminders.js';
 
 const same = (a, b) => a.length === b.length && crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
 
@@ -27,13 +28,15 @@ publicReminders.get('/unsubscribe', h(async (req, res) => {
   const u = String(req.query.u || '');
   const t = String(req.query.t || '');
   const ok = mongoose.isValidObjectId(u) && t.length === 32 && same(t, unsubscribeToken(u));
-  if (ok) await User.updateOne({ _id: u }, { 'reminders.email': false });
-  res.type('html').send(`<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>Reminder emails</title>
+  const user = ok ? await User.findByIdAndUpdate(u, { 'reminders.email': false }) : null;
+  const lang = user?.language || 'en';
+  const T = (k) => tr(k, lang);
+  res.type('html').send(`<!doctype html><html lang="${lang}" dir="${dirOf(lang)}"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Reminder emails</title>
   <body style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#f7f7f5;display:grid;place-items:center;min-height:100vh;margin:0">
   <div style="background:#fff;border:1px solid #e9e9e7;border-radius:14px;padding:28px;max-width:420px;text-align:center">
-  <img src="/logo.png" width="48" height="48" alt=""><h2 style="color:#37352f">${ok ? 'Reminder emails are off' : 'This link is not valid'}</h2>
-  <p style="color:#787774">${ok ? 'You will not get reminder emails anymore. You can turn them back on under Reminders in the app.' : 'Open the app and change your reminders under Reminders.'}</p>
-  <a href="${config.appUrl}/" style="display:inline-block;margin-top:8px;background:#2383e2;color:#fff;text-decoration:none;padding:10px 16px;border-radius:9px;font-weight:600">Open Study Assistant</a></div></body>`);
+  <img src="/logo.png" width="48" height="48" alt=""><h2 style="color:#37352f">${ok ? T('unsubTitle') : T('badLink')}</h2>
+  <p style="color:#787774">${ok ? T('unsubBody') : T('badLinkBody')}</p>
+  <a href="${config.appUrl}/" style="display:inline-block;margin-top:8px;background:#2383e2;color:#fff;text-decoration:none;padding:10px 16px;border-radius:9px;font-weight:600">${T('open')}</a></div></body>`);
 }));
 
 /* ---------- Signed in ---------- */
@@ -43,7 +46,7 @@ const KEYS = ['daily', 'deadlines', 'sessions', 'weekly', 'email', 'push'];
 const settingsOf = async (user) => ({
   reminders: { ...KEYS.reduce((o, k) => ({ ...o, [k]: Boolean(user.reminders?.[k]) }), {}), hour: user.reminders?.hour ?? 7, timezone: user.reminders?.timezone || '' },
   mailReady: mailEnabled(),
-  pushReady: pushEnabled(),
+  pushReady: pushWorks(),
   publicKey: config.push.publicKey,
   devices: await PushSub.countDocuments({ user: user._id }),
 });
@@ -66,7 +69,7 @@ r.put('/settings', h(async (req, res) => {
 // This browser or phone wants push notifications
 r.post('/devices', h(async (req, res) => {
   const s = req.body?.subscription;
-  if (!pushEnabled()) throw new HttpError(503, 'Push notifications are not set up on the server yet (VAPID keys).');
+  if (!pushWorks()) throw new HttpError(503, 'Push notifications are not set up on the server yet (VAPID keys).');
   if (typeof s?.endpoint !== 'string' || !/^https:\/\//.test(s.endpoint) || !s.keys?.p256dh || !s.keys?.auth) throw new HttpError(400, 'Invalid push subscription');
   await PushSub.findOneAndUpdate({ endpoint: s.endpoint },
     { user: req.userId, endpoint: s.endpoint, keys: { p256dh: String(s.keys.p256dh), auth: String(s.keys.auth) }, device: String(req.body.device || '').slice(0, 120) },
@@ -84,7 +87,7 @@ r.post('/test', h(async (req, res) => {
   const user = await User.findById(req.userId);
   const out = { email: false, push: 0 };
   if (mailEnabled() && user.reminders?.email !== false) { await remindUser(user, new Date(), { force: 'daily' }); out.email = true; }
-  out.push = await sendPush(user._id, { title: 'Reminders are working 🎉', body: 'This is how your study reminders will look.', url: '/', tag: 'test' });
+  out.push = await sendPush(user._id, { title: tr('testTitle', user.language), body: tr('testBody', user.language), url: '/', tag: 'test' });
   res.json(out);
 }));
 

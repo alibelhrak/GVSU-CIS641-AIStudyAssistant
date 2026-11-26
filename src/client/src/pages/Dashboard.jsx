@@ -50,7 +50,7 @@ function Recommendations() {
                 <span style={{ width: `${pct}%`, background: c.color }} />
               </div>
               <div className="plan">Suggested plan: add {fmtH(r.gapHours)} h of study
-                <ul>{r.plan.map((p, i) => <li key={i}><span className="mono">{fmtDate(p.date)}</span> · {fmtH(p.hours)} h</li>)}</ul>
+                <ul>{r.plan.map((p, i) => <li key={i}><span className="mono">{fmtDate(p.date)}</span> · <span className="mono">{fmtH(p.hours)} h</span></li>)}</ul>
               </div>
               <div className="rec-actions">
                 <button className="btn primary sm" type="button"

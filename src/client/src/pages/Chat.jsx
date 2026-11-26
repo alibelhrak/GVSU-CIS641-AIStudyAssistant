@@ -5,6 +5,7 @@ import { useAuth } from '../lib/auth.jsx';
 import { useData } from '../lib/store.jsx';
 import { todayIso } from '../lib/dates.js';
 import { Icon } from '../icons.jsx';
+import { getLang, locale } from '../lib/i18n.jsx';
 import '../chat.css';
 
 const SUGGESTIONS = [
@@ -130,7 +131,7 @@ export async function readFile(file, imagesSoFar) {
 // ---------- Voice: speech to text (dictation) and text to speech (read aloud) ----------
 const SpeechRec = typeof window !== 'undefined' ? window.SpeechRecognition || window.webkitSpeechRecognition : null;
 const canSpeak = typeof window !== 'undefined' && 'speechSynthesis' in window;
-const lang = () => navigator.language || 'en-US';
+const lang = () => (getLang() === 'en' ? navigator.language || 'en-US' : locale());
 /** Markdown → words that sound natural when read aloud */
 const plain = (md) => md
   .replace(/```[\s\S]*?```/g, ' (code block) ')
@@ -404,7 +405,7 @@ export default function Chat() {
       const res = await fetch('/api/chat', {
         method: 'POST',
         signal: controller.signal,
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}`, 'X-Lang': document.documentElement.lang || 'en' },
         body: JSON.stringify({
           today: todayIso(),
           messages: history.map((m) => ({

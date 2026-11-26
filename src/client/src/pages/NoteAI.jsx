@@ -27,6 +27,8 @@ export const EDIT_ACTIONS = [
   { id: 'translate', label: 'Translate to French', icon: '🌍', language: 'French' },
   { id: 'translate', label: 'Translate to Spanish', icon: '🌍', language: 'Spanish' },
   { id: 'translate', label: 'Translate to Arabic', icon: '🌍', language: 'Arabic' },
+  { id: 'translate', label: 'Translate to Chinese', icon: '🌍', language: 'Simplified Chinese' },
+  { id: 'translate', label: 'Translate to Hindi', icon: '🌍', language: 'Hindi' },
 ];
 
 /** Buttons when writing at the cursor */
@@ -89,7 +91,7 @@ export function NoteAI({ editor, ctx, title, start, onClose, notify }) {
       const res = await fetch('/api/notes/ai', {
         method: 'POST',
         signal: controller.signal,
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}`, 'X-Lang': document.documentElement.lang || 'en' },
         body: JSON.stringify({
           title,
           page: editor.blocksToMarkdownLossy(editor.document).slice(0, 14000),

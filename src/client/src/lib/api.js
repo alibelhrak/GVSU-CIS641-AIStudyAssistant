@@ -12,6 +12,7 @@ async function request(method, path, body) {
     method,
     headers: {
       ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}),
+      'X-Lang': document.documentElement.lang || 'en',
       ...(body && !isForm ? { 'Content-Type': 'application/json' } : {}),
     },
     body: body ? (isForm ? body : JSON.stringify(body)) : undefined,
@@ -28,6 +29,7 @@ export const api = {
   get: (p) => request('GET', p),
   post: (p, b) => request('POST', p, b),
   patch: (p, b) => request('PATCH', p, b),
+  put: (p, b) => request('PUT', p, b),
   del: (p, b) => request('DELETE', p, b),
   /** Download a protected file and hand it to the browser. */
   async download(path, filename) {

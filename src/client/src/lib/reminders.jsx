@@ -9,6 +9,7 @@ import { api } from './api.js';
 import { useData } from './store.jsx';
 import { useAuth } from './auth.jsx';
 import { Icon } from '../icons.jsx';
+import { locale } from './i18n.jsx';
 
 const TYPES = [
   { key: 'daily', title: 'Morning summary', text: 'Your top priorities, what is due today and tomorrow, and today\'s study sessions.', icon: '☀️' },
@@ -17,7 +18,7 @@ const TYPES = [
   { key: 'weekly', title: 'Weekly progress', text: 'Sunday evening: hours studied against each goal, and the week ahead.', icon: '📈' },
 ];
 
-const hourLabel = (h) => new Date(2000, 0, 1, h).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+const hourLabel = (h) => new Date(2000, 0, 1, h).toLocaleTimeString(locale(), { hour: 'numeric', minute: '2-digit' });
 const isIos = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
 const standalone = () => window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 

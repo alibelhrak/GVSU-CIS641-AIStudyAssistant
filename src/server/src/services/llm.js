@@ -12,6 +12,7 @@
 import { fetchLLM } from './llmGuard.js';
 import { config, llmEnabled } from '../config.js';
 import { templateText } from './recommendationEngine.js';
+import { LANG_NAMES } from '../i18n.js';
 
 const SYSTEM = `You are a study coach inside a student planner app.
 You receive a JSON list of study gaps that the app has already computed.
@@ -38,7 +39,7 @@ export function parseReply(text) {
   }
 }
 
-async function callLlm(facts) {
+async function callLlm(facts, lang) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), config.llm.timeoutMs);
   try {
@@ -54,7 +55,7 @@ async function callLlm(facts) {
         temperature: 0.4,
         response_format: { type: 'json_object' },
         messages: [
-          { role: 'system', content: SYSTEM },
+          { role: 'system', content: lang && lang !== 'en' ? `${SYSTEM}\nWrite "message" and "reason" in ${LANG_NAMES[lang]}. Keep course codes and task titles as given.` : SYSTEM },
           { role: 'user', content: JSON.stringify({ items: facts }) },
         ],
       }),
@@ -68,11 +69,11 @@ async function callLlm(facts) {
 }
 
 /** Returns a Map: ref -> { message, reason, source } where source is 'llm' or 'rules'. */
-export async function writeMessages(facts) {
-  const out = new Map(facts.map((f) => [f.ref, { ...templateText(f), source: 'rules' }]));
+export async function writeMessages(facts, lang = 'en') {
+  const out = new Map(facts.map((f) => [f.ref, { ...templateText(f, lang), source: 'rules' }]));
   if (!facts.length || !llmEnabled()) return out;
   try {
-    const items = (await callLlm(facts)) || [];
+    const items = (await callLlm(facts, lang)) || [];
     for (const item of items) {
       const message = clean(item?.message, 240);
       const reason = clean(item?.reason, 400);

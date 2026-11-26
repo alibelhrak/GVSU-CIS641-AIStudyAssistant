@@ -13,6 +13,7 @@ import { h, HttpError } from '../middleware/error.js';
 import { config, chatEnabled } from '../config.js';
 import { thinkFilter } from './chat.js';
 import notesChat from './notesChat.js';
+import { langOf, LANG_NAMES } from '../i18n.js';
 import { fetchLLM, isGarbled } from '../services/llmGuard.js';
 
 const r = Router();
@@ -126,7 +127,8 @@ r.post('/ai', h(async (req, res) => {
   const prompt = str(b.prompt, 2000).trim();
   const lang = str(b.language, 40).trim();
   let task = ACTIONS[b.action];
-  if (b.action === 'translate') task = `Translate the ${selection ? 'SELECTED TEXT' : 'PAGE'} to ${lang || 'English'}, keeping the format.`;
+  const appLang = LANG_NAMES[langOf(req)];
+  if (b.action === 'translate') task = `Translate the ${selection ? 'SELECTED TEXT' : 'PAGE'} to ${lang || appLang}, keeping the format.`;
   if (!task && !prompt) throw new HttpError(400, 'Tell the AI what to write');
   if (task?.includes('SELECTED TEXT') && !selection) throw new HttpError(400, 'Select some text first');
   if (!task) task = selection
@@ -149,7 +151,7 @@ r.post('/ai', h(async (req, res) => {
       headers: { 'Content-Type': 'application/json', ...(config.llm.apiKey ? { Authorization: `Bearer ${config.llm.apiKey}` } : {}) },
       body: JSON.stringify({
         model: config.llm.chatModel, stream: true, temperature: 0.4, max_tokens: 2500,
-        messages: [{ role: 'system', content: WRITE }, { role: 'user', content: parts.join('\n\n') }],
+        messages: [{ role: 'system', content: appLang === 'English' ? WRITE : `${WRITE}\nThe app is set to ${appLang}: when the page is empty or the student writes the request in ${appLang}, write in ${appLang}.` }, { role: 'user', content: parts.join('\n\n') }],
       }),
     });
   } catch (err) {

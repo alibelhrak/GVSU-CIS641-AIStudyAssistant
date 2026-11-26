@@ -12,13 +12,21 @@ import { config, mailEnabled, pushEnabled } from '../config.js';
 import { User, Course, Task, StudySession, StudyLog, PushSub, ReminderLog } from '../models/index.js';
 import { buildCandidates, addDays, daysBetween } from './recommendationEngine.js';
 import { sendMail } from './mailer.js';
+import { tr, trn, kindName, dirOf, LOCALES } from '../i18n.js';
 
-if (pushEnabled()) webpush.setVapidDetails(config.push.subject, config.push.publicKey, config.push.privateKey);
+// A wrong key must not stop the whole server: push is then simply off
+let pushReady = false;
+if (pushEnabled()) {
+  try { webpush.setVapidDetails(config.push.subject, config.push.publicKey, config.push.privateKey); pushReady = true; }
+  catch (err) { console.warn('Push notifications are off: the VAPID keys are not valid.', err.message); }
+}
+export const pushWorks = () => pushReady;
 
 /* ---------- Small helpers ---------- */
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const hours = (h) => `${Math.round(h * 4) / 4} h`;
-const prettyDate = (iso) => new Date(`${iso}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
+const langOfUser = (user) => user?.language || 'en';
+const hoursIn = (lang) => (h) => tr('hoursUnit', lang, { n: (Math.round(h * 4) / 4).toLocaleString(LOCALES[lang]) });
+const prettyDate = (iso, lang = 'en') => new Date(`${iso}T12:00:00Z`).toLocaleDateString(LOCALES[lang] || 'en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
 
 export function validTimezone(tz) {
   try { new Intl.DateTimeFormat('en-US', { timeZone: tz }); return true; } catch { return false; }
@@ -51,7 +59,7 @@ async function claim(userId, key) {
 
 /* ---------- Sending ---------- */
 export async function sendPush(userId, payload) {
-  if (!pushEnabled()) return 0;
+  if (!pushReady) return 0;
   const subs = await PushSub.find({ user: userId });
   let sent = 0;
   for (const s of subs) {
@@ -66,7 +74,9 @@ export async function sendPush(userId, payload) {
   return sent;
 }
 
-function emailLayout({ user, title, intro, sections, button = 'Open Study Assistant', path = '/' }) {
+function emailLayout({ user, title, intro, sections, button, path = '/' }) {
+  const lang = langOfUser(user);
+  button ??= tr('open', lang);
   const body = sections.filter((s) => s.items.length).map((s) => `
     <h3 style="margin:22px 0 8px;font-size:15px;color:#37352f">${esc(s.title)}</h3>
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse">
@@ -74,7 +84,7 @@ function emailLayout({ user, title, intro, sections, button = 'Open Study Assist
         ${it.color ? `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${esc(it.color)};margin-right:6px"></span>` : ''}${it.html}</td></tr>
         <tr><td style="height:6px"></td></tr>`).join('')}
     </table>`).join('');
-  const html = `<!doctype html><html><body style="margin:0;background:#f7f7f5;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif">
+  const html = `<!doctype html><html lang="${lang}" dir="${dirOf(lang)}"><body style="margin:0;background:#f7f7f5;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif">
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center" style="padding:28px 12px">
   <table role="presentation" width="100%" style="max-width:560px;background:#fff;border:1px solid #e9e9e7;border-radius:14px" cellspacing="0" cellpadding="0"><tr><td style="padding:28px">
     <img src="${config.appUrl}/logo.png" width="40" height="40" alt="" style="display:block;border-radius:10px">
@@ -83,11 +93,10 @@ function emailLayout({ user, title, intro, sections, button = 'Open Study Assist
     ${body}
     <p style="margin:26px 0 4px"><a href="${config.appUrl}${path}" style="display:inline-block;background:#2383e2;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:11px 18px;border-radius:9px">${esc(button)}</a></p>
   </td></tr></table>
-  <p style="max-width:560px;margin:14px auto 0;color:#9b9a97;font-size:12px;line-height:1.5">You get this because you turned on reminders in AI Study Assistant.
-    Change them under <b>Reminders</b> in the app, or <a href="${unsubscribeUrl(user._id)}" style="color:#9b9a97">turn off reminder emails</a>.</p>
+  <p style="max-width:560px;margin:14px auto 0;color:#9b9a97;font-size:12px;line-height:1.5">${tr('footer', lang, { url: unsubscribeUrl(user._id) })}</p>
   </td></tr></table></body></html>`;
   const text = [title, '', intro.replace(/<[^>]+>/g, ''), ...sections.filter((s) => s.items.length).flatMap((s) => ['', `${s.title}:`, ...s.items.map((it) => `- ${it.text}`)]),
-    '', `Open: ${config.appUrl}${path}`, '', `Turn off reminder emails: ${unsubscribeUrl(user._id)}`].join('\n');
+    '', `${button}: ${config.appUrl}${path}`, '', `${tr('turnOff', lang)}: ${unsubscribeUrl(user._id)}`].join('\n');
   return { html, text };
 }
 
@@ -96,14 +105,17 @@ async function email(user, subject, content) {
 }
 
 /* ---------- What to send ---------- */
-function taskItem(t, courses, today) {
+function taskItem(t, courses, today, lang = 'en') {
   const c = courses.get(String(t.course));
   const d = daysBetween(today, t.dueDate);
-  const when = d === 0 ? 'due today' : d === 1 ? 'due tomorrow' : `due ${prettyDate(t.dueDate)}`;
-  const label = `${c?.code || 'Course'} · ${t.title} (${t.type}, ${when})`;
-  return { text: label, html: `<b>${esc(c?.code || 'Course')}</b> · ${esc(t.title)} <span style="color:#787774">(${esc(t.type)}, ${when})</span>`, color: c?.color };
+  const when = d === 0 ? tr('dueToday', lang) : d === 1 ? tr('dueTomorrow', lang) : tr('dueOn', lang, { date: prettyDate(t.dueDate, lang) });
+  const type = lang === 'en' ? t.type : kindName(t.type, lang).replace(/^(ce|cet|cette|este|esta) /, '');
+  const sep = lang === 'ar' ? '، ' : lang === 'zh' ? '，' : ', ';
+  const label = `${c?.code || 'Course'} · ${t.title} (${type}${sep}${when})`;
+  return { text: label, html: `<b>${esc(c?.code || 'Course')}</b> · ${esc(t.title)} <span style="color:#787774">(${esc(type)}${sep}${esc(when)})</span>`, color: c?.color };
 }
-function sessionItem(s, courses) {
+function sessionItem(s, courses, lang = 'en') {
+  const hours = hoursIn(lang);
   const c = courses.get(String(s.course));
   const label = `${s.startTime} · ${c?.code || 'Course'} · ${hours(s.hours)}${s.note ? ` · ${s.note}` : ''}`;
   return { text: label, html: `<b>${esc(s.startTime)}</b> · ${esc(c?.code || 'Course')} · ${hours(s.hours)}${s.note ? ` · ${esc(s.note)}` : ''}`, color: c?.color };
@@ -122,13 +134,17 @@ async function loadData(userId, today) {
 
 export async function remindUser(user, now = new Date(), { force = null } = {}) {
   const r = user.reminders || {};
+  const lang = langOfUser(user);
+  const T = (key, values) => tr(key, lang, values);
+  const hours = hoursIn(lang);
+  const left = (n) => (n === 0 ? T('dueToday') : n === 1 ? T('oneDayLeft') : T('daysLeft', { n }));
   const L = localNow(r.timezone, now);
   const today = L.date;
   const tomorrow = addDays(today, 1);
   const data = await loadData(user._id, today);
   const { courses, tasks, sessions } = data;
   const useEmail = r.email && mailEnabled();
-  const usePush = r.push && pushEnabled();
+  const usePush = r.push && pushReady;
   const done = [];
   const morning = L.hour >= (r.hour ?? 7);
 
@@ -141,22 +157,23 @@ export async function remindUser(user, now = new Date(), { force = null } = {}) 
     const prio = priorities.map((p) => {
       const t = byId.get(p.taskId);
       const c = courses.get(p.courseId);
-      return { text: `${c?.code} · ${t?.title}: about ${hours(p.gapHours)} still to study, ${p.daysLeft === 0 ? 'due today' : `${p.daysLeft} day${p.daysLeft > 1 ? 's' : ''} left`}`,
-        html: `<b>${esc(c?.code)}</b> · ${esc(t?.title)} <span style="color:#787774">· about ${hours(p.gapHours)} still to study, ${p.daysLeft === 0 ? 'due today' : `${p.daysLeft} day${p.daysLeft > 1 ? 's' : ''} left`}</span>`, color: c?.color };
+      const what = `${T('stillToStudy', { h: hours(p.gapHours) })}, ${left(p.daysLeft)}`;
+      return { text: `${c?.code} · ${t?.title}: ${what}`, html: `<b>${esc(c?.code)}</b> · ${esc(t?.title)} <span style="color:#787774">· ${esc(what)}</span>`, color: c?.color };
     });
     if (prio.length || due.length || todays.length || force) {
-      const intro = prio.length ? `Here is what matters most today, ${esc(user.name.split(' ')[0])}.` : `Here is your day, ${esc(user.name.split(' ')[0])}.`;
+      const name = esc(user.name.split(' ')[0]);
+      const intro = prio.length ? T('planIntro', { name }) : T('dayIntro', { name });
       if (useEmail || force) {
-        await email(user, prio.length ? `Today: ${prio.length} priorit${prio.length > 1 ? 'ies' : 'y'}${due.length ? `, ${due.length} due soon` : ''}` : 'Your study day',
-          { title: 'Your study plan for today', intro, sections: [
-            { title: 'Top priorities', items: prio },
-            { title: 'Due today and tomorrow', items: due.map((t) => taskItem(t, courses, today)) },
-            { title: "Today's study sessions", items: todays.map((s) => sessionItem(s, courses)) },
+        await email(user, prio.length ? trn('subjectPriorities', lang, prio.length) + (due.length ? T('subjectDueSoon', { n: due.length }) : '') : T('subjectDay'),
+          { title: T('planTitle'), intro, sections: [
+            { title: T('topPriorities'), items: prio },
+            { title: T('dueTodayTomorrow'), items: due.map((t) => taskItem(t, courses, today, lang)) },
+            { title: T('todaysSessions'), items: todays.map((s) => sessionItem(s, courses, lang)) },
           ] });
       }
       if (usePush) {
-        const first = prio[0]?.text || (due[0] && taskItem(due[0], courses, today).text) || (todays[0] && `Study session at ${todays[0].startTime}`);
-        await sendPush(user._id, { title: 'Your study plan for today', body: first || 'Open the app to see your day.', url: '/', tag: `daily-${today}` });
+        const first = prio[0]?.text || (due[0] && taskItem(due[0], courses, today, lang).text) || (todays[0] && T('sessionAt', { time: todays[0].startTime }));
+        await sendPush(user._id, { title: T('planTitle'), body: first || T('openApp'), url: '/', tag: `daily-${today}` });
       }
       done.push('daily');
     }
@@ -172,14 +189,15 @@ export async function remindUser(user, now = new Date(), { force = null } = {}) 
       if (usePush) {
         for (const t of soon) {
           const c = courses.get(String(t.course));
-          await sendPush(user._id, { title: `${t.type} ${t.dueDate === today ? 'due today' : 'due tomorrow'}`, body: `${c?.code || ''} · ${t.title}`, url: '/tasks', tag: `deadline-${t._id}` });
+          const kind = lang === 'en' ? t.type : kindName(t.type, lang).replace(/^(ce|cet|cette|este|esta) /, '');
+          await sendPush(user._id, { title: `${kind} · ${t.dueDate === today ? T('dueToday') : T('dueTomorrow')}`, body: `${c?.code || ''} · ${t.title}`, url: '/tasks', tag: `deadline-${t._id}` });
         }
       }
       // The morning summary already lists deadlines, so only email them separately when it is off
       if (useEmail && !r.daily) {
-        await email(user, soon.length === 1 ? `Due ${soon[0].dueDate === today ? 'today' : 'tomorrow'}: ${soon[0].title}` : `${soon.length} deadlines today and tomorrow`,
-          { title: 'Deadlines coming up', intro: 'Here is what is due soon.', path: '/tasks', button: 'Open Assignments & Exams',
-            sections: [{ title: 'Due today and tomorrow', items: soon.map((t) => taskItem(t, courses, today)) }] });
+        await email(user, soon.length === 1 ? T('dueSubject', { when: soon[0].dueDate === today ? T('today') : T('tomorrow'), title: soon[0].title }) : T('deadlinesSubject', { n: soon.length }),
+          { title: T('deadlinesTitle'), intro: T('deadlinesIntro'), path: '/tasks', button: T('openTasks'),
+            sections: [{ title: T('dueTodayTomorrow'), items: soon.map((t) => taskItem(t, courses, today, lang)) }] });
       }
       done.push(`deadlines:${soon.length}`);
     }
@@ -193,11 +211,11 @@ export async function remindUser(user, now = new Date(), { force = null } = {}) 
       const until = h * 60 + m - minutesNow;
       if (until <= 0 || until > 30 || !(await claim(user._id, `session:${s._id}`))) continue;
       const c = courses.get(String(s.course));
-      const body = `${c?.code || 'Study'} at ${s.startTime} · ${hours(s.hours)}${s.note ? ` · ${s.note}` : ''}`;
-      if (usePush) await sendPush(user._id, { title: `Study session in ${until} min`, body, url: '/schedule', tag: `session-${s._id}` });
+      const body = `${c?.code || ''} · ${s.startTime} · ${hours(s.hours)}${s.note ? ` · ${s.note}` : ''}`;
+      if (usePush) await sendPush(user._id, { title: T('sessionIn', { n: until }), body, url: '/schedule', tag: `session-${s._id}` });
       else if (useEmail) {
-        await email(user, `Study session in ${until} minutes: ${c?.code || ''}`, { title: `Your study session starts at ${s.startTime}`, intro: 'Time to get ready.',
-          path: '/schedule', button: 'Open Study Schedule', sections: [{ title: 'Session', items: [sessionItem(s, courses)] }] });
+        await email(user, `${T('sessionIn', { n: until })}: ${c?.code || ''}`, { title: T('sessionTitle', { time: s.startTime }), intro: T('getReady'),
+          path: '/schedule', button: T('openSchedule'), sections: [{ title: T('session'), items: [sessionItem(s, courses, lang)] }] });
       }
       done.push('session');
     }
@@ -212,17 +230,18 @@ export async function remindUser(user, now = new Date(), { force = null } = {}) 
       const h = studied(String(c._id));
       const goal = c.weeklyGoalHours || 0;
       const mark = goal && h >= goal ? '✅' : goal && h >= goal / 2 ? '🟡' : '🔴';
-      return { text: `${c.code}: ${hours(h)} of ${hours(goal)} ${mark}`, html: `<b>${esc(c.code)}</b> · ${hours(h)} of ${hours(goal)} goal ${mark}`, color: c.color, h, goal };
+      const line = T('ofGoalItem', { h: hours(h), goal: hours(goal) });
+      return { text: `${c.code}: ${line} ${mark}`, html: `<b>${esc(c.code)}</b> · ${esc(line)} ${mark}`, color: c.color, h, goal };
     });
     const ahead = tasks.filter((t) => t.dueDate > today && t.dueDate <= addDays(today, 7)).sort((a, b) => a.dueDate.localeCompare(b.dueDate));
     const total = progress.reduce((t, p) => t + p.h, 0);
     const goal = progress.reduce((t, p) => t + p.goal, 0);
     if (useEmail || force) {
-      await email(user, `Your week: ${hours(total)} studied${goal ? ` of ${hours(goal)}` : ''}`, {
-        title: 'Your study week', intro: `You studied <b>${hours(total)}</b> this week${goal ? ` out of your <b>${hours(goal)}</b> goal` : ''}.`,
-        sections: [{ title: 'Hours per course (last 7 days)', items: progress }, { title: 'Due in the next 7 days', items: ahead.map((t) => taskItem(t, courses, today)) }] });
+      await email(user, T('weekSubject', { h: hours(total) + (goal ? T('ofGoal', { h: hours(goal) }) : '') }), {
+        title: T('weekTitle'), intro: `${T('weekIntro', { h: hours(total) })}${goal ? T('weekGoal', { h: hours(goal) }) : ''}${lang === 'zh' ? '。' : lang === 'hi' ? '।' : '.'}`,
+        sections: [{ title: T('hoursPerCourse'), items: progress }, { title: T('dueNext7'), items: ahead.map((t) => taskItem(t, courses, today, lang)) }] });
     }
-    if (usePush) await sendPush(user._id, { title: 'Your study week', body: `${hours(total)} studied${goal ? ` of ${hours(goal)}` : ''}. ${ahead.length} deadline${ahead.length === 1 ? '' : 's'} next week.`, url: '/', tag: `weekly-${today}` });
+    if (usePush) await sendPush(user._id, { title: T('weekTitle'), body: `${T('weekSubject', { h: hours(total) + (goal ? T('ofGoal', { h: hours(goal) }) : '') })}. ${trn('deadlinesNextWeek', lang, ahead.length)}`, url: '/', tag: `weekly-${today}` });
     done.push('weekly');
   }
   return done;

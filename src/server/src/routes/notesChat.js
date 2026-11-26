@@ -15,6 +15,7 @@ import { config, chatEnabled } from '../config.js';
 import { HttpError } from '../middleware/error.js';
 import { cleanAttachments, toApiMessage, thinkFilter } from './chat.js';
 import { fetchLLM, isGarbled } from '../services/llmGuard.js';
+import { langOf, replyIn, LANG_NAMES } from '../i18n.js';
 
 const MAX_PAGE = 16000;        // characters of the page sent to the model
 const MAX_MESSAGES = 16;
@@ -80,7 +81,7 @@ export default async function notesChat(req, res) {
   if (hasImages && !config.llm.visionModel) throw new HttpError(400, 'Reading pictures is not set up yet (the server needs VISION_MODEL). Files and text work without it.');
   const model = hasImages ? config.llm.visionModel : config.llm.chatModel;
   const convo = [
-    { role: 'system', content: `${SYSTEM}\n\nPAGE TITLE: ${title || 'Untitled'}\nTHE PAGE${cut ? ' (only the first part fits; the rest is not shown)' : ''}:\n${pageText || '(the page is empty; use insert_blocks with after "START")'}` },
+    { role: 'system', content: `${SYSTEM}${replyIn(langOf(req))}${langOf(req) !== 'en' ? `Text you write into the page follows the page's own language; on an empty page use ${LANG_NAMES[langOf(req)]}.\n` : ''}\n\nPAGE TITLE: ${title || 'Untitled'}\nTHE PAGE${cut ? ' (only the first part fits; the rest is not shown)' : ''}:\n${pageText || '(the page is empty; use insert_blocks with after "START")'}` },
     ...apiMessages,
   ];
 

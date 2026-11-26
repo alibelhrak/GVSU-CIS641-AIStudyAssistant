@@ -43,7 +43,7 @@ export default function Courses() {
                 <div><b>{fmtH(hoursSince(c.id, weekStart))}h</b>this week</div>
                 <div><b>{materials.filter((m) => m.course === c.id).length}</b>materials</div>
               </div>
-              <div className="note">{next ? `Next: ${next.title} · ${relDay(daysUntil(next.dueDate))}` : 'No upcoming work'}</div>
+              <div className="note">{next ? <>{'Next:'} <span data-no-translate>{next.title}</span> · {relDay(daysUntil(next.dueDate))}</> : 'No upcoming work'}</div>
               {confirming === c.id ? (
                 <div className="rec-actions">
                   <span className="note">Remove this course and all its tasks, sessions and files?</span>

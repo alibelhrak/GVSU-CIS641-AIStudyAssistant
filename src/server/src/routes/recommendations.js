@@ -3,6 +3,7 @@ import { Course, Task, StudySession, StudyLog, Recommendation } from '../models/
 import { h, HttpError } from '../middleware/error.js';
 import { buildCandidates } from '../services/recommendationEngine.js';
 import { writeMessages } from '../services/llm.js';
+import { langOf } from '../i18n.js';
 
 const r = Router();
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
@@ -15,6 +16,7 @@ const ISO = /^\d{4}-\d{2}-\d{2}$/;
 r.post('/generate', h(async (req, res) => {
   const today = ISO.test(req.query.today) ? req.query.today : new Date().toISOString().slice(0, 10);
   const user = req.userId;
+  const lang = langOf(req);
   const [courses, tasks, sessions, logs, existing] = await Promise.all([
     Course.find({ user }).lean(),
     Task.find({ user, done: false }).lean(),
@@ -38,7 +40,7 @@ r.post('/generate', h(async (req, res) => {
     const rec = byKey.get(c.key);
     if (!rec) return true;                       // never seen
     if (rec.status !== 'pending') return false;  // already accepted or dismissed
-    return rec.daysLeft !== c.daysLeft;
+    return rec.daysLeft !== c.daysLeft || (rec.lang || 'en') !== lang;   // countdown or app language changed
   });
 
   // Step 3: the LLM (or the rules) write the text
@@ -57,13 +59,13 @@ r.post('/generate', h(async (req, res) => {
       gapHours: c.gapHours,
     };
   });
-  const texts = await writeMessages(facts);
+  const texts = await writeMessages(facts, lang);
 
   await Promise.all(needText.map((c) => {
     const { taskId, courseId, ...numbers } = c;
     return Recommendation.findOneAndUpdate(
       { user, key: c.key },
-      { ...numbers, ...texts.get(c.key), task: taskId, course: courseId, status: 'pending' },
+      { ...numbers, ...texts.get(c.key), lang, task: taskId, course: courseId, status: 'pending' },
       { upsert: true, setDefaultsOnInsert: true },
     );
   }));

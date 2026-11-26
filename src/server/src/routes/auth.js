@@ -6,6 +6,7 @@ import { config } from '../config.js';
 import { h, HttpError } from '../middleware/error.js';
 import { requireAuth, signToken } from '../middleware/auth.js';
 import { sendMail } from '../services/mailer.js';
+import { tr, langOf, isLang, dirOf } from '../i18n.js';
 
 const r = Router();
 const RESET_MINUTES = 30;
@@ -19,7 +20,7 @@ r.post('/register', h(async (req, res) => {
   if (typeof password !== 'string' || password.length < 8) throw new HttpError(400, 'Password must be at least 8 characters');
   if (typeof email !== 'string' || !/^\S+@\S+\.\S+$/.test(email)) throw new HttpError(400, 'Enter a valid email address');
   if (await User.exists({ email: email.toLowerCase().trim() })) throw new HttpError(409, 'An account with that email already exists');
-  const user = await User.create({ name, email, passwordHash: await bcrypt.hash(password, 10) });
+  const user = await User.create({ name, email, passwordHash: await bcrypt.hash(password, 10), language: langOf(req) });
   res.status(201).json({ token: signToken(user.id), user });
 }));
 
@@ -49,31 +50,28 @@ r.post('/forgot', h(async (req, res) => {
 
     const link = `${config.appUrl}/reset-password?token=${token}`;
     const first = user.name.split(' ')[0];
+    // The language of the page the request came from, else the account's language
+    const lang = req.get('x-lang') ? langOf(req) : (user.language || 'en');
+    const L = (key, values) => tr(key, lang, values);
+    const body = L('resetBody', { minutes: RESET_MINUTES });
     try {
       await sendMail({
         to: user.email,
         toName: user.name,
-        subject: 'Reset your Study Assistant password',
-        text: `Hi ${first},\n\nSomeone asked to reset the password for your Study Assistant account.\n`
-          + `Open this link to choose a new password (it works for ${RESET_MINUTES} minutes):\n\n${link}\n\n`
-          + 'If this was not you, you can ignore this email. Your password will not change.',
-        html: `<div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;color:#222">
-  <h2 style="margin:0 0 12px">Reset your password</h2>
-  <p>Hi ${esc(first)},</p>
-  <p>Someone asked to reset the password for your Study Assistant account. Click the button to choose a new one. The link works for ${RESET_MINUTES} minutes.</p>
-  <p style="margin:24px 0"><a href="${esc(link)}" style="background:#2b4fd8;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:bold">Choose a new password</a></p>
-  <p style="font-size:13px;color:#666">If the button does not work, copy this address into your browser:<br>${esc(link)}</p>
-  <p style="font-size:13px;color:#666">If this was not you, you can ignore this email. Your password will not change.</p>
+        subject: L('resetSubject'),
+        text: `${L('hi', { name: first })}\n\n${body}\n\n${link}\n\n${L('resetIgnore')}`,
+        html: `<div dir="${dirOf(lang)}" style="font-family:Arial,sans-serif;max-width:480px;margin:auto;color:#222">
+  <h2 style="margin:0 0 12px">${esc(L('resetTitle'))}</h2>
+  <p>${esc(L('hi', { name: first }))}</p>
+  <p>${esc(body)}</p>
+  <p style="margin:24px 0"><a href="${esc(link)}" style="background:#2b4fd8;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:bold">${esc(L('resetButton'))}</a></p>
+  <p style="font-size:13px;color:#666">${esc(L('resetCopy'))}<br><span dir="ltr">${esc(link)}</span></p>
+  <p style="font-size:13px;color:#666">${esc(L('resetIgnore'))}</p>
 </div>`,
       });
-      console.log('Password reset email handed to Brevo for', user.email);
     } catch (err) {
       console.error('Password reset email failed:', err.message);
     }
-  } else if (user) {
-    console.log('Password reset skipped: a link was already sent less than a minute ago');
-  } else {
-    console.log('Password reset asked for an email with no account:', email);
   }
   res.json({ ok: true, message: 'If an account uses that email, a reset link is on its way.' });
 }));
@@ -96,6 +94,15 @@ r.post('/reset', h(async (req, res) => {
 // Who am I? (needs a token)
 r.get('/me', requireAuth, h(async (req, res) => {
   const user = await User.findById(req.userId);
+  if (!user) throw new HttpError(401, 'Account not found');
+  res.json({ user });
+}));
+
+// Save settings that belong to the account (now: the app language)
+r.patch('/me', requireAuth, h(async (req, res) => {
+  const { language } = req.body || {};
+  if (!isLang(language)) throw new HttpError(400, 'Unknown language');
+  const user = await User.findByIdAndUpdate(req.userId, { language }, { returnDocument: 'after' });
   if (!user) throw new HttpError(401, 'Account not found');
   res.json({ user });
 }));

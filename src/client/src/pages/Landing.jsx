@@ -4,6 +4,7 @@ import { Icon } from '../icons.jsx';
 import '../landing.css';
 import { THEMES, useTheme } from '../lib/theme.jsx';
 import { InstallButton } from '../lib/install.jsx';
+import { LanguageSelect, t } from '../lib/i18n.jsx';
 
 /** Adds the class "in" to every [data-reveal] element when it scrolls into view. */
 function useReveal() {
@@ -19,7 +20,8 @@ function useReveal() {
 }
 
 /** Types out each message, waits, then moves to the next one. */
-function useTyping(messages, speed = 32, pause = 2200) {
+function useTyping(english, speed = 32, pause = 2200) {
+  const [messages] = useState(() => english.map((m) => t(m)));
   const [i, setI] = useState(0);
   const [text, setText] = useState('');
   useEffect(() => {
@@ -45,7 +47,8 @@ function useLoop(durations) {
 }
 
 /** Types its text once, letter by letter, when it appears */
-function Typer({ text, speed = 22 }) {
+function Typer({ text: english, speed = 22 }) {
+  const text = t(english);
   const [n, setN] = useState(0);
   useEffect(() => {
     if (n >= text.length) return undefined;
@@ -246,6 +249,7 @@ export default function Landing() {
             <a href="#themes">Themes</a>
           </nav>
           <div className="lp-cta">
+            <LanguageSelect compact />
             <button className="icon-btn" type="button" onClick={() => setTheme(isDark ? 'light' : 'dark')}
               aria-label={isDark ? 'Switch to light theme' : 'Switch to dark theme'}><Icon name={isDark ? 'sun' : 'moon'} /></button>
             <InstallButton />

@@ -82,3 +82,10 @@ test('LLM reply parser tolerates code fences and rejects garbage', () => {
   assert.equal(parseReply('{"items":"nope"}'), null);
   assert.equal(parseReply(undefined), null);
 });
+test('templateText speaks the app language', () => {
+  const f = { course: 'BIO 120', title: 'Midterm 1', type: 'Exam', daysLeft: 3, studiedHours: 2, plannedHours: 1, neededHours: 8 };
+  assert.match(templateText(f, 'fr').reason, /cet examen/);
+  assert.match(templateText(f, 'es').message, /BIO 120/);
+  assert.match(templateText(f, 'ar').message, /3 أيام/);
+  assert.equal(templateText(f).message, templateText(f, 'en').message);
+});

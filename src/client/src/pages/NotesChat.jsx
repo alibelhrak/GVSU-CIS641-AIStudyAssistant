@@ -160,7 +160,7 @@ export function NotesChat({ note, getEditor, onClose, notify, onChanged }) {
     try {
       const res = await fetch('/api/notes/chat', {
         method: 'POST', signal: controller.signal,
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}`, 'X-Lang': document.documentElement.lang || 'en' },
         body: JSON.stringify({
           title: note.title, blocks: pageBlocks(),
           messages: history.map((m) => ({ role: m.role, content: m.content, attachments: m.role === 'user' ? m.attachments : undefined })),

@@ -1,7 +1,8 @@
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { filterSuggestionItems } from '@blocknote/core';
-import { en } from '@blocknote/core/locales';
+import { en, fr, es, ar, zh } from '@blocknote/core/locales';
+import { getLang, locale, t } from '../lib/i18n.jsx';
 import {
   useCreateBlockNote, SuggestionMenuController, getDefaultReactSlashMenuItems,
   FormattingToolbarController, FormattingToolbar, getFormattingToolbarItems, useComponentsContext,
@@ -97,7 +98,7 @@ const ago = (d) => {
   if (s < 60) return 'just now';
   if (s < 3600) return `${Math.floor(s / 60)} min ago`;
   if (s < 86400) return `${Math.floor(s / 3600)} h ago`;
-  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return new Date(d).toLocaleDateString(locale(), { month: 'short', day: 'numeric' });
 };
 
 /** Pictures dropped into a note are made smaller and kept inside the note */
@@ -152,7 +153,7 @@ function slashItems(editor, onAi) {
   const blocks = getDefaultReactSlashMenuItems(editor)
     .filter((i) => !['heading_5', 'heading_6'].includes(i.key))
     .map((i) => ({
-      ...i, badge: undefined, title: RENAME[i.key] || i.title, hint: HINT[i.key], aliases: [...(i.aliases || []), i.title, ...(MORE_ALIASES[i.key] || [])],
+      ...i, badge: undefined, title: (englishEditor && RENAME[i.key]) || i.title, hint: HINT[i.key], aliases: [...(i.aliases || []), i.title, ...(MORE_ALIASES[i.key] || [])],
       group: BASIC.includes(i.key) ? 'Basic blocks' : MEDIA.includes(i.key) ? 'Media' : 'More',
     }))
     .sort((a, b) => GROUPS.indexOf(a.group) - GROUPS.indexOf(b.group) || (BASIC.indexOf(a.key) - BASIC.indexOf(b.key)));
@@ -223,10 +224,15 @@ function AiToolbarButton({ onAi }) {
   );
 }
 
+/** The editor's own menus come in the app's language (Hindi uses English menus, translated by the app) */
+const EDITOR_LOCALES = { en, fr, es, ar, zh };
+const base = EDITOR_LOCALES[getLang()] || en;
 const DICTIONARY = {
-  ...en,
-  placeholders: { ...en.placeholders, default: "Write something, or press '/' for commands and Ctrl+J for AI…", heading: 'Heading', bulletListItem: 'List', numberedListItem: 'List', checkListItem: 'To-do' },
+  ...base,
+  placeholders: { ...base.placeholders, default: t("Write something, or press '/' for commands and Ctrl+J for AI…"),
+    ...(base === en ? { heading: 'Heading', bulletListItem: 'List', numberedListItem: 'List', checkListItem: 'To-do' } : {}) },
 };
+const englishEditor = base === en;
 
 function NoteEditor({ note, dark, onChange, onReady, onAi }) {
   const editor = useCreateBlockNote({

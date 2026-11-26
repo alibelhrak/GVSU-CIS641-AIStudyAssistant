@@ -37,6 +37,8 @@ export const User = model('User', new Schema({
   // "Forgot password": a fingerprint of the emailed reset code, and when it stops working
   resetTokenHash: { type: String, index: true },
   resetExpires: Date,
+  // App language (also used for emails sent later)
+  language: { type: String, enum: ['en', 'fr', 'es', 'ar', 'zh', 'hi'], default: 'en' },
   // Reminders the student turned on (all off until they choose), and how to send them
   reminders: {
     daily: { type: Boolean, default: false },       // morning summary
@@ -119,6 +121,7 @@ export const Recommendation = model('Recommendation', new Schema({
   message: String,
   reason: String,
   source: { type: String, enum: ['llm', 'rules'], default: 'rules' },
+  lang: { type: String, default: 'en' },   // language the text was written in
   daysLeft: Number,
   studiedHours: Number,
   plannedHours: Number,

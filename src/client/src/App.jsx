@@ -7,6 +7,7 @@ import { daysUntil } from './lib/dates.js';
 import { Icon } from './icons.jsx';
 import { InstallButton } from './lib/install.jsx';
 import { RemindersPanel } from './lib/reminders.jsx';
+import { LanguageSelect, getLang, chosenHere, setLang } from './lib/i18n.jsx';
 import Landing from './pages/Landing.jsx';
 import Login from './pages/Login.jsx';
 import ForgotPassword from './pages/ForgotPassword.jsx';
@@ -28,7 +29,7 @@ const greeting = () => {
 /** Every page: address, sidebar label, icon, and the big header shown at the top */
 const PAGES = [
   { to: '/', label: 'Dashboard', icon: 'home', emoji: '🧭', element: <Dashboard />,
-    title: (u) => `${greeting()}, ${u.name.split(' ')[0]}`,
+    title: (u) => <>{greeting()}{', '}<span data-no-translate>{u.name.split(' ')[0]}</span></>,
     sub: 'Here is what to study next, how your week is going, and what is due soon.' },
   { to: '/courses', label: 'Courses', icon: 'book', emoji: '📚', element: <Courses />,
     title: () => 'Courses', sub: 'Each course has a weekly study goal. See its tasks, hours and materials at a glance.' },
@@ -76,6 +77,8 @@ function ThemeMenu({ onClose }) {
           </button>
         ))}
       </div>
+      <p className="menu-label">Language</p>
+      <LanguageSelect />
       <p className="menu-label">Accent</p>
       <div className="accent-row">
         {ACCENTS.map((a) => (
@@ -203,6 +206,12 @@ function Shell() {
 
 export default function App() {
   const { user, ready } = useAuth();
+  // Keep the language the same on every device: the account remembers it
+  useEffect(() => {
+    if (!user) return;
+    if (!chosenHere() && user.language && user.language !== getLang()) setLang(user.language, { save: false });
+    else if (user.language !== getLang()) setLang(getLang(), { reload: false });
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!ready) return null;
   // Signed out: welcome page, sign in and sign up
   if (!user) {

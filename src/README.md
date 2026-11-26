@@ -73,6 +73,7 @@ All routes start with `/api`. Every route except `/auth/*` and `/health` needs t
 |---|---|
 | `POST /auth/register`, `POST /auth/login` | Create an account / sign in; returns a token and the user |
 | `GET /auth/me` | The signed-in user |
+| `PATCH /auth/me` | Save the app language (`{ language: 'en' \| 'fr' \| 'es' \| 'ar' \| 'zh' \| 'hi' }`) |
 | `POST /auth/forgot` | Emails a reset link (always gives the same answer, so it never reveals who has an account) |
 | `POST /auth/reset` | Sets a new password with the code from the link and signs in |
 | `/courses`, `/tasks`, `/sessions`, `/logs` | List, create (`POST`), update (`PATCH /:id`) and delete (`DELETE /:id`) |
@@ -100,6 +101,14 @@ Render's free server sleeps, so it cannot run its own timer. `.github/workflows/
 3. Run the workflow once by hand (**Actions → Study reminders → Run workflow**) to check it.
 
 GitHub pauses scheduled workflows in a repository with no commits for 60 days; re-enable it in the Actions tab if that happens. Waking the server every 15 minutes keeps it running all month, which fits in Render's free 750 hours for one service.
+
+## Languages
+
+The app works in English, French, Spanish, Arabic (right to left), Chinese and Hindi.
+
+- **Browser:** `client/src/lib/i18n.jsx` translates the page as it renders, using the English text as the key and the dictionaries in `client/src/locales/*.json`. Numbers become `{n}`, so "3 days left" and "5 days left" share one entry. Anything typed by the student (notes, chat messages, titles, course names) is never translated: such elements are skipped, or marked `data-no-translate`. To add a text, write it in English in the component and add the same English key with its translation to each locale file.
+- **Server:** the browser sends `X-Lang` with each request, and the account keeps `language` for emails sent later by the scheduler. `server/src/i18n.js` holds the email, push and recommendation texts; the AI prompts add "answer in <language>".
+- **Add a language:** add it to `LANGS` in `i18n.jsx`, a locale file, the `User.language` list, and its column in `server/src/i18n.js`.
 
 ## Project structure
 

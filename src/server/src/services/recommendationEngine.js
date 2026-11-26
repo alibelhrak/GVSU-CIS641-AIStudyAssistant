@@ -11,6 +11,7 @@
  * This file uses no database and no clock, so it can be unit-tested, and the
  * numbers shown to the student never depend on what an LLM writes.
  */
+import { tr, kindName } from '../i18n.js';
 
 const DAY_MS = 86400000;
 const PRIORITY_WEIGHT = { high: 1.6, med: 1.0, low: 0.6 };
@@ -85,12 +86,12 @@ export function buildPlan(today, daysLeft, gap) {
 }
 
 /** Rule-based wording, used when no LLM is set up or its answer is rejected. */
-export function templateText(f) {
-  const kind = f.type.toLowerCase();
-  const when = f.daysLeft === 0 ? 'is due today' : f.daysLeft === 1 ? 'is due tomorrow' : `is in ${f.daysLeft} days`;
-  const message = `Spend more time on ${f.course}: your ${f.title} ${when}.`;
+export function templateText(f, lang = 'en') {
+  const kind = kindName(f.type, lang);
+  const when = f.daysLeft === 0 ? tr('recToday', lang) : f.daysLeft === 1 ? tr('recTomorrow', lang) : tr('recInDays', lang, { n: f.daysLeft });
+  const message = tr('recMessage', lang, { course: f.course, title: f.title, when });
   const reason = f.studiedHours === 0 && f.plannedHours === 0
-    ? `You have not studied ${f.course} yet for this ${kind}. It needs about ${f.neededHours} h.`
-    : `You have studied ${f.studiedHours} h${f.plannedHours ? ` and planned ${f.plannedHours} h` : ''}, but this ${kind} needs about ${f.neededHours} h.`;
+    ? tr('recNotYet', lang, { course: f.course, kind, need: f.neededHours })
+    : tr('recStudied', lang, { studied: f.studiedHours, planned: f.plannedHours ? tr('recPlanned', lang, { n: f.plannedHours }) : '', kind, need: f.neededHours });
   return { message, reason };
 }

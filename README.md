@@ -47,11 +47,13 @@ Built for **CIS 641 (Software Engineering)** at Grand Valley State University.
 | **Chat history** | Every conversation is saved; go back to any of them or delete them |
 | **Reminders** | Turn on a morning summary of your top priorities, deadline alerts, study-session alerts and a Sunday progress email, sent by **email** and as **push notifications** on your phone or computer |
 | **Accounts** | Sign up, sign in, and reset a forgotten password through an emailed link (valid for 30 minutes, works once) |
+| **Languages** | Use the whole app in **English, Français, Español, العربية (right to left), 中文 or हिन्दी**. The AI answers, the advice on what to study, the reminder emails and the password emails follow your language |
 | **Themes** | Light, Dark, Paper, Midnight or System theme, plus five accent colors. Small animations throughout (respecting "reduce motion"), and thin scrollbars in the theme's colors |
 | **Download the app** | A **Download app** button installs it on a laptop or phone in one click (Chrome and Edge), or shows the steps for other browsers. The installed app opens full screen in its own window, with an icon on the taskbar, Dock or home screen |
 
 ## What's new
 
+- **Languages (November 2026):** the app now works in English, French, Spanish, Arabic, Chinese and Hindi. Pick one with the 🌐 menu on the welcome page, the sign-in page or under **Appearance**. Your choice is saved to your account.
 - **Notes (November 2026):** a Notion-style notes space with sub-pages, covers (including your own pictures), icons, favorites, course tags and search.
 - **AI in your notes:** edit or explain selected text, `/` AI commands, and the **Notes AI** chat panel that can edit the page for you with steps, Show changes and Undo.
 - **Ask AI knows your notes:** it can search, read, write and add to them.
@@ -185,7 +187,13 @@ Click **Appearance** at the bottom of the sidebar to pick a theme (System, Light
 
 <p align="center"><img src="docs/screenshots/themes.png" alt="Dark theme with the Appearance menu open" width="900" /></p>
 
-### 11. Download the app to your laptop or phone
+### 11. Choose your language
+
+Pick a language with the 🌐 button on the welcome page or the sign-in page, or under **Appearance** in the sidebar. The menus, buttons, dates and messages change at once, Arabic switches the layout to right to left, and the note editor's menus follow too. The AI then answers in your language (unless you write to it in another one), the study advice is written in it, and reminder and password emails arrive in it. Your notes and course names stay exactly as you wrote them.
+
+<p align="center"><img src="docs/screenshots/languages.png" alt="The dashboard in Arabic, right to left, and on a phone in Hindi" width="900" /></p>
+
+### 12. Download the app to your laptop or phone
 
 Click **Download app** at the top of the welcome page, or in the sidebar once you are signed in.
 

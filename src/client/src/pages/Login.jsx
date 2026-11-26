@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth.jsx';
 import { useTheme } from '../lib/theme.jsx';
 import { Icon } from '../icons.jsx';
+import { LanguageSelect } from '../lib/i18n.jsx';
 import '../landing.css';
 
 export default function Login() {
@@ -31,6 +32,7 @@ export default function Login() {
     <div className="login">
       <div className="blob b1" /><div className="blob b2" /><div className="blob b3" />
       <Link className="back-home" to="/"><Icon name="back" size={16} /> Home</Link>
+      <div className="login-lang"><LanguageSelect compact /></div>
       <button className="icon-btn login-theme" type="button" onClick={() => setTheme(isDark ? 'light' : 'dark')}
         aria-label={isDark ? 'Switch to light theme' : 'Switch to dark theme'}>
         <Icon name={isDark ? 'sun' : 'moon'} />
