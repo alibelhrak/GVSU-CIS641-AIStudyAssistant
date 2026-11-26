@@ -284,3 +284,53 @@
 }
 @media (prefers-reduced-motion:reduce){.sc-window *{animation:none !important}}
 .lp-foot-links{display:inline-flex;align-items:center;gap:20px}
+
+/* =========================================================================
+   What's new pill, where to get it, and the code showcase
+   ========================================================================= */
+.new-pill{text-decoration:none;color:inherit;gap:8px;transition:border-color .2s,transform .2s var(--ease)}
+.new-pill b{background:var(--accent);color:var(--accent-ink,#fff);border-radius:999px;padding:1px 8px;font-size:.72rem;letter-spacing:.02em}
+.new-pill svg{transition:transform .2s var(--ease)}
+.new-pill:hover{border-color:var(--accent-line);transform:translateY(-1px)}
+.new-pill:hover svg{transform:translateX(3px)}
+[dir="rtl"] .new-pill svg{transform:scaleX(-1)}
+.hero-where{display:flex;flex-wrap:wrap;justify-content:center;gap:8px 18px;margin-top:14px;font-size:.86rem;color:var(--muted)}
+.hero-where > *{display:inline-flex;align-items:center;gap:6px}
+.hero-where a{color:inherit;text-decoration:none;border-bottom:1px dashed var(--line-strong)}
+.hero-where a:hover{color:var(--fg);border-bottom-color:var(--fg)}
+.win-logo{flex:none;display:block}
+.lp-foot-links a{display:inline-flex;align-items:center;gap:6px}
+.final .hero-cta .btn{display:inline-flex;align-items:center;gap:8px}
+
+.sc-code-body{display:grid;grid-template-columns:170px minmax(0,1fr);height:400px}
+.sc-tree{display:grid;align-content:start;gap:2px;padding:12px 8px;background:var(--sidebar);border-right:1px solid var(--line);font-size:.74rem;overflow:hidden}
+.sc-tree p{margin:8px 6px 2px;font-size:.6rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
+.sc-tree span{display:flex;align-items:center;gap:6px;padding:4px 6px;border-radius:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted)}
+.sc-tree span.g{font-weight:600}
+.sc-tree span.i{padding-left:18px}
+.sc-tree span.on{background:var(--accent-soft);color:var(--fg);font-weight:600}
+.sc-tree i{width:7px;height:7px;border-radius:50%;flex:none}
+.sc-code-page{padding:16px 18px;display:grid;align-content:start;gap:8px;min-width:0}
+.sc-code-page h4{font-size:1.15rem;font-weight:800;letter-spacing:-.02em;margin:0 0 2px}
+.sc-block{border-radius:10px;background:var(--surface-2);border:1px solid var(--line);overflow:hidden}
+.sc-block-bar{display:flex;align-items:center;justify-content:space-between;padding:6px 8px 0 12px}
+.sc-lang{font-size:.68rem;color:var(--muted)}
+.sc-run{font-size:.7rem;font-weight:700;padding:3px 9px;border-radius:6px;background:var(--accent);color:var(--accent-ink,#fff);transition:transform .15s,filter .15s}
+.sc-run.press{transform:scale(.92);filter:brightness(.9)}
+.sc-block pre{margin:0;padding:8px 14px 12px;font:12px/1.65 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:pre;overflow:hidden;color:var(--fg)}
+.tk-k{color:#cf222e}.tk-f{color:#8250df}.tk-n{color:#0550ae}.tk-s{color:#0a3069}
+:root[data-theme="dark"] .sc-block .tk-k,:root[data-theme="midnight"] .sc-block .tk-k{color:#ff7b72}
+:root[data-theme="dark"] .sc-block .tk-f,:root[data-theme="midnight"] .sc-block .tk-f{color:#d2a8ff}
+:root[data-theme="dark"] .sc-block .tk-n,:root[data-theme="midnight"] .sc-block .tk-n{color:#79c0ff}
+:root[data-theme="dark"] .sc-block .tk-s,:root[data-theme="midnight"] .sc-block .tk-s{color:#a5d6ff}
+.tk-ghost{color:var(--faint);animation:sc-in .25s var(--ease) both}
+.tk-ghost em{font-style:normal;font-family:var(--font);font-size:.62rem;margin-left:8px;padding:1px 5px;border:1px solid var(--line-strong);border-radius:4px;color:var(--muted)}
+.tk-new{border-radius:4px;animation:sc-flash 1.2s ease-out both}
+.sc-out{border:1px dashed var(--line-strong);border-radius:10px;padding:10px 14px;font:12px/1.6 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:pre;min-height:52px;
+  animation:sc-in .3s var(--ease) both}
+.sc-out.run{color:var(--muted)}
+@media (max-width:680px){
+  .sc-code-body{grid-template-columns:1fr;height:380px}
+  .sc-tree{display:none}
+}
+@media (max-width:560px){.new-pill{font-size:.74rem;max-width:100%;text-align:start}.new-pill b{flex:none}}

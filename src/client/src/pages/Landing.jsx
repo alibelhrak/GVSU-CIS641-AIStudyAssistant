@@ -151,6 +151,56 @@ function NotesShowcase() {
   );
 }
 
+const CODE_STEPS = [1500, 1700, 900, 1100, 3600];
+const STORE_URL = 'https://apps.microsoft.com/detail/9PJZX6KSS8TH';
+
+/** A code block in a note, acted out: the AI suggests a line, Tab accepts it, Run shows the output */
+function CodeShowcase() {
+  const step = useLoop(CODE_STEPS);
+  const k = (t) => <span className="tk-k">{t}</span>;
+  const f = (t) => <span className="tk-f">{t}</span>;
+  const n = (t) => <span className="tk-n">{t}</span>;
+  const str = (t) => <span className="tk-s">{t}</span>;
+  return (
+    <div className="sc-window sc-code" aria-hidden="true">
+      <div className="pv-bar"><span className="pv-dot" /><span className="pv-dot" /><span className="pv-dot" /><span className="pv-url">Notes · Algorithms practice</span></div>
+      <div className="sc-code-body">
+        <div className="sc-tree">
+          <p>Folders</p>
+          <span className="g">▾ 📁 Midterm prep</span>
+          <span className="i">🧠 Sequence diagrams</span>
+          <span className="i">📘 Exam 2 study guide</span>
+          <p>Courses</p>
+          <span className="g"><i style={{ background: '#2383e2' }} />CIS 641</span>
+          <span className="i on">💻 Algorithms practice</span>
+          <span className="g"><i style={{ background: '#2f9e6f' }} />STA 610</span>
+          <span className="i">📊 Hypothesis tests</span>
+        </div>
+        <div className="sc-code-page">
+          <h4>💻 Algorithms practice</h4>
+          <div className="sc-block">
+            <div className="sc-block-bar">
+              <span className="sc-lang">Python ▾</span>
+              <span className={`sc-run ${step === 3 ? 'press' : ''}`}>▷ Run</span>
+            </div>
+            <pre>
+              {k('def')} {f('average')}(scores):{'\n'}
+              {'    '}{k('return')} {f('sum')}(scores) / {f('len')}(scores){'\n'}
+              {'\n'}
+              grades = [{n('88')}, {n('72')}, {n('95')}, {n('61')}]{'\n'}
+              {f('print')}({str('"average:"')}, average(grades)){'\n'}
+              {step === 1 && <span className="tk-ghost">print("best:", max(grades))<em>Tab</em></span>}
+              {step >= 2 && <span className={step === 2 ? 'tk-new' : ''}>{f('print')}({str('"best:"')}, {f('max')}(grades))</span>}
+            </pre>
+          </div>
+          {step === 3 && <div className="sc-out run">Running…</div>}
+          {step === 4 && <div className="sc-out"><Typer text={'average: 79.0\nbest: 95'} speed={30} /></div>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const AI_LINES = [
   'Spend more time on CIS 678: your Midterm exam is in 3 days.',
   'You have studied 2 h, but this exam needs about 10 h.',
@@ -208,12 +258,15 @@ function AppPreview() {
 }
 
 const FEATURES = [
-  { icon: 'book', title: 'Courses with weekly goals', text: 'Add each course with how many hours a week you want to study it, and watch it fill up as you log time.' },
+  { icon: 'book', title: 'Courses with weekly goals', text: 'Add each course, with an optional goal of hours a week, and watch it fill up as you log time.' },
   { icon: 'check', title: 'Assignments & exams', text: 'Keep every deadline in one list with its type, priority and the hours it needs.' },
   { icon: 'calendar', title: 'Weekly study schedule', text: 'Plan study sessions on a calendar, see deadlines on the same week, and tick sessions off.' },
   { icon: 'note', title: 'Notes, like Notion', text: 'Pages and sub-pages with headings, to-dos, tables, covers and pictures. AI is built right into the page.', hot: true },
   { icon: 'chat', title: 'Ask AI', text: 'A study coach that knows your deadlines and notes, reads your PDFs, and adds exams and sessions for you.', hot: true },
   { icon: 'spark', title: 'AI recommendations', text: 'Get told which course to focus on next, with a ready-made plan you can accept in one click.' },
+  { icon: 'play', title: 'Code that runs', text: 'Write Python, JavaScript, SQL or HTML in your notes and run it right there, with VS Code shortcuts and AI completions.', hot: true },
+  { icon: 'folder', title: 'Folders and course groups', text: 'Pages sort themselves by course. Drag them into your own folders, like "Midterm prep".' },
+  { icon: 'trash', title: 'Trash with Undo', text: 'Deleted something by mistake? Undo it at once, or restore it from the Trash for 30 days.' },
 ];
 
 const STEPS = [
@@ -222,6 +275,16 @@ const STEPS = [
   { n: '3', who: 'LLM', title: 'Explain it', text: 'A language model writes a short, friendly message from those numbers.', code: 'any LLM · rule-based fallback' },
   { n: '4', who: 'You', title: 'Accept or dismiss', text: 'Accepting puts the sessions straight into your schedule.', code: 'one click' },
 ];
+
+/** The four-square Windows logo (drawn, not an image) */
+function WinLogo() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" className="win-logo">
+      <rect x="0" y="0" width="7.4" height="7.4" fill="#f25022" /><rect x="8.6" y="0" width="7.4" height="7.4" fill="#7fba00" />
+      <rect x="0" y="8.6" width="7.4" height="7.4" fill="#00a4ef" /><rect x="8.6" y="8.6" width="7.4" height="7.4" fill="#ffb900" />
+    </svg>
+  );
+}
 
 /** Top-bar links: show as many as fit (in order), never squeeze or cut one. Re-checks when the width or the words change. */
 function useFitLinks() {
@@ -271,6 +334,7 @@ export default function Landing() {
             <a href="#features">Features</a>
             <a href="#ask-ai">Ask AI</a>
             <a href="#notes">Notes</a>
+            <a href="#code">Code</a>
             <a href="#how">How the AI works</a>
             <a href="#themes">Themes</a>
           </nav>
@@ -287,7 +351,7 @@ export default function Landing() {
 
       <section className="hero lp-wrap" id="top">
         <div className="hero-glow" aria-hidden="true" />
-        <span className="eyebrow" data-reveal><Icon name="spark" size={14} /> An AI study planner for students</span>
+        <a className="eyebrow new-pill" href="#code" data-reveal><b>New</b><span>Run Python, SQL and JavaScript in your notes</span><Icon name="arrow" size={13} /></a>
         <h1 data-reveal>Know exactly<br /><span className="grad">what to study next.</span></h1>
         <p className="hero-sub" data-reveal>
           Courses, deadlines, study sessions, notes and an AI study coach in one place. The assistant looks at what is due
@@ -296,6 +360,12 @@ export default function Landing() {
         <div className="hero-cta" data-reveal>
           <Link className="btn primary lg" to="/signup">Get started, it's free <Icon name="arrow" size={16} /></Link>
           <Link className="btn lg" to="/login">Sign in</Link>
+        </div>
+        <div className="hero-where" data-reveal>
+          <span><Icon name="monitor" size={15} /> Web</span>
+          <span><Icon name="download" size={15} /> Phone and laptop</span>
+          <a href={STORE_URL} target="_blank" rel="noopener noreferrer"><WinLogo /> Microsoft Store</a>
+          <span><Icon name="globe" size={15} /> 6 languages</span>
         </div>
         <AppPreview />
       </section>
@@ -342,9 +412,26 @@ export default function Landing() {
             <li><Icon name="image" size={16} /><span><b>Make it yours</b> with an emoji, a gradient cover or your own photo.</span></li>
             <li><Icon name="spark" size={16} /><span><b>Select text</b> to improve, shorten, explain or translate it, or press Ctrl+J to ask for anything.</span></li>
             <li><Icon name="undo" size={16} /><span><b>Notes AI</b> chats beside your page and edits it for you, step by step, with one-click Undo.</span></li>
+            <li><Icon name="folder" size={16} /><span><b>Stay organized:</b> pages group by course, and you can drag them into your own folders.</span></li>
           </ul>
         </div>
         <div data-reveal style={{ transitionDelay: '.1s' }}><NotesShowcase /></div>
+      </section>
+
+      <section className="lp-section lp-wrap showcase" id="code">
+        <div className="sc-text" data-reveal>
+          <span className="eyebrow"><Icon name="play" size={14} /> Code in your notes</span>
+          <h2>Write code in your notes. Run it right there.</h2>
+          <p className="muted">Made for programming classes: keep the lecture, the code and its output on the same page.</p>
+          <ul className="sc-list">
+            <li><Icon name="play" size={16} /><span><b>Run Python, JavaScript, SQL and HTML.</b> The output appears under the code. Press Ctrl+Enter to run.</span></li>
+            <li><Icon name="keyboard" size={16} /><span><b>Feels like VS Code:</b> Tab to indent, Ctrl+/ to comment, Alt+↑↓ to move lines, auto-closing brackets.</span></li>
+            <li><Icon name="spark" size={16} /><span><b>AI finishes your line.</b> A grey suggestion appears as you type; press Tab to keep it.</span></li>
+            <li><Icon name="palette" size={16} /><span><b>45 languages, 16 color themes,</b> from GitHub and Dracula to Monokai and Nord.</span></li>
+            <li><Icon name="shield" size={16} /><span><b>Safe by design:</b> code runs in your own browser, never on our server, and an endless loop is stopped for you.</span></li>
+          </ul>
+        </div>
+        <div data-reveal style={{ transitionDelay: '.1s' }}><CodeShowcase /></div>
       </section>
 
       <section className="lp-section lp-wrap" id="how">
@@ -399,7 +486,10 @@ export default function Landing() {
         <div className="final" data-reveal>
           <h2>Your next study session is one click away.</h2>
           <p>Create an account, add your courses and deadlines, write your notes, and let the assistant plan the week.</p>
-          <Link className="btn primary lg" to="/signup">Create your free account <Icon name="arrow" size={16} /></Link>
+          <div className="hero-cta">
+            <Link className="btn primary lg" to="/signup">Create your free account <Icon name="arrow" size={16} /></Link>
+            <a className="btn lg" href={STORE_URL} target="_blank" rel="noopener noreferrer"><WinLogo /> Get it for Windows</a>
+          </div>
         </div>
       </section>
 
@@ -407,6 +497,7 @@ export default function Landing() {
         <span><b>AI Study Assistant</b> · CIS 641 term project by Ali Belhrak · Grand Valley State University</span>
         <span className="lp-foot-links">
           <Link to="/privacy">Privacy</Link>
+          <a href={STORE_URL} target="_blank" rel="noopener noreferrer"><WinLogo /> Microsoft Store</a>
           <a href="https://github.com/alibelhrak/GVSU-CIS641-AIStudyAssistant" target="_blank" rel="noopener noreferrer">
             <Icon name="github" size={16} /> Source on GitHub
           </a>
