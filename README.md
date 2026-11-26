@@ -48,11 +48,13 @@ Built for **CIS 641 (Software Engineering)** at Grand Valley State University.
 | **Reminders** | Turn on a morning summary of your top priorities, deadline alerts, study-session alerts and a Sunday progress email, sent by **email** and as **push notifications** on your phone or computer |
 | **Accounts** | Sign up with a 6-digit code sent to your email (so nobody can use someone else's address), sign in, reset a forgotten password through an emailed link (valid for 30 minutes, works once), and delete the account with all its data from the [privacy page](https://gvsu-cis641-aistudyassistant.onrender.com/privacy) |
 | **Languages** | Use the whole app in **English, Français, Español, العربية (right to left), 中文 or हिन्दी**. The AI answers, the advice on what to study, the reminder emails and the password emails follow your language |
+| **Settings** | A Notion-style Settings window (sidebar, or `Ctrl+,`): edit your name, change email (with a code) and password, sign out of other devices, delete the account; theme, accent, font (Default, Serif, Mono, Easy to read), text size and reduce motion; language, time zone, first day of the week and start page; export all your data. Preferences follow you to every device |
 | **Themes** | Light, Dark, Paper, Midnight or System theme, plus five accent colors. Small animations throughout (respecting "reduce motion"), and thin scrollbars in the theme's colors |
 | **Download the app** | A **Download app** button installs it on a laptop or phone in one click (Chrome and Edge), or shows the steps for other browsers. The installed app opens full screen in its own window, with an icon on the taskbar, Dock or home screen |
 
 ## What's new
 
+- **Settings (November 2026):** one window for your account, appearance, language and region, notifications and your data, with fonts, text size, reduce motion, data export, password and email changes, and "sign out of other devices".
 - **Languages (November 2026):** the app now works in English, French, Spanish, Arabic, Chinese and Hindi. Pick one with the 🌐 menu on the welcome page and the sign-in page, or **Language** in the sidebar. Your choice is saved to your account.
 - **Notes (November 2026):** a Notion-style notes space with sub-pages, covers (including your own pictures), icons, favorites, course tags and search.
 - **AI in your notes:** edit or explain selected text, `/` AI commands, and the **Notes AI** chat panel that can edit the page for you with steps, Show changes and Undo.

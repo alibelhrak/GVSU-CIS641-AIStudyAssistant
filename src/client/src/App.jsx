@@ -1,8 +1,10 @@
 import { Suspense, lazy, useEffect, useRef, useState } from 'react';
-import { Link, NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from './lib/auth.jsx';
 import { DataProvider, useData } from './lib/store.jsx';
-import { ACCENTS, THEMES, useTheme } from './lib/theme.jsx';
+import { useTheme } from './lib/theme.jsx';
+import { api } from './lib/api.js';
+import { SettingsPanel } from './lib/settings.jsx';
 import { daysUntil } from './lib/dates.js';
 import { Icon } from './icons.jsx';
 import { InstallButton } from './lib/install.jsx';
@@ -47,65 +49,19 @@ const PAGES = [
     title: () => 'Ask AI', sub: 'Chat with an AI study coach that knows your courses, deadlines and study hours.' },
 ];
 
-/** Popover with theme tiles and accent colors */
-function ThemeMenu({ onClose }) {
-  const { theme, accent, setTheme, setAccent } = useTheme();
-  const ref = useRef();
-  useEffect(() => {
-    const away = (e) => { if (ref.current && !ref.current.contains(e.target)) onClose(); };
-    const esc = (e) => { if (e.key === 'Escape') onClose(); };
-    document.addEventListener('mousedown', away);
-    document.addEventListener('keydown', esc);
-    return () => { document.removeEventListener('mousedown', away); document.removeEventListener('keydown', esc); };
-  }, [onClose]);
-
-  return (
-    <div className="theme-menu" ref={ref} role="dialog" aria-label="Appearance">
-      <p className="menu-label">Theme</p>
-      <div className="theme-grid">
-        {THEMES.map((t) => (
-          <button key={t.id} type="button" className={`theme-tile ${theme === t.id ? 'on' : ''}`}
-            onClick={() => setTheme(t.id)} aria-pressed={theme === t.id}>
-            {t.id === 'system' ? (
-              <span className="tile-preview split"><span /><span /></span>
-            ) : (
-              <span className="tile-preview" style={{ background: t.bg }}>
-                <span className="tp-side" style={{ background: t.side }} />
-                <span className="tp-line" style={{ background: t.fg }} />
-                <span className="tp-line short" style={{ background: t.fg }} />
-              </span>
-            )}
-            <span>{t.label}</span>
-          </button>
-        ))}
-      </div>
-      <p className="menu-label">Accent</p>
-      <div className="accent-row">
-        {ACCENTS.map((a) => (
-          <button key={a.id} type="button" className={`accent-dot ${accent === a.id ? 'on' : ''}`}
-            style={{ '--dot': a.color }} onClick={() => setAccent(a.id)} aria-label={a.label} aria-pressed={accent === a.id} />
-        ))}
-      </div>
-      <Link className="menu-link" to="/privacy" onClick={onClose}><Icon name="shield" size={15} /> Privacy and account</Link>
-    </div>
-  );
-}
-
-function Sidebar({ onNavigate }) {
-  const { user, signOut } = useAuth();
+function Sidebar({ onNavigate, onSettings, onReminders }) {
+  const { user } = useAuth();
   const { courses, tasks, recs } = useData();
-  const [menu, setMenu] = useState(false);
-  const [reminders, setReminders] = useState(false);
   const dueSoon = tasks.filter((t) => !t.done && daysUntil(t.dueDate) >= 0 && daysUntil(t.dueDate) <= 7).length;
   const badge = { '/': recs.length, '/tasks': dueSoon };
 
   return (
     <aside className="sidebar">
       <div className="side-top">
-        <div className="workspace">
+        <button type="button" className="workspace" onClick={() => { onNavigate(); onSettings('account'); }} title="Account settings">
           <span className="avatar">{user.name.trim()[0]?.toUpperCase() || '?'}</span>
           <div className="ws-text"><b>{user.name.split(' ')[0]}'s Study Space</b><span>{user.email}</span></div>
-        </div>
+        </button>
         <button className="icon-btn only-mobile" type="button" onClick={onNavigate} aria-label="Close menu"><Icon name="close" /></button>
       </div>
 
@@ -131,16 +87,13 @@ function Sidebar({ onNavigate }) {
       </div>
 
       <div className="side-bottom">
-        {menu && <ThemeMenu onClose={() => setMenu(false)} />}
         <InstallButton variant="side" />
-        <button className="side-link" type="button" onClick={() => setReminders(true)}><Icon name="bell" /><span>Reminders</span></button>
+        <button className="side-link" type="button" onClick={() => { onNavigate(); onReminders(); }}><Icon name="bell" /><span>Reminders</span></button>
         <LanguageSelect variant="side" />
-        <button className="side-link" type="button" onClick={() => setMenu((m) => !m)} aria-expanded={menu}>
-          <Icon name="palette" /><span>Appearance</span>
+        <button className="side-link" type="button" onClick={() => { onNavigate(); onSettings('account'); }}>
+          <Icon name="settings" /><span>Settings</span><kbd className="side-kbd" data-no-translate>{/Mac|iPhone|iPad/.test(navigator.platform) ? '⌘,' : 'Ctrl+,'}</kbd>
         </button>
-        <button className="side-link" type="button" onClick={signOut}><Icon name="logout" /><span>Sign out</span></button>
       </div>
-      {reminders && <RemindersPanel onClose={() => setReminders(false)} />}
     </aside>
   );
 }
@@ -174,15 +127,50 @@ function Skeleton() {
   );
 }
 
+const START = { chat: '/chat', notes: '/notes', schedule: '/schedule', tasks: '/tasks' };
+
+/** Keep theme, font and other preferences on the account, so they follow the student to every device */
+function usePrefsSync() {
+  const { user, setUser } = useAuth();
+  const { theme, accent, prefs, applyPrefs } = useTheme();
+  const ready = useRef(false);
+  useEffect(() => {
+    if (user.prefs && Object.keys(user.prefs).length) applyPrefs(user.prefs);
+    ready.current = true;
+  }, [user.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!ready.current) return undefined;
+    const mine = { theme, accent, ...prefs };
+    if (Object.entries(mine).every(([k, v]) => user.prefs?.[k] === v)) return undefined;
+    const timer = setTimeout(() => { api.patch('/auth/me', { prefs: mine }).then((r) => setUser(r.user)).catch(() => {}); }, 700);
+    return () => clearTimeout(timer);
+  }, [theme, accent, prefs]); // eslint-disable-line react-hooks/exhaustive-deps
+}
+
 function Shell() {
   const { loading } = useData();
   const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const { prefs } = useTheme();
   const [open, setOpen] = useState(false);
+  const [settings, setSettings] = useState(null);     // null, or the section to open
+  const [reminders, setReminders] = useState(false);
   useEffect(() => { window.scrollTo({ top: 0 }); }, [pathname]);
+  usePrefsSync();
+  // Open on the page chosen in Settings (only when the app starts on the home address)
+  useEffect(() => { if (pathname === '/' && START[prefs.startPage]) navigate(START[prefs.startPage], { replace: true }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // Ctrl+, (or Cmd+,) opens Settings, like in most desktop apps
+  useEffect(() => {
+    const key = (e) => { if ((e.ctrlKey || e.metaKey) && e.key === ',') { e.preventDefault(); setSettings((s) => (s ? null : 'account')); } };
+    document.addEventListener('keydown', key);
+    return () => document.removeEventListener('keydown', key);
+  }, []);
 
   return (
     <div className={`app ${open ? 'menu-open' : ''}`}>
-      <Sidebar onNavigate={() => setOpen(false)} />
+      <Sidebar onNavigate={() => setOpen(false)} onSettings={setSettings} onReminders={() => setReminders(true)} />
+      {settings && <SettingsPanel start={settings} onClose={() => setSettings(null)} onOpenReminders={() => { setSettings(null); setReminders(true); }} />}
+      {reminders && <RemindersPanel onClose={() => setReminders(false)} />}
       <div className="scrim" onClick={() => setOpen(false)} aria-hidden="true" />
       <div className="content">
         <div className="topbar">

@@ -36,5 +36,5 @@ export function AuthProvider({ children }) {
   // Enter the emailed 6-digit code
   const verifyEmail = async (email, ticket, code) => signIn(await api.post('/auth/verify', { email, ticket, code }));
 
-  return <AuthContext.Provider value={{ user, ready, authenticate, verifyEmail, signOut }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ user, ready, authenticate, verifyEmail, signIn, setUser, signOut }}>{children}</AuthContext.Provider>;
 }

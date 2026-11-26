@@ -17,6 +17,29 @@ export const ACCENTS = [
   { id: 'pink', label: 'Pink', color: '#d6588f' },
 ];
 
+export const FONTS = [
+  { id: 'default', label: 'Default', family: '"Inter", ui-sans-serif, system-ui, sans-serif' },
+  { id: 'serif', label: 'Serif', family: '"Lora", Georgia, "Times New Roman", serif', css: 'Lora:ital,wght@0,400;0,500;0,600;0,700;1,400' },
+  { id: 'mono', label: 'Mono', family: '"JetBrains Mono", ui-monospace, Menlo, monospace', css: 'JetBrains+Mono:wght@400;500;700' },
+  { id: 'readable', label: 'Easy to read', family: '"Atkinson Hyperlegible", ui-sans-serif, system-ui, sans-serif', css: 'Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400' },
+];
+export const SIZES = [
+  { id: 's', label: 'Small' },
+  { id: 'm', label: 'Default' },
+  { id: 'l', label: 'Large' },
+  { id: 'xl', label: 'Extra large' },
+];
+/** Other preferences, with their defaults */
+const PREF_DEFAULTS = { font: 'default', size: 'm', motion: 'system', weekStart: 'mon', startPage: 'dashboard' };
+
+/** Load a font from Google Fonts the first time it is picked */
+export function loadFont(id) {
+  const f = FONTS.find((x) => x.id === id);
+  if (!f?.css || document.getElementById(`font-${id}`)) return;
+  const link = Object.assign(document.createElement('link'), { id: `font-${id}`, rel: 'stylesheet', href: `https://fonts.googleapis.com/css2?family=${f.css}&display=swap` });
+  document.head.append(link);
+}
+
 const KEY_THEME = 'sa-theme';
 const KEY_ACCENT = 'sa-accent';
 const read = (key, fallback) => { try { return localStorage.getItem(key) || fallback; } catch { return fallback; } };
@@ -31,6 +54,9 @@ export const useTheme = () => useContext(ThemeContext);
 export function ThemeProvider({ children }) {
   const [theme, setThemeState] = useState(() => read(KEY_THEME, 'system'));
   const [accent, setAccentState] = useState(() => read(KEY_ACCENT, 'blue'));
+  const [prefs, setPrefsState] = useState(() => Object.fromEntries(
+    Object.entries(PREF_DEFAULTS).map(([k, d]) => [k, read(`sa-${k}`, d)]),
+  ));
 
   // Apply the theme to <html data-theme="..."> and follow the OS when "System" is chosen
   useEffect(() => {
@@ -44,6 +70,15 @@ export function ThemeProvider({ children }) {
 
   useEffect(() => { document.documentElement.dataset.accent = accent; }, [accent]);
 
+  // Font, text size and motion go on <html> as data-font / data-size / data-motion
+  useEffect(() => {
+    const html = document.documentElement;
+    loadFont(prefs.font);
+    html.dataset.font = prefs.font;
+    html.dataset.size = prefs.size;
+    html.dataset.motion = prefs.motion;
+  }, [prefs.font, prefs.size, prefs.motion]);
+
   // Fade colors smoothly only while switching, so normal hovers stay snappy
   const fade = () => {
     const html = document.documentElement;
@@ -54,9 +89,22 @@ export function ThemeProvider({ children }) {
 
   const setTheme = useCallback((t) => { fade(); setThemeState(t); save(KEY_THEME, t); }, []);
   const setAccent = useCallback((a) => { fade(); setAccentState(a); save(KEY_ACCENT, a); }, []);
+  const setPref = useCallback((key, value) => {
+    if (!(key in PREF_DEFAULTS)) return;
+    setPrefsState((p) => ({ ...p, [key]: value }));
+    save(`sa-${key}`, value);
+  }, []);
+  /** Take the preferences saved on the account (after signing in on a new device) */
+  const applyPrefs = useCallback((saved = {}) => {
+    if (saved.theme) { setThemeState(saved.theme); save(KEY_THEME, saved.theme); }
+    if (saved.accent) { setAccentState(saved.accent); save(KEY_ACCENT, saved.accent); }
+    const next = {};
+    for (const k of Object.keys(PREF_DEFAULTS)) if (saved[k]) { next[k] = saved[k]; save(`sa-${k}`, saved[k]); }
+    setPrefsState((p) => ({ ...p, ...next }));
+  }, []);
 
   return (
-    <ThemeContext.Provider value={{ theme, accent, setTheme, setAccent, resolved: resolve(theme) }}>
+    <ThemeContext.Provider value={{ theme, accent, setTheme, setAccent, prefs, setPref, applyPrefs, resolved: resolve(theme) }}>
       {children}
     </ThemeContext.Provider>
   );}

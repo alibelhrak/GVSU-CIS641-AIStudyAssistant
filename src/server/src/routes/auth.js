@@ -6,7 +6,7 @@ import path from 'node:path';
 import { User, Course, Task, StudySession, StudyLog, Material, Recommendation, Conversation, Note, Feedback, PushSub, ReminderLog } from '../models/index.js';
 import { config } from '../config.js';
 import { h, HttpError } from '../middleware/error.js';
-import { requireAuth, signToken } from '../middleware/auth.js';
+import { requireAuth, signToken, forgetSessions } from '../middleware/auth.js';
 import { sendMail } from '../services/mailer.js';
 import { tr, langOf, isLang, dirOf } from '../i18n.js';
 
@@ -47,7 +47,7 @@ function waitFor(user, now = Date.now()) {
 }
 
 /** Make a new code, save its fingerprint, and email it. Returns false when it is too soon to send again. */
-async function sendCode(user, lang) {
+async function sendCode(user, lang, { to = user.email, change = false } = {}) {
   if (waitFor(user) > 0) return false;
   const code = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
   const now = new Date();
@@ -61,16 +61,16 @@ async function sendCode(user, lang) {
   const first = user.name.split(' ')[0];
   try {
     await sendMail({
-      to: user.email,
+      to,
       toName: user.name,
       subject: L('verifySubject', { code }),
-      text: `${L('hi', { name: first })}\n\n${L('verifyBody', { minutes: CODE_MINUTES })}\n\n${code}\n\n${L('verifyIgnore')}`,
+      text: `${L('hi', { name: first })}\n\n${L(change ? 'verifyBodyChange' : 'verifyBody', { minutes: CODE_MINUTES })}\n\n${code}\n\n${L(change ? 'verifyIgnoreChange' : 'verifyIgnore')}`,
       html: `<div dir="${dirOf(lang)}" style="font-family:Arial,sans-serif;max-width:480px;margin:auto;color:#222">
   <h2 style="margin:0 0 12px">${esc(L('verifyTitle'))}</h2>
   <p>${esc(L('hi', { name: first }))}</p>
-  <p>${esc(L('verifyBody', { minutes: CODE_MINUTES }))}</p>
+  <p>${esc(L(change ? 'verifyBodyChange' : 'verifyBody', { minutes: CODE_MINUTES }))}</p>
   <p dir="ltr" style="margin:24px 0;font-size:34px;font-weight:bold;letter-spacing:10px;font-family:Consolas,Menlo,monospace;background:#f2f5fc;border-radius:10px;padding:14px 0;text-align:center;color:#14204a">${code}</p>
-  <p style="font-size:13px;color:#666">${esc(L('verifyIgnore'))}</p>
+  <p style="font-size:13px;color:#666">${esc(L(change ? 'verifyIgnoreChange' : 'verifyIgnore'))}</p>
 </div>`,
     });
   } catch (err) {
@@ -132,7 +132,7 @@ r.post('/verify', h(async (req, res) => {
   for (const k of ['verifyCodeHash', 'verifyTicketHash', 'verifyExpires', 'verifySentAt', 'verifySends']) user[k] = undefined;
   user.verifyAttempts = 0;
   await user.save();
-  res.json({ token: signToken(user.id), user });
+  res.json({ token: signToken(user.id, user.tokenVersion || 0), user });
 }));
 
 // Send a new code (only for the device holding the sign-up ticket)
@@ -166,7 +166,7 @@ r.post('/login', h(async (req, res) => {
     await user.save();
     throw needsCode(user.email, ticket);
   }
-  res.json({ token: signToken(user.id), user });
+  res.json({ token: signToken(user.id, user.tokenVersion || 0), user });
 }));
 
 // Forgot password: email a link that works for 30 minutes.
@@ -224,8 +224,10 @@ r.post('/reset', h(async (req, res) => {
   user.resetTokenHash = undefined;   // the link works only once
   user.resetExpires = undefined;
   user.emailVerified = true;         // the link came from the inbox, so the email is confirmed
+  user.tokenVersion = (user.tokenVersion || 0) + 1;   // a new password signs out every other device
   await user.save();
-  res.json({ token: signToken(user.id), user });
+  forgetSessions(user.id);
+  res.json({ token: signToken(user.id, user.tokenVersion || 0), user });
 }));
 
 // Who am I? (needs a token)
@@ -235,13 +237,140 @@ r.get('/me', requireAuth, h(async (req, res) => {
   res.json({ user });
 }));
 
-// Save settings that belong to the account (now: the app language)
+// Save account settings: name, app language, and look-and-feel preferences
+const PREF_VALUES = {
+  theme: ['system', 'light', 'dark', 'paper', 'midnight'],
+  accent: ['blue', 'purple', 'green', 'orange', 'pink'],
+  font: ['default', 'serif', 'mono', 'readable'],
+  size: ['s', 'm', 'l', 'xl'],
+  motion: ['system', 'reduce'],
+  weekStart: ['mon', 'sun'],
+  startPage: ['dashboard', 'chat', 'notes', 'schedule', 'tasks'],
+};
 r.patch('/me', requireAuth, h(async (req, res) => {
-  const { language } = req.body || {};
-  if (!isLang(language)) throw new HttpError(400, 'Unknown language');
-  const user = await User.findByIdAndUpdate(req.userId, { language }, { returnDocument: 'after' });
+  const { language, name, prefs } = req.body || {};
+  const set = {};
+  if (language !== undefined) {
+    if (!isLang(language)) throw new HttpError(400, 'Unknown language');
+    set.language = language;
+  }
+  if (name !== undefined) {
+    const clean = typeof name === 'string' ? name.replace(/\s+/g, ' ').trim() : '';
+    if (!clean || clean.length > 80) throw new HttpError(400, 'Enter a name (up to 80 characters)');
+    set.name = clean;
+  }
+  if (prefs !== undefined) {
+    if (!prefs || typeof prefs !== 'object') throw new HttpError(400, 'Invalid preferences');
+    for (const [k, v] of Object.entries(prefs)) {
+      if (PREF_VALUES[k]?.includes(v)) set[`prefs.${k}`] = v;
+    }
+  }
+  const user = await User.findByIdAndUpdate(req.userId, { $set: set }, { returnDocument: 'after', runValidators: true });
   if (!user) throw new HttpError(401, 'Account not found');
   res.json({ user });
+}));
+
+const checkPassword = async (user, password) => {
+  if (typeof password !== 'string' || !(await bcrypt.compare(password, user.passwordHash))) throw new HttpError(401, 'Password is incorrect');
+};
+
+// Change the password. Other devices are signed out; this one gets a fresh token.
+r.post('/password', requireAuth, h(async (req, res) => {
+  const { current, next } = req.body || {};
+  const user = await User.findById(req.userId);
+  if (!user) throw new HttpError(401, 'Account not found');
+  await checkPassword(user, current);
+  if (typeof next !== 'string' || next.length < 8) throw new HttpError(400, 'Password must be at least 8 characters');
+  if (await bcrypt.compare(next, user.passwordHash)) throw new HttpError(400, 'Choose a password you have not used here before');
+  user.passwordHash = await bcrypt.hash(next, 10);
+  user.tokenVersion = (user.tokenVersion || 0) + 1;
+  await user.save();
+  forgetSessions(user.id);
+  res.json({ token: signToken(user.id, user.tokenVersion), user });
+}));
+
+// Sign out of every other device (this one stays signed in)
+r.post('/logout-all', requireAuth, h(async (req, res) => {
+  const user = await User.findByIdAndUpdate(req.userId, { $inc: { tokenVersion: 1 } }, { returnDocument: 'after' });
+  if (!user) throw new HttpError(401, 'Account not found');
+  forgetSessions(user.id);
+  res.json({ token: signToken(user.id, user.tokenVersion), user });
+}));
+
+// Change email, step 1: password + new address; a code goes to the new address
+r.post('/email/start', requireAuth, h(async (req, res) => {
+  const email = cleanEmail(req.body?.email);
+  const user = await User.findById(req.userId);
+  if (!user) throw new HttpError(401, 'Account not found');
+  await checkPassword(user, req.body?.password);
+  if (!/^\S+@\S+\.\S+$/.test(email)) throw new HttpError(400, 'Enter a valid email address');
+  if (email === user.email) throw new HttpError(400, 'This is already your email');
+  const other = await User.findOne({ email });
+  if (other && isVerified(other)) throw new HttpError(409, 'An account with that email already exists');
+  user.pendingEmail = email;
+  user.verifySentAt = undefined;   // a new address may get a code right away (the hourly limit still applies)
+  const sent = await sendCode(user, langOf(req), { to: email, change: true });
+  if (!sent) {
+    await user.save();
+    throw new HttpError(429, `Please wait ${waitFor(user)} seconds before asking for another code.`, { wait: waitFor(user) });
+  }
+  res.json({ ok: true, email, wait: waitFor(user) });
+}));
+
+// Change email, step 2: the code from the new inbox
+r.post('/email/confirm', requireAuth, h(async (req, res) => {
+  const code = String(req.body?.code || '').replace(/\D/g, '');
+  const user = await User.findById(req.userId);
+  if (!user) throw new HttpError(401, 'Account not found');
+  if (!user.pendingEmail || !user.verifyCodeHash || !user.verifyExpires || user.verifyExpires < new Date()) {
+    throw new HttpError(400, 'This code has expired. Send a new code.', { expired: true });
+  }
+  const good = code.length === 6 && crypto.timingSafeEqual(Buffer.from(codePrint(user.id, code)), Buffer.from(user.verifyCodeHash));
+  if (!good) {
+    user.verifyAttempts = (user.verifyAttempts || 0) + 1;
+    const left = MAX_TRIES - user.verifyAttempts;
+    if (left <= 0) { user.verifyCodeHash = undefined; user.verifyExpires = undefined; }
+    await user.save();
+    throw left <= 0
+      ? new HttpError(400, 'Too many wrong codes. Send a new code.', { expired: true })
+      : new HttpError(400, `That code is not right. ${left} ${left === 1 ? 'try' : 'tries'} left.`, { left });
+  }
+  const oldEmail = user.email;
+  const taken = await User.findOne({ email: user.pendingEmail, _id: { $ne: user._id } });
+  if (taken && isVerified(taken)) throw new HttpError(409, 'An account with that email already exists');
+  if (taken) await User.deleteOne({ _id: taken._id });   // an unconfirmed sign-up with that address
+  user.email = user.pendingEmail;
+  for (const k of ['pendingEmail', 'verifyCodeHash', 'verifyExpires', 'verifySentAt', 'verifySends']) user[k] = undefined;
+  user.verifyAttempts = 0;
+  await user.save();
+  // Tell the old address, in case this was not the owner
+  const lang = user.language || 'en';
+  const L = (key, values) => tr(key, lang, values);
+  sendMail({
+    to: oldEmail, toName: user.name, subject: L('emailChangedSubject'),
+    text: `${L('hi', { name: user.name.split(' ')[0] })}\n\n${L('emailChangedBody', { email: user.email })}`,
+    html: `<div dir="${dirOf(lang)}" style="font-family:Arial,sans-serif;max-width:480px;margin:auto;color:#222"><p>${esc(L('hi', { name: user.name.split(' ')[0] }))}</p><p>${esc(L('emailChangedBody', { email: user.email }))}</p></div>`,
+  }).catch((err) => console.error('Email-changed notice failed:', err.message));
+  res.json({ user });
+}));
+
+// Download everything the account holds, as one JSON file
+r.get('/me/export', requireAuth, h(async (req, res) => {
+  const user = await User.findById(req.userId);
+  if (!user) throw new HttpError(401, 'Account not found');
+  const mine = { user: user._id };
+  const [courses, tasks, sessions, logs, materials, notes, conversations, recommendations] = await Promise.all(
+    [Course, Task, StudySession, StudyLog, Material, Note, Conversation, Recommendation].map((M) => M.find(mine)),
+  );
+  const data = {
+    exportedAt: new Date().toISOString(),
+    app: 'StudyPilot (AI Study Assistant)',
+    account: { name: user.name, email: user.email, language: user.language, createdAt: user.createdAt, reminders: user.reminders, prefs: user.prefs },
+    courses, tasks, sessions, studyLogs: logs, materials, notes, conversations, recommendations,
+  };
+  const day = new Date().toISOString().slice(0, 10);
+  res.setHeader('Content-Disposition', `attachment; filename="studypilot-export-${day}.json"`);
+  res.type('application/json').send(JSON.stringify(data, null, 2));
 }));
 
 // Delete the account and everything in it (needs the password again)
@@ -256,6 +385,7 @@ r.delete('/me', requireAuth, h(async (req, res) => {
   await Promise.all([Course, Task, StudySession, StudyLog, Material, Recommendation, Conversation, Note, Feedback, PushSub, ReminderLog]
     .map((M) => M.deleteMany(mine)));
   await User.deleteOne({ _id: user._id });
+  forgetSessions(user.id);
   res.json({ ok: true });
 }));
 

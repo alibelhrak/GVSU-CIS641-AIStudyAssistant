@@ -77,7 +77,11 @@ All routes start with `/api`. Every route except `/auth/*` and `/health` needs t
 | `POST /auth/login` | Sign in; returns a token and the user, or `403 { needsVerification, ticket }` if the email was never confirmed |
 | `GET /auth/me` | The signed-in user |
 | `DELETE /auth/me` | Delete the account and all its data (`{ password }`); used by the Privacy page |
-| `PATCH /auth/me` | Save the app language (`{ language: 'en' \| 'fr' \| 'es' \| 'ar' \| 'zh' \| 'hi' }`) |
+| `PATCH /auth/me` | Save `{ name, language, prefs }`; `prefs` = theme, accent, font, size, motion, weekStart, startPage (synced to every device) |
+| `POST /auth/password` | `{ current, next }`: change the password; signs out every other device and returns a new token |
+| `POST /auth/logout-all` | Sign out of every other device (tokens carry a session version) |
+| `POST /auth/email/start`, `POST /auth/email/confirm` | Change email: password + new address, then the 6-digit code sent to the new address; the old address gets a notice |
+| `GET /auth/me/export` | Download all of the account's data as one JSON file |
 | `POST /auth/forgot` | Emails a reset link (always gives the same answer, so it never reveals who has an account) |
 | `POST /auth/reset` | Sets a new password with the code from the link and signs in |
 | `/courses`, `/tasks`, `/sessions`, `/logs` | List, create (`POST`), update (`PATCH /:id`) and delete (`DELETE /:id`) |

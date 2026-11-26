@@ -4,6 +4,7 @@ import { api } from '../lib/api.js';
 import { useData } from '../lib/store.jsx';
 import { addDays, fmtH, iso, today0, todayIso } from '../lib/dates.js';
 import { CourseSelect } from '../components.jsx';
+import { useTheme } from '../lib/theme.jsx';
 
 const blank = () => ({ course: '', date: todayIso(), startTime: '18:00', hours: 1.5, note: '' });
 const short = (d) => d.toLocaleDateString(locale(), { month: 'short', day: 'numeric' });
@@ -21,8 +22,10 @@ export default function Schedule() {
   };
 
   // The 7 days of the week being shown, starting on Monday
+  const { prefs: { weekStart } } = useTheme();
   const t = today0();
-  const monday = addDays(t, -((t.getDay() + 6) % 7) + offset * 7);
+  // first day of the week: Monday, or Sunday if the student chose it in Settings
+  const monday = addDays(t, -(weekStart === 'sun' ? t.getDay() : (t.getDay() + 6) % 7) + offset * 7);
   const days = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
 
   return (

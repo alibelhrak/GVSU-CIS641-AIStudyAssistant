@@ -8,7 +8,7 @@ const UPDATED = 'November 26, 2026';
 const REPO = 'https://github.com/alibelhrak/GVSU-CIS641-AIStudyAssistant';
 
 /** Delete the account (shown only when signed in) */
-function DeleteAccount() {
+export function DeleteAccount() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [password, setPassword] = useState('');
@@ -32,7 +32,8 @@ function DeleteAccount() {
   };
   return (
     <form className="legal-delete" onSubmit={remove}>
-      <p>Signed in as <b data-no-translate>{user.email}</b>. This deletes your account and everything in it right away: courses, tasks, sessions, files, notes, chats, reminders and settings. It cannot be undone.</p>
+      <p>Signed in as <b data-no-translate>{user.email}</b></p>
+      <p>This deletes your account and everything in it right away: courses, tasks, sessions, files, notes, chats, reminders and settings. It cannot be undone.</p>
       <label>Your password<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" required /></label>
       <label className="legal-check"><input type="checkbox" checked={sure} onChange={(e) => setSure(e.target.checked)} /> I understand that all my data will be deleted</label>
       {error && <p className="error-box">{error}</p>}

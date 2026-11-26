@@ -24,6 +24,7 @@ const opts = {
       delete ret.resetExpires;
       delete ret.verifyCodeHash;
       delete ret.verifyTicketHash;
+      delete ret.tokenVersion;
       delete ret.verifyExpires;
       delete ret.verifyAttempts;
       delete ret.verifySentAt;
@@ -52,6 +53,18 @@ export const User = model('User', new Schema({
   verifyAttempts: { type: Number, default: 0 },
   verifySentAt: Date,
   verifySends: { type: [Date], default: undefined },   // when codes were sent (limits resends)
+  tokenVersion: { type: Number, default: 0 },   // raised to sign out every device
+  pendingEmail: { type: String, lowercase: true, trim: true },   // new email waiting for its code
+  // Look and feel, saved to the account so it follows the student to every device
+  prefs: {
+    theme: { type: String, enum: ['system', 'light', 'dark', 'paper', 'midnight'] },
+    accent: { type: String, enum: ['blue', 'purple', 'green', 'orange', 'pink'] },
+    font: { type: String, enum: ['default', 'serif', 'mono', 'readable'] },
+    size: { type: String, enum: ['s', 'm', 'l', 'xl'] },
+    motion: { type: String, enum: ['system', 'reduce'] },
+    weekStart: { type: String, enum: ['mon', 'sun'] },
+    startPage: { type: String, enum: ['dashboard', 'chat', 'notes', 'schedule', 'tasks'] },
+  },
   // App language (also used for emails sent later)
   language: { type: String, enum: ['en', 'fr', 'es', 'ar', 'zh', 'hi'], default: 'en' },
   // Reminders the student turned on (all off until they choose), and how to send them
