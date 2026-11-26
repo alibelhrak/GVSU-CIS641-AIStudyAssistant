@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { useAuth } from './lib/auth.jsx';
 import { DataProvider, useData } from './lib/store.jsx';
@@ -15,6 +15,9 @@ import Tasks from './pages/Tasks.jsx';
 import Schedule from './pages/Schedule.jsx';
 import Materials from './pages/Materials.jsx';
 import Chat from './pages/Chat.jsx';
+
+// The notes editor is big, so it loads only when Notes is opened
+const Notes = lazy(() => import('./pages/Notes.jsx'));
 
 const greeting = () => {
   const h = new Date().getHours();
@@ -34,6 +37,8 @@ const PAGES = [
     title: () => 'Study Schedule', sub: 'Plan your study sessions for the week and tick them off when you finish.' },
   { to: '/materials', label: 'Materials', icon: 'clip', emoji: '📎', element: <Materials />,
     title: () => 'Materials', sub: 'Keep the files and links for every course in one place.' },
+  { to: '/notes', label: 'Notes', icon: 'note', emoji: '🗒️', bare: true, element: <Notes />, path: '/notes/:id?',
+    title: () => 'Notes', sub: '' },
   { to: '/chat', label: 'Ask AI', icon: 'chat', emoji: '✨', logo: true, element: <Chat />,
     title: () => 'Ask AI', sub: 'Chat with an AI study coach that knows your courses, deadlines and study hours.' },
 ];
@@ -131,10 +136,15 @@ function Sidebar({ onNavigate }) {
   );
 }
 
+/** The page for an address: exact match, or a section like /notes/123 */
+const pageFor = (pathname) => PAGES.find((p) => p.to === pathname)
+  || PAGES.find((p) => p.to !== '/' && pathname.startsWith(`${p.to}/`)) || PAGES[0];
+
 function PageHeader() {
   const { user } = useAuth();
   const { pathname } = useLocation();
-  const page = PAGES.find((p) => p.to === pathname) || PAGES[0];
+  const page = pageFor(pathname);
+  if (page.bare) return null;            // Notes shows its own title
   return (
     <div className="page-head">
       {page.logo
@@ -170,14 +180,16 @@ function Shell() {
           <button className="icon-btn" type="button" onClick={() => setOpen(true)} aria-label="Open menu"><Icon name="menu" /></button>
           <span className="topbar-title">Study Assistant</span>
         </div>
-        {/* key: a new page animates in every time the address changes */}
-        <main className="page" key={pathname}>
+        {/* key: a new page animates in when the section changes (not when moving between notes) */}
+        <main className={`page ${pageFor(pathname).bare ? 'page-wide' : ''}`} key={pathname.split('/')[1] || 'home'}>
           <PageHeader />
           {loading ? <Skeleton /> : (
-            <Routes>
-              {PAGES.map((p) => <Route key={p.to} path={p.to} element={p.element} />)}
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
+            <Suspense fallback={<Skeleton />}>
+              <Routes>
+                {PAGES.map((p) => <Route key={p.to} path={p.path || p.to} element={p.element} />)}
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </Suspense>
           )}
         </main>
       </div>

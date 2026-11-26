@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { api, getToken } from '../lib/api.js';
 import { useAuth } from '../lib/auth.jsx';
 import { useData } from '../lib/store.jsx';
@@ -220,14 +220,24 @@ export default function Chat() {
   const { user } = useAuth();
   const { notify, reload } = useData();
   const navigate = useNavigate();
-  const [messages, setMessages] = useState(() => takeOldChat(user.id));
+  const location = useLocation();
+  // "Ask AI" on a note opens a new chat with the note attached: { name, text, prompt }
+  const [fromNote] = useState(() => {
+    const n = location.state?.note;
+    if (!n || typeof n.text !== 'string') return null;
+    setCurrent(user.id, null);
+    return n;
+  });
+  const [messages, setMessages] = useState(() => (fromNote ? [] : takeOldChat(user.id)));
   const [convId, setConvId] = useState(() => getCurrent(user.id));   // the open conversation (null = new)
   const [history, setHistory] = useState([]);                         // saved conversations, newest first
   const [panel, setPanel] = useState(wide);                           // history panel shown
   const [confirmDel, setConfirmDel] = useState(null);                 // id waiting for "Delete?" confirmation
   const [loadingConv, setLoadingConv] = useState(() => Boolean(getCurrent(user.id)));
-  const [input, setInput] = useState('');
-  const [drafts, setDrafts] = useState([]);           // files attached to the message being typed
+  const [input, setInput] = useState(() => fromNote?.prompt || '');
+  const [drafts, setDrafts] = useState(() => (fromNote ? [{
+    id: nextId++, type: 'text', name: fromNote.name || 'Note.md', text: fromNote.text.slice(0, MAX_TEXT), info: 'Note',
+  }] : []));                                          // files attached to the message being typed
   const [reading, setReading] = useState(false);      // files are being read
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(-1);
@@ -276,6 +286,10 @@ export default function Chat() {
   // Load the list, and the conversation that was open last time
   useEffect(() => {
     api.get('/conversations').then(setHistory).catch(() => {});
+    if (fromNote) {   // don't open the note again after a reload or Back
+      navigate(location.pathname, { replace: true, state: null });
+      setTimeout(() => boxRef.current?.focus(), 50);
+    }
     const id = getCurrent(user.id);
     if (!id) return;
     api.get(`/conversations/${id}`)
@@ -467,17 +481,19 @@ export default function Chat() {
     run(messages.slice(0, last));
   };
 
+  /** Sends one of your earlier messages again (everything after it is replaced by the new answer) */
+  const resend = (i) => {
+    if (busy) return;
+    stop();
+    run(messages.slice(0, i + 1));
+  };
+
   const saveEdit = () => {
     const { i, text } = editing;
     const m = messages[i];
     if (!text.trim() && !m.attachments?.length) return;
     stop();
     run([...messages.slice(0, i), { ...m, content: text.trim() }]);
-  };
-  const resend = (i) => {
-    if (busy) return;
-    stop();
-    run(messages.slice(0, i + 1));
   };
 
   const newChat = async () => {
