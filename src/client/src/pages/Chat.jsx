@@ -420,6 +420,20 @@ export default function Chat() {
           changed = true;
           const { t, ...action } = ev;
           update((last) => ({ ...last, parts: [...last.parts, { type: 'action', ...action }] }));
+        } else if (ev.t === 'cut') {
+          // The server took back text that came out garbled
+          answer = answer.slice(0, Math.max(0, answer.length - ev.n));
+          update((last) => {
+            let n = ev.n;
+            const parts = [...last.parts];
+            for (let k = parts.length - 1; k >= 0 && n > 0; k -= 1) {
+              if (parts[k].type !== 'text') continue;
+              const take = Math.min(n, parts[k].v.length);
+              parts[k] = { ...parts[k], v: parts[k].v.slice(0, parts[k].v.length - take) };
+              n -= take;
+            }
+            return { ...last, content: last.content.slice(0, Math.max(0, last.content.length - ev.n)), parts: parts.filter((p) => p.type !== 'text' || p.v) };
+          });
         } else if (ev.t === 'error') addText(`\n\n_${ev.v}_`);
       };
       for (;;) {

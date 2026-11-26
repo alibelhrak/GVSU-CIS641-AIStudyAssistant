@@ -14,6 +14,7 @@
 import { config, chatEnabled } from '../config.js';
 import { HttpError } from '../middleware/error.js';
 import { cleanAttachments, toApiMessage, thinkFilter } from './chat.js';
+import { fetchLLM, isGarbled } from '../services/llmGuard.js';
 
 const MAX_PAGE = 16000;        // characters of the page sent to the model
 const MAX_MESSAGES = 16;
@@ -100,10 +101,10 @@ export default async function notesChat(req, res) {
   async function ask(withTools) {
     let upstream;
     try {
-      upstream = await fetch(`${config.llm.baseUrl}/chat/completions`, {
+      upstream = await fetchLLM(`${config.llm.baseUrl}/chat/completions`, {
         method: 'POST', signal: controller.signal,
         headers: { 'Content-Type': 'application/json', ...(config.llm.apiKey ? { Authorization: `Bearer ${config.llm.apiKey}` } : {}) },
-        body: JSON.stringify({ model, stream: true, temperature: 0.4, max_tokens: 4000, messages: convo,
+        body: JSON.stringify({ model, stream: true, temperature: 0.3, max_tokens: 4000, messages: convo,
           ...(withTools ? { tools: TOOLS, tool_choice: 'auto' } : {}) }),
       });
     } catch (err) {
@@ -155,7 +156,9 @@ export default async function notesChat(req, res) {
 
   try {
     let wroteText = false;
-    for (let round = 0; round < 6; round += 1) {
+    let garbled = false;
+    let edits = 0;
+    for (let round = 0; round < 6 && !garbled; round += 1) {
       const upstream = await ask(true);
       if (!upstream) break;
       const reader = upstream.body.getReader();
@@ -163,17 +166,20 @@ export default async function notesChat(req, res) {
       const visible = thinkFilter();
       const calls = [];
       let text = '';
+      let sent = 0;
       let buffer = '';
       const emit = (piece) => {
-        if (!piece) return;
-        if (!text && wroteText) send({ t: 'text', v: '\n\n' });
+        if (!piece || garbled) return;
+        if (!text && wroteText) { send({ t: 'text', v: '\n\n' }); sent += 2; }
         text += piece;
         wroteText = true;
+        sent += piece.length;
         send({ t: 'text', v: piece });
+        if (isGarbled(text)) { garbled = true; send({ t: 'cut', n: sent }); reader.cancel().catch(() => {}); }
       };
       for (;;) {
-        const { value, done } = await reader.read();
-        if (done) break;
+        const { value, done } = await reader.read().catch(() => ({ done: true }));
+        if (done || garbled) break;
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split('\n');
         buffer = lines.pop();
@@ -192,14 +198,18 @@ export default async function notesChat(req, res) {
         }
       }
       emit(visible.flush());
+      if (garbled) break;
       const todo = calls.filter((c) => c?.name).slice(0, 40);
       if (!todo.length) break;
       convo.push({ role: 'assistant', content: text || null,
         tool_calls: todo.map((c, k) => ({ id: c.id || `call_${round}_${k}`, type: 'function', function: { name: c.name, arguments: c.args || '{}' } })) });
       for (const [k, c] of todo.entries()) {
-        convo.push({ role: 'tool', tool_call_id: c.id || `call_${round}_${k}`, content: JSON.stringify(apply(c.name, c.args)) });
+        const result = apply(c.name, c.args);
+        if (result.ok) edits += 1;
+        convo.push({ role: 'tool', tool_call_id: c.id || `call_${round}_${k}`, content: JSON.stringify(result) });
       }
     }
+    if (garbled) send({ t: 'text', v: edits ? `Done. I made ${edits} change${edits > 1 ? 's' : ''} to the page (see the steps above).` : '_The answer came out garbled, so I stopped it. Please try again._' });
     if (!started && !controller.signal.aborted) send({ t: 'text', v: '_The AI gave an empty answer. Please try again._' });
   } catch (err) {
     if (err instanceof HttpError) throw err;

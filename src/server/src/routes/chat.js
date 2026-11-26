@@ -22,6 +22,7 @@ import { Course, Task, StudySession, StudyLog, Recommendation, User, Note } from
 import { h, HttpError } from '../middleware/error.js';
 import { addDays, buildCandidates, daysBetween } from '../services/recommendationEngine.js';
 import { TOOLS, runTool } from '../services/chatTools.js';
+import { fetchLLM, isGarbled } from '../services/llmGuard.js';
 
 const r = Router();
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
@@ -111,7 +112,9 @@ When the student asks about "my notes", look them up first and answer from them,
 - Work out real dates (YYYY-MM-DD) from Today. If something important is missing and has no sensible default
   (for example the due date of an exam), ask one short question first. Defaults: weekly goal 5 h, task 4 h,
   priority med, session start 18:00.
-- Add a course with add_course before adding its tasks if it does not exist yet.
+- NEVER add a course unless the student clearly asks to add a course. If a course they mention is not in the data,
+  do not add it: ask "You don't have CIS 123 yet. Should I add it as a course?" and wait for the answer.
+  Match courses loosely: "641", "cis641" or "Software Engineering" all mean the course CIS 641.
 - If a tool answers with ok:false, fix the problem or tell the student. Never say you did something that failed.
 - After using tools, confirm in one or two short sentences what you did. Do not repeat every detail; the app shows them.
 - You cannot delete anything. If the student wants to delete, tell them to use the page in the app.
@@ -257,7 +260,7 @@ r.post('/', h(async (req, res) => {
   async function ask(withTools) {
     let upstream;
     try {
-      upstream = await fetch(`${config.llm.baseUrl}/chat/completions`, {
+      upstream = await fetchLLM(`${config.llm.baseUrl}/chat/completions`, {
         method: 'POST',
         signal: controller.signal,
         headers: {
@@ -267,8 +270,8 @@ r.post('/', h(async (req, res) => {
         body: JSON.stringify({
           model,
           stream: true,
-          temperature: 0.5,
-          max_tokens: 2000,
+          temperature: 0.3,
+          max_tokens: 1500,
           messages: convo,
           ...(withTools ? { tools: TOOLS, tool_choice: 'auto' } : {}),
         }),
@@ -295,9 +298,15 @@ r.post('/', h(async (req, res) => {
     return null;
   }
 
+  // Adding a course is only allowed when the student asked for it (or said yes to adding it)
+  const lastUser = messages[messages.length - 1].content;
+  const courseOk = /\b(course|class|subject|yes|yeah|yep|sure|ok|okay|please do|go ahead|add it)\b/i.test(lastUser);
+  const done = [];                       // what the AI changed, for a short summary if the text goes wrong
+  let garbled = false;
+
   try {
     let wroteText = false;
-    for (let round = 0; round < 5; round += 1) {
+    for (let round = 0; round < 5 && !garbled; round += 1) {
       const upstream = await ask(true);
       if (!upstream) break;
 
@@ -307,17 +316,25 @@ r.post('/', h(async (req, res) => {
       const visible = thinkFilter();
       const calls = [];
       let text = '';
+      let sent = 0;                                              // characters sent to the browser in this round
       let buffer = '';
       const emit = (piece) => {
-        if (!piece) return;
-        if (!text && wroteText) send({ t: 'text', v: '\n\n' });   // a new paragraph after earlier actions
+        if (!piece || garbled) return;
+        if (!text && wroteText) { send({ t: 'text', v: '\n\n' }); sent += 2; }   // a new paragraph after earlier actions
         text += piece;
         wroteText = true;
+        sent += piece.length;
         send({ t: 'text', v: piece });
+        if (isGarbled(text)) {
+          // The model got stuck repeating dots: take that text back and stop
+          garbled = true;
+          send({ t: 'cut', n: sent });
+          reader.cancel().catch(() => {});
+        }
       };
       for (;;) {
-        const { value, done } = await reader.read();
-        if (done) break;
+        const { value, done: finished } = await reader.read().catch(() => ({ done: true }));
+        if (finished || garbled) break;
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split('\n');
         buffer = lines.pop();                                   // keep a half-received line for later
@@ -336,6 +353,7 @@ r.post('/', h(async (req, res) => {
         }
       }
       emit(visible.flush());
+      if (garbled) break;
 
       const todo = calls.filter((c) => c?.name).slice(0, 20);
       if (!todo.length) break;                                   // a normal answer: finished
@@ -347,11 +365,18 @@ r.post('/', h(async (req, res) => {
         tool_calls: todo.map((c, k) => ({ id: c.id || `call_${round}_${k}`, type: 'function', function: { name: c.name, arguments: c.args || '{}' } })),
       });
       for (const [k, c] of todo.entries()) {
-        const { result, action } = await runTool(req.userId, c.name, c.args, today);
-        if (action) send({ t: 'action', ...action });
+        const { result, action } = c.name === 'add_course' && !courseOk
+          ? { result: { ok: false, error: 'Do not add courses on your own. Ask the student whether to add this course, and wait for the answer.' } }
+          : await runTool(req.userId, c.name, c.args, today);
+        if (action) { send({ t: 'action', ...action }); done.push(`${action.title.toLowerCase()} (${action.detail})`); }
         convo.push({ role: 'tool', tool_call_id: c.id || `call_${round}_${k}`, content: JSON.stringify(result) });
       }
       if (round === 4) send({ t: 'text', v: '\n\n_I stopped after several steps. Ask me to continue if something is missing._' });
+    }
+    if (garbled) {
+      send({ t: 'text', v: done.length
+        ? `Done! I ${done.length === 1 ? 'made this change' : `made ${done.length} changes`}: ${done.join('; ')}.`
+        : '_The answer came out garbled, so I stopped it. Please press Retry._' });
     }
     if (!started && !controller.signal.aborted) send({ t: 'text', v: '_The AI gave an empty answer. Please try again._' });
   } catch (err) {

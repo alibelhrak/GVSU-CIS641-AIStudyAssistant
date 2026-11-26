@@ -184,6 +184,7 @@ export function NotesChat({ note, getEditor, onClose, notify, onChanged }) {
           let ev;
           try { ev = JSON.parse(line); } catch { continue; }
           if (ev.t === 'text') update((m) => ({ ...m, content: m.content + ev.v }));
+          else if (ev.t === 'cut') update((m) => ({ ...m, content: m.content.slice(0, Math.max(0, m.content.length - ev.n)) }));
           else if (ev.t === 'error') update((m) => ({ ...m, content: `${m.content}${m.content ? '\n\n' : ''}⚠️ ${ev.v}` }));
           else if (ev.t === 'edit' && editor) {
             snapshot ||= JSON.parse(JSON.stringify(editor.document));

@@ -9,6 +9,7 @@
  * Works with any OpenAI-compatible /chat/completions API (Ollama, OpenAI, Groq, ...).
  * Only the course code, task title and hour counts are sent.
  */
+import { fetchLLM } from './llmGuard.js';
 import { config, llmEnabled } from '../config.js';
 import { templateText } from './recommendationEngine.js';
 
@@ -41,7 +42,7 @@ async function callLlm(facts) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), config.llm.timeoutMs);
   try {
-    const res = await fetch(`${config.llm.baseUrl}/chat/completions`, {
+    const res = await fetchLLM(`${config.llm.baseUrl}/chat/completions`, {
       method: 'POST',
       signal: controller.signal,
       headers: {

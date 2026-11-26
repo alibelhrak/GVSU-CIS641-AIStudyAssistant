@@ -13,6 +13,7 @@ import { h, HttpError } from '../middleware/error.js';
 import { config, chatEnabled } from '../config.js';
 import { thinkFilter } from './chat.js';
 import notesChat from './notesChat.js';
+import { fetchLLM, isGarbled } from '../services/llmGuard.js';
 
 const r = Router();
 const MAX_CONTENT = 3_000_000;          // characters of editor data per note (pictures included)
@@ -142,7 +143,7 @@ r.post('/ai', h(async (req, res) => {
   res.on('close', () => controller.abort());
   let upstream;
   try {
-    upstream = await fetch(`${config.llm.baseUrl}/chat/completions`, {
+    upstream = await fetchLLM(`${config.llm.baseUrl}/chat/completions`, {
       method: 'POST',
       signal: controller.signal,
       headers: { 'Content-Type': 'application/json', ...(config.llm.apiKey ? { Authorization: `Bearer ${config.llm.apiKey}` } : {}) },
@@ -170,10 +171,11 @@ r.post('/ai', h(async (req, res) => {
   const reader = upstream.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
+  let written = '';
   try {
     for (;;) {
       const { done, value } = await reader.read();
-      if (done) break;
+      if (done || isGarbled(written)) break;
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split('\n');
       buffer = lines.pop();
@@ -182,7 +184,7 @@ r.post('/ai', h(async (req, res) => {
         if (!data || data === '[DONE]' || !line.startsWith('data:')) continue;
         try {
           const piece = JSON.parse(data).choices?.[0]?.delta?.content;
-          if (piece) { const out = filter(piece); if (out) res.write(out); }
+          if (piece) { const out = filter(piece); if (out) { written += out; res.write(out); } }
         } catch { /* a broken line; skip it */ }
       }
     }

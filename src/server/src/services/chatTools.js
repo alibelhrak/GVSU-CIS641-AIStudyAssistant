@@ -178,7 +178,7 @@ async function findCourse(userId, text) {
   if (exact.length === 1) return exact[0];
   const loose = courses.filter((c) => q.includes(norm(c.code)) || norm(c.name).includes(q) || norm(c.code).includes(q));
   if (loose.length === 1) return loose[0];
-  throw new ToolError(`No single course matches "${text}". The student's courses are: ${list}. Use add_course first if it is a new course.`);
+  throw new ToolError(`No single course matches "${text}". The student's courses are: ${list}. Ask the student whether to add it as a new course; do not add it yourself.`);
 }
 
 /** Finds one of the student's tasks by its title */
