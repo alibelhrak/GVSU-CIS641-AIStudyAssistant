@@ -51,7 +51,12 @@ async function studentContext(userId, today) {
     sessions.filter((s) => String(s.course) === id && s.done && s.date >= weekStart && s.date <= today).reduce((t, s) => t + s.hours, 0) +
     logs.filter((l) => String(l.course) === id && l.date >= weekStart && l.date <= today).reduce((t, l) => t + l.hours, 0);
 
-  const lines = [`Student: ${user?.name || 'Student'}`, `Today: ${today}`, ''];
+  // A small calendar, so "next Friday" or "this weekend" become the right dates
+  const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const dayName = (iso) => DAYS[new Date(`${iso}T12:00:00Z`).getUTCDay()];
+  const calendar = Array.from({ length: 21 }, (_, k) => addDays(today, k)).map((d) => `${dayName(d).slice(0, 3)} ${d}`).join(', ');
+  const lines = [`Student: ${user?.name || 'Student'}`, `Today: ${dayName(today)} ${today}`,
+    `Next 3 weeks (use these, do not compute weekdays yourself): ${calendar}`, ''];
 
   lines.push('Courses (hours studied in the last 7 days / weekly goal):');
   if (!courses.length) lines.push('- none yet');
@@ -116,6 +121,10 @@ When the student asks about "my notes", look them up first and answer from them,
   do not add it: ask "You don't have CIS 123 yet. Should I add it as a course?" and wait for the answer.
   Match courses loosely: "641", "cis641" or "Software Engineering" all mean the course CIS 641.
 - If a tool answers with ok:false, fix the problem or tell the student. Never say you did something that failed.
+- Never say "I'll add..." or "I will..." for something you could do now: call the tool in this same answer.
+  When one message asks for several things, do every clear one right away with tools, and ask only about the unclear ones.
+- "Next Friday" means the first Friday after today; "this weekend" means the coming Saturday and Sunday. Take the dates
+  from the calendar in the student data.
 - After using tools, confirm in one or two short sentences what you did. Do not repeat every detail; the app shows them.
 - You cannot delete anything. If the student wants to delete, tell them to use the page in the app.
 
