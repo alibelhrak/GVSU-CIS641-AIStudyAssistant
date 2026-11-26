@@ -373,13 +373,15 @@ input[type=checkbox]:checked::after{transform:rotate(45deg) scale(1)}
 }
 /* ---------- Installed app (added to the phone's home screen) ----------
    The app fills the whole screen, under the clock and the home bar (viewport-fit=cover).
-   The strip behind the clock gets a color the white clock text can be read on. */
-:root, [data-theme="light"], [data-theme="paper"] { --status-bar: var(--accent); }
-[data-theme="dark"], [data-theme="midnight"] { --status-bar: var(--bg); }
+   The strip behind the clock has the page color; iOS picks a readable clock color itself. */
 @media (display-mode: standalone) {
   body { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
-  body::before { content: ''; position: fixed; top: 0; left: 0; right: 0; height: env(safe-area-inset-top); background: var(--status-bar); z-index: 100; }
+  body::before { content: ''; position: fixed; top: 0; left: 0; right: 0; height: env(safe-area-inset-top); background: var(--bg); z-index: 24; }
   .topbar, .sidebar { top: env(safe-area-inset-top); }
   .side-bottom { padding-bottom: env(safe-area-inset-bottom); }
   .toast { bottom: calc(24px + env(safe-area-inset-bottom)); }
+}
+/* Phone menu: fit between the top and the bottom of the screen, so Appearance and Sign out stay visible */
+@media (max-width: 900px) {
+  .sidebar { height: auto; }
 }
