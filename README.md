@@ -21,7 +21,7 @@
 
 ---
 
-The AI Study Assistant is a web application that helps students organize their school work in one place. Students manage their courses, assignments, exams, study schedule and course materials, and track how many hours they study for each course. The app works out where the student is behind, recommends what to study next with a concrete plan of study sessions, and includes an AI chat coach that knows the student's own deadlines and hours and can add things to the planner for them.
+The AI Study Assistant is a web application that helps students organize their school work in one place. Students manage their courses, assignments, exams, study schedule and course materials, write Notion-style notes, and track how many hours they study for each course. The app works out where the student is behind, recommends what to study next with a concrete plan of study sessions, and includes an AI chat coach that knows the student's own deadlines, hours and notes and can add things to the planner for them. The same AI also works inside the notes, where it writes, explains, summarizes and quizzes.
 
 Built for **CIS 641 (Software Engineering)** at Grand Valley State University.
 
@@ -36,9 +36,12 @@ Built for **CIS 641 (Software Engineering)** at Grand Valley State University.
 | **Assignments & Exams** | Add tasks with a type, due date, priority and the hours they need; tick them off when done |
 | **Study Schedule** | Plan study sessions on a weekly calendar and tick them off; deadlines show in red |
 | **Materials** | Upload files (PDFs, slides, notes, up to 20 MB) or save links for each course |
+| **Notes** | Notion-style pages with sub-pages, emoji icons, covers (gradients or your own picture), favorites, course tags and search. Type **/** for headings, lists, to-dos, tables, code, quotes and pictures. Saves while you type |
+| **AI in your notes** | Select text or press **Ctrl+J** to have AI improve, shorten, explain, translate or turn it into a table; or type **/** for Continue writing, Summarize, Key takeaways, Practice quiz and Flashcards. Every answer is a preview first: **Replace**, **Insert**, **Try again** or **Discard** |
 | **AI recommendations** | Advice on what to study next, with a session plan the student can **accept** (added to the schedule) or **dismiss** |
 | **Ask AI** | Chat with an AI study coach that sees the student's courses, deadlines and hours. It explains, plans and quizzes, and it can **add courses, exams, assignments and study sessions** for the student, each with an **Undo** button |
 | **Files, pictures and voice** | Attach PDFs, notes, code or screenshots to a question; dictate with the microphone; or use **Voice mode** to talk and hear the answers |
+| **Ask AI and your notes** | The chat can search and read your notes, write a new note for you, or add to an existing one |
 | **Chat history** | Every conversation is saved; go back to any of them or delete them |
 | **Accounts** | Sign up, sign in, and reset a forgotten password through an emailed link (valid for 30 minutes, works once) |
 | **Themes** | Light, Dark, Paper, Midnight or System theme, plus five accent colors |
@@ -96,7 +99,26 @@ Go to **Materials**. Choose a course under **Add to a course**, then drop files 
 
 <p align="center"><img src="docs/screenshots/materials.png" alt="Materials page" width="900" /></p>
 
-### 7. Ask the AI
+### 7. Write your notes
+
+Go to **Notes** and pick a template (Lecture notes, Study guide, Assignment plan) or start from an empty page. Everything saves by itself while you type.
+
+<p align="center"><img src="docs/screenshots/notes.png" alt="A note with a cover, emoji icon, headings, lists and a table" width="900" /></p>
+
+- Type **/** to add a heading, a list, a to-do, a toggle, a quote, a table, code, a divider or a picture. Markdown shortcuts work too: `# ` for a heading, `- ` for a list, `[] ` for a to-do.
+- Hover the title to **Add icon** or **Add cover**. A cover can be one of 12 gradients or **your own picture** from your computer or phone (you can also drop a picture on the cover). Use **Reposition** to choose which part of the picture shows.
+- Click **+** next to a page in the list, or **Add a sub-page** at the bottom, to put pages inside pages.
+- Use the ⭐ to add a page to **Favorites**, the course menu to tag it with a course, and **Search notes** to find any word.
+
+<p align="center"><img src="docs/screenshots/notes-slash.png" alt="The / menu with AI actions and blocks" width="900" /></p>
+
+**AI inside your notes.** Select some text and click **Ask AI** in the toolbar (or press **Ctrl+J**, or type **/ai**). Choose **Improve writing**, **Fix spelling & grammar**, **Make shorter**, **Explain this**, **Translate**, **Turn into a table** and more, or type your own request. The answer appears as a preview first; then click **Replace selection**, **Insert below**, **Try again** or **Discard**, or type a follow-up such as *"make it simpler"*. Press **Ctrl+Z** to undo an insert.
+
+<p align="center"><img src="docs/screenshots/notes-ai.png" alt="AI explaining a selected sentence, with Replace, Insert, Try again and Discard" width="900" /></p>
+
+On a phone, the **Ask AI** button at the top of a page has the same actions: write in the page (summary, takeaways, quiz, flashcards) or chat about the note.
+
+### 8. Ask the AI
 
 Go to **Ask AI**. Ask anything about your studies, or click one of the suggestions.
 
@@ -106,9 +128,11 @@ Go to **Ask AI**. Ask anything about your studies, or click one of the suggestio
 
 > Add my CIS 641 final exam on December 12 and plan three 2-hour study sessions before it.
 
-Each change appears as a card. Click **View** to open the page, or **Undo** to take the change back. The AI can add courses, assignments, exams and study sessions, log study time, and change or finish tasks. It cannot delete anything.
+Each change appears as a card. Click **View** to open the page, or **Undo** to take the change back. The AI can add courses, assignments, exams and study sessions, log study time, change or finish tasks, and write notes. It cannot delete anything.
 
 <p align="center"><img src="docs/screenshots/ask-ai-actions.png" alt="Ask AI adding an exam and study sessions, with Undo buttons" width="900" /></p>
+
+It also knows your notes. Try *"What did I write about lifelines?"*, *"Quiz me on my Sequence diagrams note"* or *"Save a study guide for exam 2 as a note"*.
 
 More things you can do in the chat:
 
@@ -122,13 +146,13 @@ More things you can do in the chat:
 | ■ **Stop** | Stops an answer that is being written |
 | **Chats** panel | Every conversation is saved. Click one to go back to it, or the 🗑 icon to delete it. **New chat** starts a fresh one |
 
-### 8. Choose your look
+### 9. Choose your look
 
 Click **Appearance** at the bottom of the sidebar to pick a theme (System, Light, Dark, Paper or Midnight) and an accent color.
 
 <p align="center"><img src="docs/screenshots/themes.png" alt="Dark theme with the Appearance menu open" width="900" /></p>
 
-### 9. Download the app to your laptop or phone
+### 10. Download the app to your laptop or phone
 
 Click **Download app** at the top of the welcome page, or in the sidebar once you are signed in.
 
@@ -158,7 +182,9 @@ The AI recommendations are designed so that the language model **can never inven
 3. **A language model writes the message** from those numbers only. If the model is off, slow or gives an invalid answer, the app uses rule-based text instead.
 4. **The student decides:** accepting adds the sessions to the schedule; dismissing hides the advice.
 
-The **Ask AI** chat sends the model a short summary of the student's own data (courses, open tasks, the computed study gaps and planned sessions) with each question, plus a guide to the app's pages. When the student asks it to add or change something, the model asks the server to run a **tool** (add a course, add a task, plan a session, log time, update a task). The server checks every value, finds the course or task by name, saves the change for that student only, and returns the result to the model. Nothing can be deleted this way, and every change can be undone.
+The **Ask AI** chat sends the model a short summary of the student's own data (courses, open tasks, the computed study gaps and planned sessions) with each question, plus a guide to the app's pages. When the student asks it to add or change something, the model asks the server to run a **tool** (add a course, add a task, plan a session, log time, update a task, write a note or add to one, search or read a note). The server checks every value, finds the course or task by name, saves the change for that student only, and returns the result to the model. Nothing can be deleted this way, and every change can be undone.
+
+**AI in the notes** sends the page (as Markdown), the selected text and the chosen action to the server, which asks the model for Markdown only and streams it back. The editor shows it as a preview and turns it into real blocks only when the student clicks Insert or Replace.
 
 Any OpenAI-compatible model works: [Groq](https://console.groq.com) (free, used online), OpenAI, or a local model through [Ollama](https://ollama.com). Without a model, the app still works and uses rule-based text; only the chat is turned off.
 
@@ -166,7 +192,7 @@ Any OpenAI-compatible model works: [Groq](https://console.groq.com) (free, used 
 
 | Part | Technology |
 |---|---|
-| Front end | React 18, Vite, React Router, plain CSS (no UI library), PDF.js for reading attached PDFs |
+| Front end | React 18, Vite, React Router, plain CSS, PDF.js for reading attached PDFs, [BlockNote](https://www.blocknotejs.org) (with Mantine) for the Notion-style notes editor |
 | Back end | Node.js 22, Express 5, JSON Web Token login, bcrypt password hashing, Multer file uploads |
 | Database | MongoDB (MongoDB Atlas online), Mongoose |
 | AI | Any OpenAI-compatible chat API with tool calling (Groq online); a vision model for pictures |
