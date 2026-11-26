@@ -31,14 +31,15 @@ Put these in `src/server/.env` on your computer, or in the **Environment** tab o
 | `LLM_BASE_URL` | For AI | OpenAI-compatible API address, for example `https://api.groq.com/openai/v1` |
 | `LLM_API_KEY` | For AI | The API key (Groq keys start with `gsk_`) |
 | `LLM_MODEL` | For AI | Model for the recommendation text, for example `llama-3.3-70b-versatile` |
-| `CHAT_MODEL` | No | A different model just for Ask AI, for example `openai/gpt-oss-120b` (default: `LLM_MODEL`) |
+| `CHAT_MODEL` | No | A different model just for Ask AI, for example `openai/gpt-oss-120b` (default: `LLM_MODEL`). It must support tool calling |
+| `VISION_MODEL` | For pictures | A model that can read images, used only when a picture is attached in Ask AI, for example `qwen/qwen3.8-27b` on Groq |
 | `BREVO_API_KEY` | For email | Brevo API key (starts with `xkeysib-`) for password reset emails |
 | `MAIL_FROM` | For email | The sender address you verified in Brevo |
 | `MAIL_FROM_NAME` | No | Sender name (default `Study Assistant`) |
 | `APP_URL` | For email | The site address used in reset links (default `http://localhost:5173`) |
 | `UPLOAD_DIR` | No | Where uploaded files are saved (default `./uploads`) |
 
-Without the AI settings, recommendations use rule-based text and Ask AI is turned off. Without the email settings, reset emails are printed in the server terminal instead of being sent, which is handy for testing.
+Without the AI settings, recommendations use rule-based text and Ask AI is turned off. Without `VISION_MODEL`, Ask AI still reads attached PDFs and text files, but not pictures. Without the email settings, reset emails are printed in the server terminal instead of being sent, which is handy for testing.
 
 `GET /api/health` shows what is turned on, for example `{"ok":true,"llm":true,"chat":true}`.
 
@@ -71,7 +72,8 @@ All routes start with `/api`. Every route except `/auth/*` and `/health` needs t
 | `/materials` | List; `POST /materials/upload` (files), `POST /materials/link`, `GET /materials/:id/file` (download), `DELETE /materials/:id` |
 | `POST /recommendations/generate` | Works out the current advice and returns it |
 | `POST /recommendations/:id/accept` / `dismiss` | Accept (adds the sessions) or dismiss advice |
-| `POST /chat` | Ask AI: sends the conversation and streams the answer back as plain text |
+| `POST /chat` | Ask AI: sends the conversation (with attached file text and pictures) and streams the answer back, one JSON object per line: `text` pieces and `action` cards. The AI can call tools to add courses, tasks and study sessions, log time and update tasks |
+| `/conversations` | Chat history: list (`GET`), open (`GET /:id`), save (`POST`, `PATCH /:id`) and delete (`DELETE /:id`) |
 
 ## Project structure
 
@@ -83,16 +85,17 @@ src/
     src/index.js           start-up: connects to MongoDB, starts the server
     src/app.js             routes; also serves the built app online
     src/config.js          reads the settings above
-    src/models/            Mongoose models: User, Course, Task, StudySession, StudyLog, Material, Recommendation
-    src/routes/            auth, courses, tasks, sessions, logs, materials, recommendations, chat
+    src/models/            Mongoose models: User, Course, Task, StudySession, StudyLog, Material, Recommendation, Conversation
+    src/routes/            auth, courses, tasks, sessions, logs, materials, recommendations, chat, conversations
     src/services/recommendationEngine.js   rules: study gap, ranking, session plan
     src/services/llm.js    recommendation text from the model, with rule-based fallback
+    src/services/chatTools.js  the actions Ask AI can take (checked and limited to the student's own data)
     src/services/mailer.js password reset emails (Brevo)
     test/engine.test.js    unit tests for the rules
   client/                  React app (Vite)
     public/                logo, app icons, manifest.webmanifest, sw.js (installable phone app)
     src/App.jsx            sidebar, pages and routes
-    src/pages/             Landing, Login, ForgotPassword, Dashboard, Courses, Tasks, Schedule, Materials, Chat
+    src/pages/             Landing, Login, ForgotPassword, Dashboard, Courses, Tasks, Schedule, Materials, Chat (Ask AI)
     src/lib/               api helper, login state, data store, themes, dates
     src/styles.css         design and the four themes
 ```
