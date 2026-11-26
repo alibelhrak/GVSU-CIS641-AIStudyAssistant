@@ -886,5 +886,18 @@
 "Delete the line": "लाइन हटाएँ",
 "New line below": "नीचे नई लाइन",
 "Leave the code block": "कोड ब्लॉक से बाहर निकलें",
-"Select all the code in the block": "ब्लॉक का सारा कोड चुनें"
+"Select all the code in the block": "ब्लॉक का सारा कोड चुनें",
+"Run": "चलाएँ",
+"Preview": "पूर्वावलोकन",
+"Output": "आउटपुट",
+"HTML preview": "HTML पूर्वावलोकन",
+"Running…": "चल रहा है…",
+"Starting Python… (only the first run takes a few seconds)": "Python शुरू हो रहा है… (केवल पहली बार कुछ सेकंड लगते हैं)",
+"Stopped after {n} s. Is there an endless loop?": "{n} सेकंड बाद रोका गया। क्या कोई अनंत लूप है?",
+"Stopped after {n} s.": "{n} सेकंड बाद रोका गया।",
+"Python could not start. Check your internet connection and try again.": "Python शुरू नहीं हो सका। अपना इंटरनेट कनेक्शन जाँचें और फिर से कोशिश करें।",
+"This language cannot run here yet.": "यह भाषा अभी यहाँ नहीं चल सकती।",
+"(no output)": "(कोई आउटपुट नहीं)",
+"(output cut at {n} characters)": "(आउटपुट {n} अक्षरों पर काटा गया)",
+"Run the code (Python, JavaScript, SQL, HTML), or a new line below": "कोड चलाएँ (Python, JavaScript, SQL, HTML), या नीचे नई पंक्ति"
 }

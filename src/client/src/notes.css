@@ -499,3 +499,21 @@ html[data-theme="midnight"] .note-page .bn-block-content[data-content-type="code
 .code-ghost{opacity:.42;pointer-events:none;user-select:none;white-space:pre}
 .code-ghost-hint{display:inline-block;margin-inline-start:8px;padding:0 5px;border:1px solid currentColor;border-radius:4px;font-family:var(--font);font-size:.62rem;
   font-weight:600;line-height:1.5;vertical-align:1px;opacity:.9}
+/* Run: buttons on the right of a code block, and the Output block under it */
+.code-tools-right{position:absolute;z-index:5;display:flex;align-items:center;gap:6px}
+.code-tools-right .code-copy,.code-tools-right .code-theme-btn{position:static;animation:none}
+.code-tools-right{animation:fade-in .15s ease both}
+.code-run-btn{display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 10px 0 8px;border:0;border-radius:7px;background:var(--accent);color:#fff;
+  font:inherit;font-size:.75rem;font-weight:700;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.15);transition:filter .15s,transform .1s}
+.code-run-btn:hover{filter:brightness(1.08)}
+.code-run-btn:active{transform:scale(.96)}
+.code-out-label{position:absolute;z-index:5;padding:4px 9px;font-size:.72rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--faint)}
+.note-page .bn-block-content[data-content-type="codeBlock"][data-language="output"],
+.note-editor-wrap .bn-block-content[data-content-type="codeBlock"][data-language="output"]{background:var(--hover) !important;color:var(--fg);border:1px dashed var(--line-strong);margin-top:-2px}
+.bn-block-content[data-content-type="codeBlock"][data-language="output"] > pre{padding:32px 16px 12px;font-size:.8rem;color:var(--fg)}
+.bn-block-content[data-content-type="codeBlock"][data-language="output"] .shiki{color:inherit !important}
+/* HTML preview window */
+.html-preview{width:min(960px,100%);height:min(680px,calc(100dvh - 40px));display:flex;flex-direction:column;border-radius:16px;overflow:hidden;background:var(--surface);
+  border:1px solid var(--line);box-shadow:var(--shadow-lg);animation:rem-in .25s var(--ease) both}
+.html-preview-head{display:flex;align-items:center;justify-content:space-between;padding:8px 10px 8px 16px;border-bottom:1px solid var(--line)}
+.html-preview iframe{flex:1;width:100%;border:0;background:#fff}

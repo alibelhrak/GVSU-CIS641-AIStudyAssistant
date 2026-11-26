@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useParams } from 'react-router-dom';
 import { BlockNoteSchema, createCodeBlockSpec, defaultBlockSpecs, filterSuggestionItems } from '@blocknote/core';
 import { SyntaxHighlightingExtension } from '@blocknote/core/extensions';
@@ -13,6 +14,7 @@ import {
 import { BlockNoteView } from '@blocknote/mantine';
 import '@blocknote/mantine/style.css';
 import { api, getToken } from '../lib/api.js';
+import { canRun, runCode } from '../lib/runCode.js';
 import { codeGhostExtension, handleCodeKey, hideGhost, showGhost, suggestionRequest } from '../lib/codeEditing.js';
 import { useData } from '../lib/store.jsx';
 import { useTheme } from '../lib/theme.jsx';
@@ -239,7 +241,12 @@ const DICTIONARY = {
 const englishEditor = base === en;
 
 /** Code blocks like Notion: a language picker and syntax highlighting for about 45 languages */
-const codeSpec = createCodeBlockSpec({ ...codeBlockOptions, defaultLanguage: 'text' });
+// "output" holds what a Run printed (not in the language menu, no colors)
+const codeSpec = createCodeBlockSpec({
+  ...codeBlockOptions,
+  supportedLanguages: { ...codeBlockOptions.supportedLanguages, output: { name: 'Output', aliases: [] } },
+  defaultLanguage: 'text',
+});
 // No red spell-check lines under code
 const drawCode = codeSpec.implementation.render;
 codeSpec.implementation.render = function render(...args) {
@@ -273,7 +280,7 @@ function CodeThemeMenu({ value, onPick }) {
 const LANGUAGES = Object.entries(codeBlockOptions.supportedLanguages)
   .map(([id, l]) => ({ id, name: l.name, aliases: l.aliases || [] }))
   .sort((a, b) => (a.id === 'text' ? -1 : b.id === 'text' ? 1 : a.name.localeCompare(b.name)));
-const langName = (id) => LANGUAGES.find((l) => l.id === id)?.name || 'Plain Text';
+const langName = (id) => (id === 'output' ? 'Output' : LANGUAGES.find((l) => l.id === id)?.name || 'Plain Text');
 
 /** The language menu of a code block: search, arrow keys, Enter */
 function LanguageMenu({ value, onPick, onClose }) {
@@ -307,7 +314,7 @@ function LanguageMenu({ value, onPick, onClose }) {
 }
 
 /** On the code block under the mouse: the language button (top left) and Copy (top right) */
-function CodeTools({ wrap, editor }) {
+function CodeTools({ wrap, editor, onRun }) {
   const [box, setBox] = useState(null);     // { id, top, left, right }
   const [open, setOpen] = useState(false);  // false, 'lang' or 'theme'
   const { prefs, setPref } = useTheme();
@@ -353,29 +360,40 @@ function CodeTools({ wrap, editor }) {
   };
   return (
     <>
+      {language === 'output' ? <span className="code-tools code-out-label" style={{ top: box.top, left: box.left }}>Output</span> : (
       <button type="button" className={`code-tools code-lang-btn ${open ? 'open' : ''}`} style={{ top: box.top, left: box.left }}
         onMouseDown={(e) => e.preventDefault()} onClick={() => setOpen((o) => (o === 'lang' ? false : 'lang'))} aria-haspopup="listbox" aria-expanded={open === 'lang'}>
         <span data-no-translate>{langName(language)}</span><Icon name="chevronDown" size={13} />
       </button>
+      )}
       {open === 'lang' && (
         <div className="code-lang-pop" style={{ top: box.top + 32, left: box.left }}>
           <LanguageMenu value={language} onPick={pick} onClose={() => setOpen(false)} />
         </div>
       )}
-      <button type="button" className={`code-tools code-theme-btn ${open === 'theme' ? 'open' : ''}`} style={{ top: box.top, right: box.right + 78 }}
-        onMouseDown={(e) => e.preventDefault()} onClick={() => setOpen((o) => (o === 'theme' ? false : 'theme'))}
-        aria-label="Code theme" title={`Code theme: ${codeThemeInfo(prefs.codeTheme).label}`}>
-        <Icon name="palette" size={14} />
-      </button>
+      <div className="code-tools code-tools-right" style={{ top: box.top, right: box.right }}>
+        {canRun(language) && (
+          <button type="button" className="code-run-btn" onMouseDown={(e) => e.preventDefault()} onClick={() => onRun(box.id)}
+            title={`${t('Run')} (${/Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl'}+Enter)`}>
+            <Icon name="play" size={13} /> {language === 'html' ? 'Preview' : 'Run'}
+          </button>
+        )}
+        {language !== 'output' && (
+          <button type="button" className={`code-theme-btn ${open === 'theme' ? 'open' : ''}`}
+            onMouseDown={(e) => e.preventDefault()} onClick={() => setOpen((o) => (o === 'theme' ? false : 'theme'))}
+            aria-label="Code theme" title={`Code theme: ${codeThemeInfo(prefs.codeTheme).label}`}>
+            <Icon name="palette" size={14} />
+          </button>
+        )}
+        <button type="button" className={`code-copy ${copied ? 'done' : ''}`} onMouseDown={(e) => e.preventDefault()} onClick={copy}>
+          <Icon name={copied ? 'tick' : 'copy'} size={14} /> {copied ? 'Copied' : 'Copy'}
+        </button>
+      </div>
       {open === 'theme' && (
         <div className="code-lang-pop" style={{ top: box.top + 32, right: box.right }}>
           <CodeThemeMenu value={prefs.codeTheme} onPick={(id) => { setPref('codeTheme', id); setOpen(false); setBox(null); }} />
         </div>
       )}
-      <button type="button" className={`code-tools code-copy ${copied ? 'done' : ''}`} style={{ top: box.top, right: box.right }}
-        onMouseDown={(e) => e.preventDefault()} onClick={copy}>
-        <Icon name={copied ? 'tick' : 'copy'} size={14} /> {copied ? 'Copied' : 'Copy'}
-      </button>
     </>
   );
 }
@@ -439,6 +457,42 @@ function NoteEditor({ note, dark, onChange, onReady, onAi }) {
   };
   useEffect(() => () => { clearTimeout(ai.current.timer); ai.current.ctrl?.abort(); }, []);
 
+  // ---- Run: the result goes in an "Output" block right under the code (kept in the note) ----
+  const [preview, setPreview] = useState(null);   // HTML preview window
+  useEffect(() => {
+    if (preview === null) return undefined;
+    const close = (e) => { if (e.key === 'Escape') setPreview(null); };
+    window.addEventListener('keydown', close);
+    return () => window.removeEventListener('keydown', close);
+  }, [preview]);
+  const running = useRef(new Set());
+  const runBlock = async (id) => {
+    const block = editor.getBlock(id);
+    if (!block || block.type !== 'codeBlock' || !canRun(block.props.language) || running.current.has(id)) return;
+    const code = (block.content || []).map((c) => c.text || '').join('');
+    const writeOut = (text) => {
+      const b = editor.getBlock(id);
+      if (!b) return;
+      const next = editor.getNextBlock(b);
+      if (next?.type === 'codeBlock' && next.props.language === 'output') editor.updateBlock(next, { content: text });
+      else editor.insertBlocks([{ type: 'codeBlock', props: { language: 'output' }, content: text }], b, 'after');
+    };
+    running.current.add(id);
+    try {
+      if (block.props.language === 'html') { setPreview(code); return; }
+      writeOut(t('Running…'));
+      const res = await runCode(block.props.language, code.trim() ? code : '', {
+        onStatus: () => writeOut(t('Starting Python… (only the first run takes a few seconds)')),
+      });
+      writeOut(res.text);
+    } catch (err) {
+      writeOut(`Error: ${err.message}`);
+    } finally {
+      running.current.delete(id);
+    }
+  };
+  const runHere = () => { const b = editor.getTextCursorPosition().block; if (b) runBlock(b.id); };
+
   // ---- VS Code shortcuts inside code blocks (caught before the editor's own keys) ----
   useEffect(() => {
     const root = wrap.current;
@@ -456,7 +510,7 @@ function NoteEditor({ note, dark, onChange, onReady, onAi }) {
           return;
         }
       }
-      if (handleCodeKey(view, e, { onAskAI: () => askAI(true) })) { e.preventDefault(); e.stopPropagation(); }
+      if (handleCodeKey(view, e, { onAskAI: () => askAI(true), onRun: runHere })) { e.preventDefault(); e.stopPropagation(); }
     };
     root.addEventListener('keydown', key, true);
     const blur = () => { const v = editor.prosemirrorView; if (v) hideGhost(v); };
@@ -481,7 +535,20 @@ function NoteEditor({ note, dark, onChange, onReady, onAi }) {
 
   return (
     <div className="note-editor-wrap" ref={wrap} data-code-theme={codeTheme} style={{ '--code-bg': theme.bg, '--code-fg': theme.fg }}>
-    <CodeTools wrap={wrap} editor={editor} />
+    <CodeTools wrap={wrap} editor={editor} onRun={runBlock} />
+    {preview !== null && createPortal(
+      <div className="install-overlay" onClick={() => setPreview(null)} role="presentation">
+        <div className="html-preview" role="dialog" aria-label="HTML preview" onClick={(e) => e.stopPropagation()}>
+          <div className="html-preview-head">
+            <b>HTML preview</b>
+            <button type="button" className="icon-btn" onClick={() => setPreview(null)} aria-label="Close"><Icon name="close" /></button>
+          </div>
+          {/* sandboxed: the page can run its scripts but can't reach the app or your account */}
+          <iframe title="HTML preview" sandbox="allow-scripts allow-modals allow-forms" srcDoc={preview} />
+        </div>
+      </div>,
+      document.body,   // outside the notes pane, so it is centered on the screen
+    )}
     <BlockNoteView editor={editor} theme={dark ? { dark: EDITOR_THEME, light: EDITOR_THEME } : EDITOR_THEME}
       data-color-scheme={dark ? 'dark' : 'light'} onChange={() => { latest.current = editor.document; onChange(editor.document); scheduleAI(); }}
       slashMenu={false} formattingToolbar={false}>

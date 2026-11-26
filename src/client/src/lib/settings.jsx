@@ -369,7 +369,7 @@ const CODE_KEYS = [
   [['Alt', '↑ ↓'], 'Move lines up or down'],
   [['Shift', 'Alt', '↑ ↓'], 'Copy lines up or down'],
   [[MOD, 'Shift', 'K'], 'Delete the line'],
-  [[MOD, 'Enter'], 'New line below'],
+  [[MOD, 'Enter'], 'Run the code (Python, JavaScript, SQL, HTML), or a new line below'],
   [['Shift', 'Enter'], 'Leave the code block'],
   [[MOD, 'A'], 'Select all the code in the block'],
 ];

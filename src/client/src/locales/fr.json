@@ -778,5 +778,18 @@
 "Delete the line": "Supprimer la ligne",
 "New line below": "Nouvelle ligne en dessous",
 "Leave the code block": "Quitter le bloc de code",
-"Select all the code in the block": "Sélectionner tout le code du bloc"
+"Select all the code in the block": "Sélectionner tout le code du bloc",
+"Run": "Exécuter",
+"Preview": "Aperçu",
+"Output": "Sortie",
+"HTML preview": "Aperçu HTML",
+"Running…": "Exécution…",
+"Starting Python… (only the first run takes a few seconds)": "Démarrage de Python… (seule la première exécution prend quelques secondes)",
+"Stopped after {n} s. Is there an endless loop?": "Arrêté après {n} s. Y a-t-il une boucle infinie ?",
+"Stopped after {n} s.": "Arrêté après {n} s.",
+"Python could not start. Check your internet connection and try again.": "Python n’a pas pu démarrer. Vérifiez votre connexion internet et réessayez.",
+"This language cannot run here yet.": "Ce langage ne peut pas encore s’exécuter ici.",
+"(no output)": "(aucune sortie)",
+"(output cut at {n} characters)": "(sortie coupée à {n} caractères)",
+"Run the code (Python, JavaScript, SQL, HTML), or a new line below": "Exécuter le code (Python, JavaScript, SQL, HTML) ou nouvelle ligne en dessous"
 }

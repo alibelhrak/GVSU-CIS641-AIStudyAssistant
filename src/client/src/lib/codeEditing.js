@@ -5,7 +5,7 @@
  *   Alt+↑ / Alt+↓                      move lines up / down
  *   Shift+Alt+↑ / Shift+Alt+↓          copy lines up / down
  *   Ctrl+Shift+K                       delete line
- *   Ctrl+Enter                         new line below
+ *   Ctrl+Enter                         run the code (Python, JavaScript, SQL, HTML), else new line below
  *   Enter                              keeps the indentation (and indents after : { ( [)
  *   ( [ { " ' `                        auto-close; typing the closing one steps over it; Backspace removes the pair
  *   Ctrl+A                             select the whole code block first
@@ -15,6 +15,7 @@
 import { Plugin, PluginKey, TextSelection } from 'prosemirror-state';
 import { Decoration, DecorationSet } from 'prosemirror-view';
 import { createExtension } from '@blocknote/core';
+import { canRun } from './runCode.js';
 
 // ---------------- Ghost text (AI suggestion) ----------------
 export const ghostKey = new PluginKey('codeGhost');
@@ -245,7 +246,7 @@ function acceptGhost(view, ghost, wordOnly) {
  * Handle a key press inside a code block. Returns true when it was handled.
  * onAskAI() is called for Alt+\ (ask for a suggestion now).
  */
-export function handleCodeKey(view, e, { onAskAI } = {}) {
+export function handleCodeKey(view, e, { onAskAI, onRun } = {}) {
   if (e.isComposing || !view) return false;
   const ctx = codeContext(view);
   if (!ctx) return false;
@@ -264,7 +265,10 @@ export function handleCodeKey(view, e, { onAskAI } = {}) {
   if (mod && !e.shiftKey && (k === '/' || e.code === 'Slash')) return toggleComment(view, ctx);
   if (e.altKey && !mod && (k === 'ArrowUp' || k === 'ArrowDown')) return moveLines(view, ctx, k === 'ArrowDown', e.shiftKey);
   if (mod && e.shiftKey && (k === 'K' || k === 'k')) return deleteLine(view, ctx);
-  if (k === 'Enter' && mod && !e.shiftKey) return newline(view, ctx, true);
+  if (k === 'Enter' && mod && !e.shiftKey) {
+    if (onRun && canRun(ctx.language)) { onRun(); return true; }
+    return newline(view, ctx, true);
+  }
   if (k === 'Enter' && !mod && !e.shiftKey && !e.altKey) return newline(view, ctx, false);
   if (mod && !e.shiftKey && !e.altKey && (k === 'a' || k === 'A') && !(ctx.from === 0 && ctx.to === ctx.text.length)) {
     return write(view, ctx, ctx.text, 0, ctx.text.length);
@@ -277,7 +281,7 @@ export function handleCodeKey(view, e, { onAskAI } = {}) {
 /** What to send for an AI suggestion, or null when the cursor isn't at a good spot */
 export function suggestionRequest(view) {
   const ctx = codeContext(view);
-  if (!ctx || ctx.from !== ctx.to) return null;
+  if (!ctx || ctx.from !== ctx.to || ctx.language === 'output') return null;
   const { text, from } = ctx;
   let le = text.indexOf('\n', from); if (le === -1) le = text.length;
   // Like VS Code: suggest at the end of a line (or before closing brackets/quotes only)

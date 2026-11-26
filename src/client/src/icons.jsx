@@ -34,6 +34,7 @@ const PATHS = {
   history: 'M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 7v5l3 3',
   sidebar: 'M4 5h16v14H4zM9 5v14',
   hideSide: 'M11 17l-5-5 5-5m7 10-5-5 5-5',
+  play: 'M7 4.5v15l12.5-7.5z',
   arrow: 'M5 12h14m-6-6 6 6-6 6',
   back: 'M19 12H5m6 6-6-6 6-6',
   shield: 'M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6zm-3 9 2 2 4-4',

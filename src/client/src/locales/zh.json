@@ -793,5 +793,18 @@
 "Delete the line": "删除该行",
 "New line below": "在下方新建一行",
 "Leave the code block": "离开代码块",
-"Select all the code in the block": "选择代码块中的全部代码"
+"Select all the code in the block": "选择代码块中的全部代码",
+"Run": "运行",
+"Preview": "预览",
+"Output": "输出",
+"HTML preview": "HTML 预览",
+"Running…": "正在运行…",
+"Starting Python… (only the first run takes a few seconds)": "正在启动 Python…（只有第一次运行需要几秒钟）",
+"Stopped after {n} s. Is there an endless loop?": "{n} 秒后已停止。是否有死循环？",
+"Stopped after {n} s.": "{n} 秒后已停止。",
+"Python could not start. Check your internet connection and try again.": "Python 无法启动。请检查网络连接后重试。",
+"This language cannot run here yet.": "此语言暂时无法在这里运行。",
+"(no output)": "（无输出）",
+"(output cut at {n} characters)": "（输出已在 {n} 个字符处截断）",
+"Run the code (Python, JavaScript, SQL, HTML), or a new line below": "运行代码（Python、JavaScript、SQL、HTML），或在下方新建一行"
 }

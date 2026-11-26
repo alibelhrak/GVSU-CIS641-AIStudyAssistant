@@ -119,6 +119,19 @@ The app works in English, French, Spanish, Arabic (right to left), Chinese and H
 - **Server:** the browser sends `X-Lang` with each request, and the account keeps `language` for emails sent later by the scheduler. `server/src/i18n.js` holds the email, push and recommendation texts; the AI prompts add "answer in <language>".
 - **Add a language:** add it to `LANGS` in `i18n.jsx`, a locale file, the `User.language` list, and its column in `server/src/i18n.js`.
 
+## Running code in Notes
+
+The **Run** button on code blocks runs the code in the student's browser, never on the server, so it costs nothing and can't harm the server. `client/src/lib/runCode.js` picks the runner:
+
+| Language | How it runs | Time limit |
+|---|---|---|
+| Python | `client/src/run/pyWorker.js`: Pyodide 0.28 (CPython in WebAssembly) in a worker, loaded from jsDelivr the first time; packages are loaded from the program's imports. Set `VITE_PYODIDE_URL` at build time to host the files yourself | 90 s on the first run (download), then 20 s |
+| JavaScript | a new worker for each run, `console.*` captured | 10 s |
+| SQL | `client/src/run/sqlWorker.js`: SQLite (`sql.js`), a fresh database for each run, results as text tables | 10 s |
+| HTML | a preview window: an `<iframe sandbox="allow-scripts">`, so the page can't reach the app or the account | none |
+
+When the time is up, the worker is stopped (`terminate()`), which ends endless loops. The result goes in a code block with the language `output`, placed right after the code; running again replaces it.
+
 ## Project structure
 
 ```
@@ -142,7 +155,8 @@ src/
     public/.well-known/assetlinks.json   proves to Android that the Google Play app and this website belong together
     src/App.jsx            sidebar, pages and routes
     src/pages/             Landing, Login, ForgotPassword, Dashboard, Courses, Tasks, Schedule, Materials, Notes, NoteAI (AI inside notes), NotesChat (the Notes AI panel), Chat (Ask AI)
-    src/lib/               api helper, login state, data store, themes, dates, install.jsx (Download app button)
+    src/lib/               api helper, login state, data store, themes, dates, install.jsx (Download app button), runCode.js (Run in code blocks)
+    src/run/               the Python (Pyodide) and SQL (SQLite) workers
     src/styles.css         design, the four themes and the scrollbars
     src/notes.css          the notes page, the / menu, covers and their animations
 ```

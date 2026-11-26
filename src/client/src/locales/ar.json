@@ -794,5 +794,18 @@
 "Delete the line": "حذف السطر",
 "New line below": "سطر جديد بالأسفل",
 "Leave the code block": "مغادرة كتلة الشيفرة",
-"Select all the code in the block": "تحديد كل الشيفرة في الكتلة"
+"Select all the code in the block": "تحديد كل الشيفرة في الكتلة",
+"Run": "تشغيل",
+"Preview": "معاينة",
+"Output": "المخرجات",
+"HTML preview": "معاينة HTML",
+"Running…": "جارٍ التشغيل…",
+"Starting Python… (only the first run takes a few seconds)": "جارٍ تشغيل Python… (التشغيل الأول فقط يستغرق بضع ثوانٍ)",
+"Stopped after {n} s. Is there an endless loop?": "توقف بعد {n} ث. هل توجد حلقة لا نهائية؟",
+"Stopped after {n} s.": "توقف بعد {n} ث.",
+"Python could not start. Check your internet connection and try again.": "تعذّر تشغيل Python. تحقق من اتصالك بالإنترنت وحاول مرة أخرى.",
+"This language cannot run here yet.": "لا يمكن تشغيل هذه اللغة هنا بعد.",
+"(no output)": "(لا توجد مخرجات)",
+"(output cut at {n} characters)": "(تم قطع المخرجات عند {n} حرف)",
+"Run the code (Python, JavaScript, SQL, HTML), or a new line below": "تشغيل الكود (Python وJavaScript وSQL وHTML)، أو سطر جديد بالأسفل"
 }
