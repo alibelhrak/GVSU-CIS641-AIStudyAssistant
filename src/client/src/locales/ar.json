@@ -916,5 +916,21 @@
 "from GitHub and Dracula to Monokai and Nord.": "من GitHub وDracula إلى Monokai وNord.",
 "Safe by design:": "آمن بطبيعته:",
 "code runs in your own browser, never on our server, and an endless loop is stopped for you.": "يعمل الكود في متصفحك، لا على خادمنا أبدًا، وتُوقَف الحلقة اللانهائية تلقائيًا.",
-"Get it for Windows": "احصل عليه لـ Windows"
+"Get it for Windows": "احصل عليه لـ Windows",
+"Coming soon": "قريبًا",
+"Phone app": "تطبيق الهاتف",
+"Phone apps are on the way": "تطبيقات الهاتف في الطريق",
+"The App Store and Google Play versions are coming soon. Until then, save the app to your phone or computer: it opens full screen with its own icon, just like an installed app, and updates by itself.": "نسختا App Store وGoogle Play قادمتان قريبًا. حتى ذلك الحين، احفظ التطبيق على هاتفك أو حاسوبك: يفتح بملء الشاشة بأيقونته الخاصة مثل أي تطبيق مثبّت، ويتحدّث تلقائيًا.",
+"iPhone and iPad": "iPhone وiPad",
+"Android": "Android",
+"Windows, Mac and Chromebook": "Windows وMac وChromebook",
+"Your device": "جهازك",
+"Open this site in Chrome.": "افتح هذا الموقع في Chrome.",
+"Tap the ⋮ menu at the top right.": "اضغط القائمة ⋮ أعلى اليمين.",
+"Tap \"Install app\" (or \"Add to Home screen\"), then Install.": "اضغط «تثبيت التطبيق» (أو «إضافة إلى الشاشة الرئيسية») ثم تثبيت.",
+"Click \"Download app\" at the top of this page (or the install icon in the address bar).": "انقر «تنزيل التطبيق» أعلى هذه الصفحة (أو أيقونة التثبيت في شريط العنوان).",
+"Click Install. On Windows you can also get it from the Microsoft Store.": "انقر تثبيت. على Windows يمكنك أيضًا الحصول عليه من Microsoft Store.",
+"The app is already saved on this device.": "التطبيق محفوظ بالفعل على هذا الجهاز.",
+"Install on this device now": "ثبّته على هذا الجهاز الآن",
+"Phone apps are coming soon. See how to save the app now.": "تطبيقات الهاتف قادمة قريبًا. تعرّف على كيفية حفظ التطبيق الآن."
 }

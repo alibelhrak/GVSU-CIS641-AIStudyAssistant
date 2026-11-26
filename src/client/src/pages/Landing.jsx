@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Icon } from '../icons.jsx';
 import '../landing.css';
 import { THEMES, useTheme } from '../lib/theme.jsx';
-import { InstallButton } from '../lib/install.jsx';
+import { InstallButton, PhoneSoonLink } from '../lib/install.jsx';
 import { LanguageSelect, t } from '../lib/i18n.jsx';
 
 /** Adds the class "in" to every [data-reveal] element when it scrolls into view. */
@@ -363,7 +363,7 @@ export default function Landing() {
         </div>
         <div className="hero-where" data-reveal>
           <Link to="/signup" title="Use it in your browser: create a free account"><Icon name="monitor" size={15} /> Web</Link>
-          <InstallButton variant="inline"><Icon name="download" size={15} /> Phone and laptop</InstallButton>
+          <PhoneSoonLink />
           <a href={STORE_URL} target="_blank" rel="noopener noreferrer"><WinLogo /> Microsoft Store</a>
           <button type="button" className="where-link" title="Choose your language"
             onClick={(e) => { e.stopPropagation(); window.scrollTo({ top: 0, behavior: 'smooth' }); setTimeout(() => document.querySelector('.lp-cta .lang-menu .lang-btn')?.click(), 250); }}>

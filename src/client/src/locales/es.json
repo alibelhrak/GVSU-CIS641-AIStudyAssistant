@@ -908,5 +908,21 @@
 "from GitHub and Dracula to Monokai and Nord.": "de GitHub y Dracula a Monokai y Nord.",
 "Safe by design:": "Seguro por diseño:",
 "code runs in your own browser, never on our server, and an endless loop is stopped for you.": "el código se ejecuta en tu navegador, nunca en nuestro servidor, y un bucle infinito se detiene solo.",
-"Get it for Windows": "Consíguelo para Windows"
+"Get it for Windows": "Consíguelo para Windows",
+"Coming soon": "Próximamente",
+"Phone app": "App móvil",
+"Phone apps are on the way": "Las apps móviles están en camino",
+"The App Store and Google Play versions are coming soon. Until then, save the app to your phone or computer: it opens full screen with its own icon, just like an installed app, and updates by itself.": "Las versiones de App Store y Google Play llegarán pronto. Mientras tanto, guarda la app en tu teléfono u ordenador: se abre a pantalla completa con su propio icono, como una app instalada, y se actualiza sola.",
+"iPhone and iPad": "iPhone y iPad",
+"Android": "Android",
+"Windows, Mac and Chromebook": "Windows, Mac y Chromebook",
+"Your device": "Tu dispositivo",
+"Open this site in Chrome.": "Abre este sitio en Chrome.",
+"Tap the ⋮ menu at the top right.": "Toca el menú ⋮ arriba a la derecha.",
+"Tap \"Install app\" (or \"Add to Home screen\"), then Install.": "Toca «Instalar app» (o «Añadir a pantalla de inicio») y luego Instalar.",
+"Click \"Download app\" at the top of this page (or the install icon in the address bar).": "Haz clic en «Descargar app» arriba en esta página (o en el icono de instalar de la barra de direcciones).",
+"Click Install. On Windows you can also get it from the Microsoft Store.": "Haz clic en Instalar. En Windows también puedes conseguirla en Microsoft Store.",
+"The app is already saved on this device.": "La app ya está guardada en este dispositivo.",
+"Install on this device now": "Instalar en este dispositivo ahora",
+"Phone apps are coming soon. See how to save the app now.": "Las apps móviles llegarán pronto. Mira cómo guardar la app ahora."
 }

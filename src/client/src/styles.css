@@ -790,3 +790,17 @@ img.avatar,img.set-avatar{object-fit:cover;padding:0;background:var(--surface-2)
 .course-edit label{display:grid;gap:4px;font-size:.8rem;font-weight:600;color:var(--muted)}
 .course-edit-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:end}
 .course-edit-color input{width:56px;min-height:38px;padding:3px}
+
+/* ---------- Phone apps: coming soon ---------- */
+.soon-card{max-width:460px}
+.soon-head{display:flex;align-items:center;gap:12px}
+.soon-badge,.soon-chip{display:inline-flex;align-items:center;border-radius:999px;font-weight:700;background:var(--warn-bg,#fbf0e1);color:#b26a00;white-space:nowrap}
+.soon-badge{padding:3px 10px;font-size:.74rem}
+.soon-chip{padding:1px 7px;font-size:.66rem;margin-inline-start:2px;line-height:1.5}
+.soon-tabs{display:flex;flex-wrap:wrap;gap:6px;width:100%}
+.soon-tabs button{border:1px solid var(--line);background:none;border-radius:999px;padding:5px 12px;font:inherit;font-size:.8rem;color:var(--muted);cursor:pointer;transition:background-color .15s,color .15s}
+.soon-tabs button:hover{background:var(--hover);color:var(--fg)}
+.soon-tabs button.on{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.soon-card .install-steps{animation:rem-in .25s var(--ease) both}
+.soon-done{display:flex;align-items:center;gap:6px;font-size:.88rem;color:var(--ok,#1f9d55);font-weight:600}
+.soon-card .btn.block + .btn.block{margin-top:-6px}

@@ -112,3 +112,60 @@ export function InstallButton({ variant = 'nav', children }) {
     </>
   );
 }
+
+/** Saving the app on each kind of device, shown while the phone apps are not in the stores yet */
+const SAVE_GUIDES = [
+  { id: 'ios', icon: 'monitor', title: 'iPhone and iPad', steps: ['Open this site in Safari.', 'Tap the Share button (the square with an arrow).', 'Tap "Add to Home Screen", then "Add".'] },
+  { id: 'android', icon: 'monitor', title: 'Android', steps: ['Open this site in Chrome.', 'Tap the ⋮ menu at the top right.', 'Tap "Install app" (or "Add to Home screen"), then Install.'] },
+  { id: 'pc', icon: 'monitor', title: 'Windows, Mac and Chromebook', steps: ['Open this site in Chrome or Edge.', 'Click "Download app" at the top of this page (or the install icon in the address bar).', 'Click Install. On Windows you can also get it from the Microsoft Store.'] },
+];
+const guideFor = () => { const k = platform(); return k === 'ios' || k === 'mac-safari' ? (k === 'ios' ? 'ios' : 'pc') : k === 'android' ? 'android' : 'pc'; };
+
+function PhoneSoon({ onClose }) {
+  const { installed, oneClick, prompt } = useInstall();
+  const [tab, setTab] = useState(guideFor);
+  useEffect(() => {
+    const esc = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', esc);
+    return () => document.removeEventListener('keydown', esc);
+  }, [onClose]);
+  const guide = SAVE_GUIDES.find((g) => g.id === tab);
+  return createPortal(
+    <div className="install-overlay" onClick={onClose} role="presentation">
+      <div className="install-card soon-card" role="dialog" aria-modal="true" aria-labelledby="soon-title" onClick={(e) => e.stopPropagation()}>
+        <div className="soon-head">
+          <img src="/logo.png" alt="" width={48} height={48} />
+          <span className="soon-badge">Coming soon</span>
+        </div>
+        <h2 id="soon-title">Phone apps are on the way</h2>
+        <p className="muted">The App Store and Google Play versions are coming soon. Until then, save the app to your phone or computer: it opens full screen with its own icon, just like an installed app, and updates by itself.</p>
+        <div className="soon-tabs" role="tablist" aria-label="Your device">
+          {SAVE_GUIDES.map((g) => (
+            <button key={g.id} type="button" role="tab" aria-selected={tab === g.id} className={tab === g.id ? 'on' : ''} onClick={() => setTab(g.id)}>{g.title}</button>
+          ))}
+        </div>
+        <ol className="install-steps" key={tab}>
+          {guide.steps.map((s) => <li key={s}>{s}</li>)}
+        </ol>
+        {installed ? <p className="soon-done"><Icon name="check" size={15} /> The app is already saved on this device.</p> : oneClick && (
+          <button className="btn primary block" type="button" onClick={async () => { await prompt(); onClose(); }}><Icon name="download" size={16} /> Install on this device now</button>
+        )}
+        <button className={`btn block ${oneClick && !installed ? '' : 'primary'}`} type="button" onClick={onClose} autoFocus>Got it</button>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+/** "Phone app · Coming soon" on the welcome page: opens how to save the app for now */
+export function PhoneSoonLink() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button className="where-link" type="button" onClick={() => setOpen(true)} title="Phone apps are coming soon. See how to save the app now.">
+        <Icon name="download" size={15} /> Phone app <span className="soon-chip">Coming soon</span>
+      </button>
+      {open && <PhoneSoon onClose={() => setOpen(false)} />}
+    </>
+  );
+}

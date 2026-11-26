@@ -915,5 +915,21 @@
 "from GitHub and Dracula to Monokai and Nord.": "从 GitHub、Dracula 到 Monokai 和 Nord。",
 "Safe by design:": "安全设计：",
 "code runs in your own browser, never on our server, and an endless loop is stopped for you.": "代码在你的浏览器中运行，绝不在我们的服务器上，死循环会被自动停止。",
-"Get it for Windows": "获取 Windows 版"
+"Get it for Windows": "获取 Windows 版",
+"Coming soon": "即将推出",
+"Phone app": "手机应用",
+"Phone apps are on the way": "手机应用即将推出",
+"The App Store and Google Play versions are coming soon. Until then, save the app to your phone or computer: it opens full screen with its own icon, just like an installed app, and updates by itself.": "App Store 和 Google Play 版本即将推出。在此之前，可以把应用保存到手机或电脑上：它会全屏打开，有自己的图标，用起来和安装的应用一样，并会自动更新。",
+"iPhone and iPad": "iPhone 和 iPad",
+"Android": "Android",
+"Windows, Mac and Chromebook": "Windows、Mac 和 Chromebook",
+"Your device": "你的设备",
+"Open this site in Chrome.": "用 Chrome 打开本网站。",
+"Tap the ⋮ menu at the top right.": "点按右上角的 ⋮ 菜单。",
+"Tap \"Install app\" (or \"Add to Home screen\"), then Install.": "点按“安装应用”（或“添加到主屏幕”），然后点“安装”。",
+"Click \"Download app\" at the top of this page (or the install icon in the address bar).": "点击本页顶部的“下载应用”（或地址栏中的安装图标）。",
+"Click Install. On Windows you can also get it from the Microsoft Store.": "点击“安装”。在 Windows 上也可以从 Microsoft Store 获取。",
+"The app is already saved on this device.": "应用已保存在此设备上。",
+"Install on this device now": "立即安装到此设备",
+"Phone apps are coming soon. See how to save the app now.": "手机应用即将推出。现在就看看如何保存应用。"
 }

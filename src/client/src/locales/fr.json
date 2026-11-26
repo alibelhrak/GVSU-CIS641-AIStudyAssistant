@@ -902,5 +902,21 @@
 "from GitHub and Dracula to Monokai and Nord.": "de GitHub et Dracula à Monokai et Nord.",
 "Safe by design:": "Sûr par conception :",
 "code runs in your own browser, never on our server, and an endless loop is stopped for you.": "le code s’exécute dans votre navigateur, jamais sur notre serveur, et une boucle infinie est arrêtée pour vous.",
-"Get it for Windows": "Obtenir pour Windows"
+"Get it for Windows": "Obtenir pour Windows",
+"Coming soon": "Bientôt",
+"Phone app": "Appli mobile",
+"Phone apps are on the way": "Les applis mobiles arrivent",
+"The App Store and Google Play versions are coming soon. Until then, save the app to your phone or computer: it opens full screen with its own icon, just like an installed app, and updates by itself.": "Les versions App Store et Google Play arrivent bientôt. En attendant, enregistrez l’appli sur votre téléphone ou ordinateur : elle s’ouvre en plein écran avec sa propre icône, comme une appli installée, et se met à jour toute seule.",
+"iPhone and iPad": "iPhone et iPad",
+"Android": "Android",
+"Windows, Mac and Chromebook": "Windows, Mac et Chromebook",
+"Your device": "Votre appareil",
+"Open this site in Chrome.": "Ouvrez ce site dans Chrome.",
+"Tap the ⋮ menu at the top right.": "Touchez le menu ⋮ en haut à droite.",
+"Tap \"Install app\" (or \"Add to Home screen\"), then Install.": "Touchez « Installer l’appli » (ou « Ajouter à l’écran d’accueil »), puis Installer.",
+"Click \"Download app\" at the top of this page (or the install icon in the address bar).": "Cliquez sur « Télécharger l’appli » en haut de cette page (ou sur l’icône d’installation dans la barre d’adresse).",
+"Click Install. On Windows you can also get it from the Microsoft Store.": "Cliquez sur Installer. Sous Windows, vous pouvez aussi l’obtenir sur le Microsoft Store.",
+"The app is already saved on this device.": "L’appli est déjà enregistrée sur cet appareil.",
+"Install on this device now": "Installer sur cet appareil maintenant",
+"Phone apps are coming soon. See how to save the app now.": "Les applis mobiles arrivent bientôt. Voyez comment enregistrer l’appli dès maintenant."
 }
