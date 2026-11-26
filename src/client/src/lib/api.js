@@ -20,7 +20,10 @@ async function request(method, path, body) {
   if (res.status === 401 && !path.startsWith('/auth/')) onUnauthorized();
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    throw new Error(data.error || `Request failed (${res.status})`);
+    const err = new Error(data.error || `Request failed (${res.status})`);
+    err.status = res.status;
+    err.data = data;   // extra fields, e.g. { needsVerification, email, ticket }
+    throw err;
   }
   return res.status === 204 ? null : res.json();
 }

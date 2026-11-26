@@ -519,3 +519,43 @@ input[type=checkbox]:checked::after{transform:rotate(45deg) scale(1)}
 @media (max-width:1250px){[dir="rtl"] .nai{right:auto;left:0}}
 /* Arabic: numbers with units ("2 / 6 h", "16:00 · 1.5 h") keep their reading order */
 [dir="rtl"] .mono,[dir="rtl"] .sess .t,[dir="rtl"] .week .t{unicode-bidi:plaintext}
+
+/* ---------- Privacy policy ---------- */
+.legal{min-height:100vh;background:var(--bg);padding:20px 16px 64px}
+.legal-top{max-width:760px;margin:0 auto 8px}
+.legal-body{max-width:760px;margin:0 auto;line-height:1.65;color:var(--fg)}
+.legal-body h1{font-size:2.1rem;letter-spacing:-.02em;margin:18px 0 4px}
+.legal-body h2{font-size:1.15rem;margin:30px 0 8px}
+.legal-body h3{font-size:1rem;margin:0 0 8px}
+.legal-body p,.legal-body li{color:var(--muted)}
+.legal-body li{margin:6px 0}
+.legal-body b{color:var(--fg)}
+.legal-date{font-size:.85rem;color:var(--faint) !important}
+.legal-card{margin-top:14px;padding:18px;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+.legal-delete{display:grid;gap:12px;max-width:420px}
+.legal-delete label{display:grid;gap:6px;font-weight:600;font-size:.88rem}
+.legal-delete .legal-check{display:flex;align-items:center;gap:8px;font-weight:500;color:var(--muted)}
+.legal-delete .legal-check input{width:16px;height:16px;min-height:0;padding:0;margin:0;appearance:auto;-webkit-appearance:checkbox;accent-color:var(--accent);box-shadow:none}
+.legal-delete .btn{justify-self:start}
+.menu-link{display:flex;align-items:center;gap:7px;margin-top:4px;padding-top:10px;border-top:1px solid var(--line);font-size:.84rem;color:var(--muted);text-decoration:none}
+.menu-link:hover{color:var(--fg)}
+
+/* ---------- Email code (sign-up step 2) ---------- */
+.verify-icon{width:52px;height:52px;border-radius:14px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent);animation:pop .6s var(--ease) .1s both}
+.verify-email{color:var(--fg);word-break:break-all}
+.otp{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+.otp input{width:100%;min-width:0;height:56px;padding:0;text-align:center;font-size:1.6rem;font-weight:700;font-variant-numeric:tabular-nums;
+  border-radius:12px;border:1.5px solid var(--line-strong);background:var(--bg);color:var(--fg);caret-color:var(--accent);
+  transition:border-color .15s,box-shadow .15s,transform .15s}
+.otp input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
+.otp input.filled{border-color:var(--accent-line);animation:otp-pop .18s var(--ease)}
+.otp.shake{animation:otp-shake .38s ease}
+.verify-info{font-size:.86rem;color:var(--ok, #1fa971)}
+.verify-wait{color:var(--faint);font-variant-numeric:tabular-nums}
+.verify-alt{margin-top:-6px}
+@keyframes otp-pop{50%{transform:scale(1.06)}}
+@keyframes otp-shake{20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
+@media (max-width:380px){.otp{gap:6px}.otp input{height:50px;font-size:1.35rem}}
+@media (prefers-reduced-motion:reduce){.otp input.filled,.otp.shake{animation:none}}
+.verify-to{display:grid;gap:2px}
+.verify-to b{font-size:1rem}

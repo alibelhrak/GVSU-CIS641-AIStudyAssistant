@@ -46,7 +46,7 @@ Built for **CIS 641 (Software Engineering)** at Grand Valley State University.
 | **Files, pictures and voice** | Attach PDFs, notes, code or screenshots to a question; dictate with the microphone; or use **Voice mode** to talk and hear the answers |
 | **Chat history** | Every conversation is saved; go back to any of them or delete them |
 | **Reminders** | Turn on a morning summary of your top priorities, deadline alerts, study-session alerts and a Sunday progress email, sent by **email** and as **push notifications** on your phone or computer |
-| **Accounts** | Sign up, sign in, and reset a forgotten password through an emailed link (valid for 30 minutes, works once) |
+| **Accounts** | Sign up with a 6-digit code sent to your email (so nobody can use someone else's address), sign in, reset a forgotten password through an emailed link (valid for 30 minutes, works once), and delete the account with all its data from the [privacy page](https://gvsu-cis641-aistudyassistant.onrender.com/privacy) |
 | **Languages** | Use the whole app in **English, Français, Español, العربية (right to left), 中文 or हिन्दी**. The AI answers, the advice on what to study, the reminder emails and the password emails follow your language |
 | **Themes** | Light, Dark, Paper, Midnight or System theme, plus five accent colors. Small animations throughout (respecting "reduce motion"), and thin scrollbars in the theme's colors |
 | **Download the app** | A **Download app** button installs it on a laptop or phone in one click (Chrome and Edge), or shows the steps for other browsers. The installed app opens full screen in its own window, with an icon on the taskbar, Dock or home screen |

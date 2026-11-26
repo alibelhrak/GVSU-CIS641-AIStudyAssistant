@@ -22,6 +22,12 @@ const opts = {
       delete ret.storedName;
       delete ret.resetTokenHash;
       delete ret.resetExpires;
+      delete ret.verifyCodeHash;
+      delete ret.verifyTicketHash;
+      delete ret.verifyExpires;
+      delete ret.verifyAttempts;
+      delete ret.verifySentAt;
+      delete ret.verifySends;
       return ret;
     },
   },
@@ -37,6 +43,15 @@ export const User = model('User', new Schema({
   // "Forgot password": a fingerprint of the emailed reset code, and when it stops working
   resetTokenHash: { type: String, index: true },
   resetExpires: Date,
+  // Email check at sign-up: false until the 6-digit code is entered.
+  // Accounts made before this existed have no value and count as verified.
+  emailVerified: Boolean,
+  verifyCodeHash: String,          // fingerprint of the emailed code, never the code itself
+  verifyTicketHash: String,        // fingerprint of the private ticket held by the device that signed up
+  verifyExpires: Date,
+  verifyAttempts: { type: Number, default: 0 },
+  verifySentAt: Date,
+  verifySends: { type: [Date], default: undefined },   // when codes were sent (limits resends)
   // App language (also used for emails sent later)
   language: { type: String, enum: ['en', 'fr', 'es', 'ar', 'zh', 'hi'], default: 'en' },
   // Reminders the student turned on (all off until they choose), and how to send them

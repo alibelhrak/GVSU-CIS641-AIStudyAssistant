@@ -22,7 +22,14 @@ export default function Login() {
     e.preventDefault();
     setBusy(true);
     setError('');
-    try { await authenticate(mode, form); } catch (err) { setError(err.message); setBusy(false); }
+    try {
+      const pending = await authenticate(mode, form);
+      if (pending) {
+        // Remember the sign-up for this tab, so a refresh on the code page keeps working
+        try { sessionStorage.setItem('sa-verify', JSON.stringify({ email: pending.email, ticket: pending.ticket })); } catch { /* private mode */ }
+        navigate('/verify-email', { state: { email: pending.email, ticket: pending.ticket, wait: pending.wait, name: form.name } });
+      }
+    } catch (err) { setError(err.message); setBusy(false); }
   };
 
   const switchMode = () => { setError(''); navigate(mode === 'login' ? '/signup' : '/login', { state: { email: form.email } }); };

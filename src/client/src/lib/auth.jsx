@@ -17,12 +17,24 @@ export function AuthProvider({ children }) {
     api.get('/auth/me').then((r) => setUser(r.user)).catch(signOut).finally(() => setReady(true));
   }, []);
 
-  // mode is 'login' or 'register'
+  const signIn = ({ token, user: u }) => { setToken(token); setUser(u); };
+
+  // mode is 'login' or 'register'. A new account (or one whose email was never confirmed)
+  // gets { needsVerification, email, ticket } back instead of a token.
   const authenticate = async (mode, form) => {
-    const { token, user: u } = await api.post(`/auth/${mode}`, form);
-    setToken(token);
-    setUser(u);
+    try {
+      const data = await api.post(`/auth/${mode}`, form);
+      if (data.needsVerification) return data;
+      signIn(data);
+      return null;
+    } catch (err) {
+      if (err.data?.needsVerification) return err.data;
+      throw err;
+    }
   };
 
-  return <AuthContext.Provider value={{ user, ready, authenticate, signOut }}>{children}</AuthContext.Provider>;
+  // Enter the emailed 6-digit code
+  const verifyEmail = async (email, ticket, code) => signIn(await api.post('/auth/verify', { email, ticket, code }));
+
+  return <AuthContext.Provider value={{ user, ready, authenticate, verifyEmail, signOut }}>{children}</AuthContext.Provider>;
 }

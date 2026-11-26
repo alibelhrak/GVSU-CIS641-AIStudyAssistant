@@ -1,7 +1,9 @@
 export class HttpError extends Error {
-  constructor(status, message) {
+  /** extra: more fields for the browser, e.g. { needsVerification: true } */
+  constructor(status, message, extra) {
     super(message);
     this.status = status;
+    this.extra = extra;
   }
 }
 
@@ -22,5 +24,5 @@ export function errorHandler(err, _req, res, _next) {
   const status = err.status || 500;
   const ours = err instanceof HttpError;   // our own messages are safe to show, even 502/503
   if (status >= 500 && !ours) console.error(err);
-  res.status(status).json({ error: ours || status < 500 ? err.message : 'Server error' });
+  res.status(status).json({ error: ours || status < 500 ? err.message : 'Server error', ...(ours ? err.extra : {}) });
 }

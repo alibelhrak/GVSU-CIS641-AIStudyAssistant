@@ -249,6 +249,8 @@ export async function remindUser(user, now = new Date(), { force = null } = {}) 
 
 /** Called by the scheduler: sends whatever is due for every student who turned reminders on */
 export async function runReminders(now = new Date()) {
+  // Sign-ups whose email was never confirmed are removed after 7 days (they hold no data)
+  await User.deleteMany({ emailVerified: false, createdAt: { $lt: new Date(now.getTime() - 7 * 86400000) } }).catch(() => {});
   const users = await User.find({ $or: [{ 'reminders.daily': true }, { 'reminders.deadlines': true }, { 'reminders.sessions': true }, { 'reminders.weekly': true }] });
   const report = { users: users.length, sent: 0, errors: 0 };
   for (const user of users) {

@@ -1,5 +1,5 @@
 import { Suspense, lazy, useEffect, useRef, useState } from 'react';
-import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { Link, NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { useAuth } from './lib/auth.jsx';
 import { DataProvider, useData } from './lib/store.jsx';
 import { ACCENTS, THEMES, useTheme } from './lib/theme.jsx';
@@ -11,6 +11,8 @@ import { LanguageSelect, getLang, chosenHere, setLang } from './lib/i18n.jsx';
 import Landing from './pages/Landing.jsx';
 import Login from './pages/Login.jsx';
 import ForgotPassword from './pages/ForgotPassword.jsx';
+import VerifyEmail from './pages/VerifyEmail.jsx';
+import Privacy from './pages/Privacy.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Courses from './pages/Courses.jsx';
 import Tasks from './pages/Tasks.jsx';
@@ -84,6 +86,7 @@ function ThemeMenu({ onClose }) {
             style={{ '--dot': a.color }} onClick={() => setAccent(a.id)} aria-label={a.label} aria-pressed={accent === a.id} />
         ))}
       </div>
+      <Link className="menu-link" to="/privacy" onClick={onClose}><Icon name="shield" size={15} /> Privacy and account</Link>
     </div>
   );
 }
@@ -205,6 +208,7 @@ function Shell() {
 
 export default function App() {
   const { user, ready } = useAuth();
+  const { pathname } = useLocation();
   // Keep the language the same on every device: the account remembers it
   useEffect(() => {
     if (!user) return;
@@ -212,6 +216,8 @@ export default function App() {
     else if (user.language !== getLang()) setLang(getLang(), { reload: false });
   }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!ready) return null;
+  // The privacy policy (and account deletion) works signed in or out, outside the app's sidebar
+  if (pathname === '/privacy') return <Privacy />;
   // Signed out: welcome page, sign in and sign up
   if (!user) {
     return (
@@ -221,6 +227,7 @@ export default function App() {
         <Route path="/signup" element={<Login />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ForgotPassword />} />
+        <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     );

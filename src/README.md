@@ -71,8 +71,12 @@ All routes start with `/api`. Every route except `/auth/*` and `/health` needs t
 
 | Route | What it does |
 |---|---|
-| `POST /auth/register`, `POST /auth/login` | Create an account / sign in; returns a token and the user |
+| `POST /auth/register` | Create an account. It stays locked until the email is confirmed: returns `{ needsVerification, email, ticket }` and emails a 6-digit code |
+| `POST /auth/verify` | `{ email, ticket, code }`: confirms the email, returns a token and the user. 5 wrong codes and the code stops working; codes last 15 minutes |
+| `POST /auth/resend-code` | `{ email, ticket }`: a new code (at most one a minute, five an hour) |
+| `POST /auth/login` | Sign in; returns a token and the user, or `403 { needsVerification, ticket }` if the email was never confirmed |
 | `GET /auth/me` | The signed-in user |
+| `DELETE /auth/me` | Delete the account and all its data (`{ password }`); used by the Privacy page |
 | `PATCH /auth/me` | Save the app language (`{ language: 'en' \| 'fr' \| 'es' \| 'ar' \| 'zh' \| 'hi' }`) |
 | `POST /auth/forgot` | Emails a reset link (always gives the same answer, so it never reveals who has an account) |
 | `POST /auth/reset` | Sets a new password with the code from the link and signs in |
