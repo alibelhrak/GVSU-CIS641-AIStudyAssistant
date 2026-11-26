@@ -5,6 +5,7 @@ import { DataProvider, useData } from './lib/store.jsx';
 import { ACCENTS, THEMES, useTheme } from './lib/theme.jsx';
 import { daysUntil } from './lib/dates.js';
 import { Icon } from './icons.jsx';
+import { InstallButton } from './lib/install.jsx';
 import Landing from './pages/Landing.jsx';
 import Login from './pages/Login.jsx';
 import ForgotPassword from './pages/ForgotPassword.jsx';
@@ -120,6 +121,7 @@ function Sidebar({ onNavigate }) {
 
       <div className="side-bottom">
         {menu && <ThemeMenu onClose={() => setMenu(false)} />}
+        <InstallButton variant="side" />
         <button className="side-link" type="button" onClick={() => setMenu((m) => !m)} aria-expanded={menu}>
           <Icon name="palette" /><span>Appearance</span>
         </button>

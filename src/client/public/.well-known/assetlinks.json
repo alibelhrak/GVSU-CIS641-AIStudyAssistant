@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "com.onrender.gvsu_cis641_aistudyassistant.twa",
+        "sha256_cert_fingerprints": ["09:80:D5:90:22:68:EE:5B:01:27:F5:92:2D:BF:A2:DE:88:7E:A8:69:CF:2C:26:52:11:7A:3B:55:42:6F:2C:96"]
+      }
+    }]

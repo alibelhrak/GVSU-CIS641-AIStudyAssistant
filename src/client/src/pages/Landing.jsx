@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Icon } from '../icons.jsx';
 import '../landing.css';
 import { THEMES, useTheme } from '../lib/theme.jsx';
+import { InstallButton } from '../lib/install.jsx';
 
 /** Adds the class "in" to every [data-reveal] element when it scrolls into view. */
 function useReveal() {
@@ -131,6 +132,7 @@ export default function Landing() {
           <div className="lp-cta">
             <button className="icon-btn" type="button" onClick={() => setTheme(isDark ? 'light' : 'dark')}
               aria-label={isDark ? 'Switch to light theme' : 'Switch to dark theme'}><Icon name={isDark ? 'sun' : 'moon'} /></button>
+            <InstallButton />
             <Link className="btn ghost" to="/login">Sign in</Link>
             <Link className="btn primary" to="/signup">Get started</Link>
           </div>

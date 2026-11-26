@@ -25,6 +25,7 @@ const PATHS = {
   file: 'M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8zM14 3v5h5M8 13h8M8 17h5',
   wave: 'M3 11v2M7 8v8M11 4v16M15 8v8M19 10v4',
   image: 'M4 5h16v14H4zM4 16l5-5 4 4 2-2 5 5M15 9.5h.01',
+  download: 'M12 4v11M7 10l5 5 5-5M5 20h14',
   trash: 'M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3',
   history: 'M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 7v5l3 3',
   sidebar: 'M4 5h16v14H4zM9 5v14',

@@ -38,9 +38,9 @@ export function createApp() {
   // Every address that is not /api gets index.html, so React Router can show the right page.
   const dist = path.resolve(process.env.CLIENT_DIST || '../client/dist');
   if (fs.existsSync(dist)) {
-    app.use(express.static(dist));
-        // Android app link check (Google Play): Express hides folders starting with a dot unless allowed
+    // Android app link check (Google Play): Express hides folders starting with a dot unless allowed
     app.use('/.well-known', express.static(path.join(dist, '.well-known'), { dotfiles: 'allow' }));
+    app.use(express.static(dist));
     app.get(/^\/(?!api(\/|$)).*/, (_req, res) => res.sendFile(path.join(dist, 'index.html')));
   }
 
