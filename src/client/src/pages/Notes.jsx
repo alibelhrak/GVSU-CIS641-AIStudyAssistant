@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { filterSuggestionItems } from '@blocknote/core';
+import { en } from '@blocknote/core/locales';
 import {
   useCreateBlockNote, SuggestionMenuController, getDefaultReactSlashMenuItems,
   FormattingToolbarController, FormattingToolbar, getFormattingToolbarItems, useComponentsContext,
@@ -70,6 +71,22 @@ const TEMPLATES = [
   },
 ];
 
+/** Page covers: gradients (some move slowly) */
+const COVERS = {
+  aurora: { label: 'Aurora', bg: 'linear-gradient(120deg,#84fab0,#8fd3f4,#a6c1ee,#fbc2eb,#84fab0)', moving: true },
+  sunset: { label: 'Sunset', bg: 'linear-gradient(120deg,#f6d365,#fda085,#f093fb,#f6d365)', moving: true },
+  ocean: { label: 'Ocean', bg: 'linear-gradient(135deg,#2193b0,#6dd5ed)' },
+  laker: { label: 'Laker blue', bg: 'linear-gradient(135deg,#0032a0,#00a3e0)' },
+  grape: { label: 'Grape', bg: 'linear-gradient(135deg,#a18cd1,#fbc2eb)' },
+  mint: { label: 'Mint', bg: 'linear-gradient(135deg,#d4fc79,#96e6a1)' },
+  peach: { label: 'Peach', bg: 'linear-gradient(135deg,#ffecd2,#fcb69f)' },
+  forest: { label: 'Forest', bg: 'linear-gradient(135deg,#134e5e,#71b280)' },
+  night: { label: 'Night sky', bg: 'radial-gradient(circle at 20% 30%,rgba(255,255,255,.35) 0 1px,transparent 2px),radial-gradient(circle at 70% 60%,rgba(255,255,255,.25) 0 1px,transparent 2px),linear-gradient(135deg,#0f2027,#203a43,#2c5364)' },
+  paper: { label: 'Paper', bg: 'radial-gradient(rgba(120,100,70,.18) 1px,transparent 1.5px) 0 0/14px 14px,linear-gradient(#f4efe4,#efe7d6)' },
+  rose: { label: 'Rose', bg: 'linear-gradient(135deg,#ee9ca7,#ffdde1)' },
+  graphite: { label: 'Graphite', bg: 'linear-gradient(135deg,#232526,#414345)' },
+};
+
 const CHAT_ACTIONS = [
   { label: 'Summarize this note', prompt: 'Summarize my note in a few bullet points, then list the 3 most important things to remember.' },
   { label: 'Quiz me on it', prompt: 'Quiz me on my note. Ask 5 questions one at a time and tell me if my answer is right.' },
@@ -122,6 +139,83 @@ const EDITOR_THEME = {
 
 const AiLogo = () => <img src="/logo.png" alt="" width={18} height={18} style={{ display: 'block' }} />;
 
+/* ---------- The "/" menu: Notion-style, with AI first ---------- */
+const BASIC = ['paragraph', 'heading', 'heading_2', 'heading_3', 'bullet_list', 'numbered_list', 'check_list', 'toggle_list', 'quote', 'divider', 'code_block'];
+const MEDIA = ['image', 'video', 'audio', 'file'];
+const GROUPS = ['AI', 'Basic blocks', 'Media', 'More'];
+const HINT = { heading: '#', heading_2: '##', heading_3: '###', heading_4: '####', bullet_list: '-', numbered_list: '1.', check_list: '[]',
+  toggle_list: '>', quote: '"', code_block: '```', divider: '---', emoji: ':' };
+const MORE_ALIASES = { paragraph: ['text', 'plain'], check_list: ['todo', 'to-do', 'task', 'checkbox'], bullet_list: ['bulleted', 'bullet'],
+  numbered_list: ['numbered', 'ordered'], code_block: ['code', 'snippet'], divider: ['line', 'hr', 'separator'], image: ['picture', 'photo'], table: ['grid'] };
+const RENAME = { paragraph: 'Text', bullet_list: 'Bulleted list', numbered_list: 'Numbered list', check_list: 'To-do list', toggle_list: 'Toggle list',
+  code_block: 'Code', divider: 'Divider', toggle_heading: 'Toggle heading 1', toggle_heading_2: 'Toggle heading 2', toggle_heading_3: 'Toggle heading 3' };
+
+const slashQuery = { text: '' };                     // what was typed after "/", shown at the top of the menu
+
+function slashItems(editor, onAi) {
+  const blocks = getDefaultReactSlashMenuItems(editor)
+    .filter((i) => !['heading_5', 'heading_6'].includes(i.key))
+    .map((i) => ({
+      ...i, badge: undefined, title: RENAME[i.key] || i.title, hint: HINT[i.key], aliases: [...(i.aliases || []), i.title, ...(MORE_ALIASES[i.key] || [])],
+      group: BASIC.includes(i.key) ? 'Basic blocks' : MEDIA.includes(i.key) ? 'Media' : 'More',
+    }))
+    .sort((a, b) => GROUPS.indexOf(a.group) - GROUPS.indexOf(b.group) || (BASIC.indexOf(a.key) - BASIC.indexOf(b.key)));
+  return [
+    { title: 'Ask AI', subtext: 'Write, edit or explain anything', aliases: ['ai', 'write', 'generate', 'gpt'], group: 'AI', icon: <AiLogo />,
+      hint: 'Ctrl J', ai: true, onItemClick: () => onAi({}) },
+    ...WRITE_ACTIONS.slice(0, 5).map((a) => ({
+      title: a.label, aliases: ['ai', a.id], group: 'AI', ai: true, icon: <span className="slash-emoji">{a.icon}</span>,
+      onItemClick: () => onAi({ start: { action: a.id } }),
+    })),
+    ...blocks,
+  ];
+}
+
+function SlashMenu({ items, selectedIndex, onItemClick, loadingState }) {
+  const listRef = useRef(null);
+  const [hover, setHover] = useState(null);
+  const [mark, setMark] = useState(null);           // where the sliding highlight sits
+  const shown = hover ?? selectedIndex;
+  useEffect(() => setHover(null), [selectedIndex]);
+  useLayoutEffect(() => {
+    const el = listRef.current?.querySelector(`[data-i="${shown}"]`);
+    if (!el) { setMark(null); return; }
+    setMark({ top: el.offsetTop, height: el.offsetHeight });
+    if (hover == null) el.scrollIntoView({ block: 'nearest' });
+  }, [shown, items]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  let group = null;
+  return (
+    <div className="slash-menu" role="listbox" aria-label="Insert a block" onMouseDown={(e) => e.preventDefault()}>
+      <div className="slash-search">
+        <Icon name="search" size={14} />
+        {slashQuery.text ? <span>Results for <b>{slashQuery.text}</b></span> : <span>Type to search blocks and AI…</span>}
+      </div>
+      <div className="slash-list" ref={listRef} onMouseLeave={() => setHover(null)}>
+        {mark && <span className="slash-mark" style={{ transform: `translateY(${mark.top}px)`, height: mark.height }} />}
+        {!items.length && <p className="slash-empty">{loadingState === 'loaded' ? 'No results' : 'Searching…'}</p>}
+        {items.map((it, i) => {
+          const head = it.group !== group;
+          group = it.group;
+          return (
+            <Fragment key={`${it.group}-${it.title}`}>
+              {head && <p className="slash-group">{it.group === 'AI' ? <>✦ AI</> : it.group}</p>}
+              <button type="button" data-i={i} role="option" aria-selected={i === selectedIndex}
+                className={`slash-item ${i === shown ? 'active' : ''} ${it.ai ? 'ai' : ''}`}
+                onMouseEnter={() => setHover(i)} onClick={() => onItemClick?.(it)}>
+                <span className="slash-icon">{it.icon}</span>
+                <span className="slash-title">{it.title}{it.subtext && i === shown && <small>{it.subtext}</small>}</span>
+                {it.hint && <kbd>{it.hint}</kbd>}
+              </button>
+            </Fragment>
+          );
+        })}
+      </div>
+      <div className="slash-foot"><span><kbd>↑</kbd><kbd>↓</kbd> move</span><span><kbd>↵</kbd> insert</span><span><kbd>esc</kbd> close</span></div>
+    </div>
+  );
+}
+
 /** "Ask AI" button at the start of the toolbar that shows over selected text */
 function AiToolbarButton({ onAi }) {
   const Components = useComponentsContext();
@@ -133,10 +227,16 @@ function AiToolbarButton({ onAi }) {
   );
 }
 
+const DICTIONARY = {
+  ...en,
+  placeholders: { ...en.placeholders, default: "Write something, or press '/' for commands and Ctrl+J for AI…", heading: 'Heading', bulletListItem: 'List', numberedListItem: 'List', checkListItem: 'To-do' },
+};
+
 function NoteEditor({ note, dark, onChange, onReady, onAi }) {
   const editor = useCreateBlockNote({
     initialContent: note.content?.length ? note.content : undefined,
     uploadFile,
+    dictionary: DICTIONARY,
   });
   useEffect(() => {
     onReady(editor);
@@ -152,22 +252,13 @@ function NoteEditor({ note, dark, onChange, onReady, onAi }) {
     }
   }, [editor]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // "/" menu: AI commands first, then the usual blocks
-  const slashItems = async (query) => filterSuggestionItems([
-    { title: 'Ask AI', subtext: 'Write, edit or explain anything', aliases: ['ai', 'write', 'generate', 'gpt'], group: 'AI', icon: <AiLogo />,
-      onItemClick: () => onAi({}) },
-    ...WRITE_ACTIONS.slice(0, 5).map((a) => ({
-      title: a.label, subtext: 'AI', aliases: ['ai', a.id], group: 'AI', icon: <span className="slash-emoji">{a.icon}</span>,
-      onItemClick: () => onAi({ start: { action: a.id } }),
-    })),
-    ...getDefaultReactSlashMenuItems(editor),
-  ], query);
+  const getItems = async (query) => { slashQuery.text = query; return filterSuggestionItems(slashItems(editor, onAi), query); };
 
   return (
     <BlockNoteView editor={editor} theme={dark ? { dark: EDITOR_THEME, light: EDITOR_THEME } : EDITOR_THEME}
       data-color-scheme={dark ? 'dark' : 'light'} onChange={() => onChange(editor.document)}
       slashMenu={false} formattingToolbar={false}>
-      <SuggestionMenuController triggerCharacter="/" getItems={slashItems} />
+      <SuggestionMenuController triggerCharacter="/" getItems={getItems} suggestionMenuComponent={SlashMenu} />
       <FormattingToolbarController formattingToolbar={() => (
         <FormattingToolbar>
           <AiToolbarButton key="ai" onAi={() => onAi({ selection: true })} />
@@ -208,10 +299,10 @@ function TreeItem({ note, depth, byParent, currentId, expanded, toggle, onOpen, 
           </>
         )}
       </div>
-      {open && kids.map((k) => (
+      {open && <div className="tree-kids">{kids.map((k) => (
         <TreeItem key={k.id} note={k} depth={depth + 1} byParent={byParent} currentId={currentId} expanded={expanded} toggle={toggle}
           onOpen={onOpen} onAdd={onAdd} confirmDel={confirmDel} setConfirmDel={setConfirmDel} onDelete={onDelete} courseColor={courseColor} />
-      ))}
+      ))}</div>}
     </div>
   );
 }
@@ -235,7 +326,9 @@ export default function Notes() {
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
   const [delOpen, setDelOpen] = useState(false);
-  const [ai, setAi] = useState(null);                 // the AI writer: { ctx, start, key }
+  const [ai, setAi] = useState(null);
+  const [coverOpen, setCoverOpen] = useState(false);
+  const [entering, setEntering] = useState(false);    // blocks fade in one after another when a page opens                 // the AI writer: { ctx, start, key }
 
   const editorRef = useRef(null);
   const titleRef = useRef(null);
@@ -276,7 +369,7 @@ export default function Notes() {
 
   useEffect(() => {
     flush();
-    setEmojiOpen(false); setAiOpen(false); setDelOpen(false); setStatus(''); setAi(null);
+    setEmojiOpen(false); setAiOpen(false); setDelOpen(false); setStatus(''); setAi(null); setCoverOpen(false);
     editorRef.current = null;
     if (!id) { setCurrent(null); return; }
     setLoadingNote(true);
@@ -393,6 +486,13 @@ export default function Notes() {
     return () => document.removeEventListener('keydown', key);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    if (!current?.id) return undefined;
+    setEntering(true);
+    const t = setTimeout(() => setEntering(false), 900);
+    return () => clearTimeout(t);
+  }, [current?.id]);
+
   // Grow the title box with the text
   useEffect(() => {
     const el = titleRef.current;
@@ -474,12 +574,15 @@ export default function Notes() {
           </nav>
           {current && (
             <div className="notes-tools">
-              <span className={`save-state ${status}`}>{status === 'saving' ? 'Saving…' : status === 'saved' ? 'Saved' : status === 'error' ? 'Not saved' : `Edited ${ago(current.updatedAt)}`}</span>
+              <span className={`save-state ${status}`} key={status}>
+                {status === 'saving' ? <><i className="save-dot" />Saving…</> : status === 'saved' ? <><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path className="save-check" d="M2.5 6.5l2.2 2.2L9.5 3.8" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>Saved</>
+                  : status === 'error' ? 'Not saved' : `Edited ${ago(current.updatedAt)}`}
+              </span>
               <select className="course-tag" value={current.course || ''} onChange={(e) => setMeta({ course: e.target.value || null }, true)} aria-label="Course">
                 <option value="">No course</option>
                 {courses.map((c) => <option key={c.id} value={c.id}>{c.code}</option>)}
               </select>
-              <button className={`icon-btn ${current.favorite ? 'fav' : ''}`} type="button" onClick={() => setMeta({ favorite: !current.favorite }, true)}
+              <button className={`icon-btn ${current.favorite ? 'fav' : ''}`} key={current.favorite ? 'on' : 'off'} type="button" onClick={() => setMeta({ favorite: !current.favorite }, true)}
                 aria-label={current.favorite ? 'Remove from favorites' : 'Add to favorites'} title={current.favorite ? 'Remove from favorites' : 'Add to favorites'}>
                 <Icon name="star" size={17} />
               </button>
@@ -518,21 +621,59 @@ export default function Notes() {
           {loadingNote ? (
             <div className="chat-loading"><span className="thinking"><i /><i /><i /></span></div>
           ) : current ? (
-            <article className="note-page" key={current.id}>
-              <div className="note-icon-row">
-                <div className="pop-wrap">
-                  {current.icon ? (
-                    <button type="button" className="note-icon" onClick={() => setEmojiOpen((v) => !v)} aria-label="Change icon">{current.icon}</button>
-                  ) : (
-                    <button type="button" className="add-icon" onClick={() => setEmojiOpen((v) => !v)}><Icon name="smile" size={15} /> Add icon</button>
-                  )}
-                  {emojiOpen && (
-                    <div className="pop-menu emoji-grid">
-                      {EMOJIS.map((e) => <button key={e} type="button" onClick={() => { setMeta({ icon: e }, true); setEmojiOpen(false); }}>{e}</button>)}
-                      {current.icon && <button type="button" className="emoji-remove" onClick={() => { setMeta({ icon: '' }, true); setEmojiOpen(false); }}>Remove</button>}
-                    </div>
-                  )}
+            <Fragment key={current.id}>
+            {COVERS[current.cover] && (
+              <div className={`note-cover ${COVERS[current.cover].moving ? 'moving' : ''}`} style={{ background: COVERS[current.cover].bg }}>
+                <div className="cover-tools">
+                  <div className="pop-wrap">
+                    <button type="button" onClick={() => setCoverOpen((v) => !v)}>Change cover</button>
+                    {coverOpen && <div className="pop-menu cover-grid" role="menu">
+                      {Object.entries(COVERS).map(([k, c]) => (
+                        <button key={k} type="button" title={c.label} className={`${c.moving ? 'moving' : ''} ${current.cover === k ? 'on' : ''}`} style={{ background: c.bg }}
+                          onClick={() => { setMeta({ cover: k }, true); setCoverOpen(false); }}><span>{c.label}</span></button>
+                      ))}
+                    </div>}
+                  </div>
+                  <button type="button" onClick={() => setMeta({ cover: '' }, true)}>Remove</button>
                 </div>
+              </div>
+            )}
+            <article className={`note-page ${COVERS[current.cover] ? 'has-cover' : ''} ${entering ? 'entering' : ''}`}>
+              {current.icon && (
+                <div className="note-icon-row">
+                  <div className="pop-wrap">
+                    <button type="button" className="note-icon" onClick={() => setEmojiOpen((v) => !v)} aria-label="Change icon">{current.icon}</button>
+                    {emojiOpen && (
+                      <div className="pop-menu emoji-grid">
+                        {EMOJIS.map((e) => <button key={e} type="button" onClick={() => { setMeta({ icon: e }, true); setEmojiOpen(false); }}>{e}</button>)}
+                        <button type="button" className="emoji-remove" onClick={() => { setMeta({ icon: '' }, true); setEmojiOpen(false); }}>Remove</button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              <div className="note-actions">
+                {!current.icon && (
+                  <div className="pop-wrap">
+                    <button type="button" className="add-icon" onClick={() => setEmojiOpen((v) => !v)}><Icon name="smile" size={15} /> Add icon</button>
+                    {emojiOpen && (
+                      <div className="pop-menu emoji-grid">
+                        {EMOJIS.map((e) => <button key={e} type="button" onClick={() => { setMeta({ icon: e }, true); setEmojiOpen(false); }}>{e}</button>)}
+                      </div>
+                    )}
+                  </div>
+                )}
+                {!COVERS[current.cover] && (
+                  <div className="pop-wrap">
+                    <button type="button" className="add-icon" onClick={() => setCoverOpen((v) => !v)}><Icon name="image" size={15} /> Add cover</button>
+                    {coverOpen && <div className="pop-menu cover-grid" role="menu">
+                      {Object.entries(COVERS).map(([k, c]) => (
+                        <button key={k} type="button" title={c.label} className={`${c.moving ? 'moving' : ''} ${current.cover === k ? 'on' : ''}`} style={{ background: c.bg }}
+                          onClick={() => { setMeta({ cover: k }, true); setCoverOpen(false); }}><span>{c.label}</span></button>
+                      ))}
+                    </div>}
+                  </div>
+                )}
               </div>
               <textarea ref={titleRef} className="note-title" rows={1} value={current.title} placeholder="Untitled" maxLength={200}
                 onChange={(e) => setMeta({ title: e.target.value.replace(/\n/g, '') })}
@@ -556,6 +697,7 @@ export default function Notes() {
                   onClose={closeAi} notify={notify} />
               )}
             </article>
+            </Fragment>
           ) : (
             <div className="notes-empty">
               <span className="notes-empty-icon">🗒️</span>

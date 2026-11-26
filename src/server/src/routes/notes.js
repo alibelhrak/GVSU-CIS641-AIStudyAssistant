@@ -15,7 +15,7 @@ import { thinkFilter } from './chat.js';
 
 const r = Router();
 const MAX_CONTENT = 3_000_000;          // characters of editor data per note (pictures included)
-const LIST_FIELDS = 'title icon parent course favorite updatedAt createdAt';
+const LIST_FIELDS = 'title icon cover parent course favorite updatedAt createdAt';
 
 const mine = (req) => {
   if (!mongoose.isValidObjectId(req.params.id)) throw new HttpError(404, 'Note not found');
@@ -61,6 +61,7 @@ function pick(body = {}) {
   if (typeof body.title === 'string') out.title = body.title.slice(0, 200);
   if (typeof body.icon === 'string') out.icon = body.icon.slice(0, 16);
   if (typeof body.favorite === 'boolean') out.favorite = body.favorite;
+  if (typeof body.cover === 'string') out.cover = body.cover.slice(0, 40);
   if (body.parent !== undefined) out.parent = body.parent || null;
   if (body.course !== undefined) out.course = body.course || null;
   if (typeof body.markdown === 'string') out.markdown = body.markdown.slice(0, 100000);
