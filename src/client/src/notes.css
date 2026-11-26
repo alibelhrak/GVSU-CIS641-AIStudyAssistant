@@ -102,6 +102,39 @@ select.course-tag{width:auto;min-height:30px;padding:4px 8px;font-size:.8rem;bac
   padding:6px 8px;border-radius:7px;cursor:pointer}
 .add-sub:hover{background:var(--hover);color:var(--fg)}
 
+/* ---------- AI inside the page ---------- */
+.pop-label{margin:6px 10px 2px;font-size:.7rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
+.pop-label:first-child{margin-top:2px}
+.pop-menu kbd{float:right;margin-left:12px;font-family:var(--mono);font-size:.7rem;color:var(--faint);border:1px solid var(--line);border-radius:4px;padding:0 4px}
+.bn-ai-button span{margin-left:6px;font-weight:600;font-size:.82rem}
+.bn-ai-button{color:var(--accent) !important;gap:0}
+.slash-emoji{font-size:1.05rem;line-height:1}
+
+.note-ai{position:sticky;bottom:14px;z-index:8;margin:22px 46px 0;display:grid;gap:6px;animation:rise .25s var(--ease) both}
+.note-ai-quote{justify-self:start;max-width:100%;font-size:.82rem;color:var(--muted);background:var(--surface);border:1px solid var(--line);
+  border-left:3px solid var(--accent);border-radius:8px;padding:6px 10px;white-space:pre-wrap;max-height:84px;overflow:hidden}
+.note-ai-quote span{display:block;font-size:.68rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);margin-bottom:2px}
+.note-ai-result{max-height:min(46vh,420px);overflow-y:auto;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 18px;
+  box-shadow:var(--shadow-lg)}
+.note-ai-result .md{font-size:.95rem}
+.note-ai-bar{display:flex;align-items:center;gap:10px;padding:6px 6px 6px 12px;border-radius:12px;background:var(--surface);
+  border:1px solid var(--accent);box-shadow:0 0 0 3px var(--accent-soft),var(--shadow-lg)}
+.note-ai-bar input{flex:1;min-width:0;border:0;background:none;min-height:36px;padding:0;font-size:.95rem;box-shadow:none !important}
+.note-ai-bar input:focus{background:none}
+.note-ai-bar .send{color:var(--accent)}
+.note-ai-bar .send:disabled{opacity:.4}
+.note-ai-status{flex:1;display:flex;align-items:center;gap:8px;min-height:36px;color:var(--muted);font-size:.9rem}
+.note-ai-menu{justify-self:start;min-width:250px;max-width:100%;max-height:min(40vh,340px);overflow-y:auto;display:grid;padding:4px;border-radius:12px;
+  background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow-lg)}
+.note-ai-menu:empty{display:none}
+.note-ai-menu .history-group{margin:6px 8px 4px}
+.note-ai-menu button{display:flex;align-items:center;gap:10px;border:0;background:none;text-align:left;padding:7px 10px;border-radius:8px;font:inherit;
+  font-size:.88rem;color:var(--fg);cursor:pointer}
+.note-ai-menu button:hover,.note-ai-menu button.active{background:var(--hover)}
+.note-ai-menu button.danger:hover{background:var(--crit-bg);color:var(--crit)}
+.note-ai-ico{width:20px;text-align:center;flex:none;color:var(--muted)}
+.note-ai-menu .history-empty{padding:6px 10px}
+
 /* ---------- No page open ---------- */
 .notes-empty{max-width:720px;margin:0 auto;min-height:100%;display:grid;align-content:center;justify-items:center;text-align:center;gap:12px;padding:32px 20px}
 .notes-empty-icon{font-size:3rem}
@@ -120,6 +153,8 @@ select.course-tag{width:auto;min-height:30px;padding:4px 8px;font-size:.8rem;bac
   .note-icon-row,.note-title,.subpages{padding-left:14px;padding-right:14px}
   .note-page .bn-editor{padding-inline:14px}
   .add-sub{margin-left:14px}
+  .note-ai{margin:18px 8px 0;bottom:8px}
+  .note-ai-menu{justify-self:stretch}
   .note-title{font-size:1.9rem}
   .note-page .bn-block-content[data-content-type="heading"]{--level:1.7em}
   .note-page .bn-block-content[data-content-type="heading"][data-level="2"]{--level:1.4em}

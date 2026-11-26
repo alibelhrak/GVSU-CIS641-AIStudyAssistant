@@ -4,7 +4,8 @@
  * The AI model only *asks* for an action (a tool name and its arguments). This file checks every
  * argument, finds courses and tasks by name, and saves the change for the signed-in student only.
  * Nothing can be deleted from here; every action comes with an "undo" the browser can use.
- * The AI can also read the student's notes (read_note) and write new ones (add_note).
+ * The AI can also search and read the student's notes (search_notes, read_note), write new ones (add_note)
+ * and add to an existing one (add_to_note).
  */
 import { Course, Task, StudySession, StudyLog, Note, TASK_TYPES } from '../models/index.js';
 
@@ -114,6 +115,26 @@ export const TOOLS = [
       name: 'read_note',
       description: 'Read one of the student\'s notes by its title, to answer questions, quiz the student or summarize it.',
       parameters: { type: 'object', properties: { title: { type: 'string' } }, required: ['title'] },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'search_notes',
+      description: 'Search all of the student\'s notes for words or a topic. Use it to answer questions about what the student wrote when you do not know which note it is in.',
+      parameters: { type: 'object', properties: { query: { type: 'string', description: 'One to three key words' } }, required: ['query'] },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'add_to_note',
+      description: 'Add Markdown to the end of an existing note (for example a summary, a quiz or more examples). Use add_note for a new page instead.',
+      parameters: {
+        type: 'object',
+        properties: { title: { type: 'string', description: 'Title of the existing note' }, markdown: { type: 'string' } },
+        required: ['title', 'markdown'],
+      },
     },
   },
   {
@@ -283,6 +304,35 @@ const RUN = {
   async read_note(userId, a) {
     const n = await findNote(userId, a.title);
     return { result: { ok: true, title: n.title, text: (n.text || '(empty note)').slice(0, 12000) } };
+  },
+
+  async search_notes(userId, a) {
+    const words = clean(a.query, 100).toLowerCase().split(/\s+/).filter((w) => w.length > 1).slice(0, 5);
+    if (!words.length) throw new ToolError('Give some words to search for.');
+    const notes = await Note.find({ user: userId }).select('title text').lean();
+    const hits = notes.map((n) => {
+      const hay = `${n.title}\n${n.text || ''}`.toLowerCase();
+      const score = words.reduce((s, w) => s + (hay.split(w).length - 1) + (n.title.toLowerCase().includes(w) ? 5 : 0), 0);
+      const at = Math.max(0, hay.indexOf(words[0]));
+      return { title: n.title || 'Untitled', score, excerpt: (n.text || '').slice(Math.max(0, at - 300), at + 900) };
+    }).filter((x) => x.score > 0).sort((x, y) => y.score - x.score).slice(0, 4);
+    if (!hits.length) return { result: { ok: true, found: 0, message: `No note mentions "${a.query}".` } };
+    return { result: { ok: true, found: hits.length, notes: hits.map(({ title, excerpt }) => ({ title, excerpt })) } };
+  },
+
+  async add_to_note(userId, a) {
+    const markdown = typeof a.markdown === 'string' ? a.markdown.slice(0, 30000).trim() : '';
+    if (!markdown) throw new ToolError('Say what to add.');
+    const found = await findNote(userId, a.title);
+    const n = await Note.findById(found._id);
+    // The editor turns this Markdown into blocks at the end of the page the next time it opens
+    n.markdown = n.markdown ? `${n.markdown}\n\n${markdown}` : markdown;
+    n.text = `${n.text || ''}\n\n${markdown}`.slice(0, 200000);
+    await n.save();
+    return {
+      result: { ok: true, added_to: n.title },
+      action: { icon: 'note', title: 'Added to note', detail: `${n.icon || '📝'} ${n.title || 'Untitled'}`, page: `/notes/${n.id}` },
+    };
   },
 
   async log_study_time(userId, a, today) {

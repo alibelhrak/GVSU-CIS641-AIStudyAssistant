@@ -1,12 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useCreateBlockNote } from '@blocknote/react';
+import { filterSuggestionItems } from '@blocknote/core';
+import {
+  useCreateBlockNote, SuggestionMenuController, getDefaultReactSlashMenuItems,
+  FormattingToolbarController, FormattingToolbar, getFormattingToolbarItems, useComponentsContext,
+} from '@blocknote/react';
 import { BlockNoteView } from '@blocknote/mantine';
 import '@blocknote/mantine/style.css';
 import { api } from '../lib/api.js';
 import { useData } from '../lib/store.jsx';
 import { useTheme } from '../lib/theme.jsx';
 import { Icon } from '../icons.jsx';
+import { NoteAI, WRITE_ACTIONS, aiContext } from './NoteAI.jsx';
 import '../notes.css';
 
 /*
@@ -14,6 +19,7 @@ import '../notes.css';
  * The editor (BlockNote) gives "/" commands, headings, lists, to-dos, quotes, code, tables, pictures,
  * drag handles and a formatting toolbar. Pages can hold sub-pages, have an emoji and a course tag,
  * and save by themselves while you type.
+ * AI works inside the page too (see NoteAI.jsx): select text, type /ai, or press Ctrl+J.
  */
 
 const EMOJIS = ['📘', '📗', '📕', '📙', '📓', '📒', '📝', '📄', '📚', '🧠', '💡', '🎯', '✅', '⭐', '🔥', '📌',
@@ -64,7 +70,7 @@ const TEMPLATES = [
   },
 ];
 
-const AI_ACTIONS = [
+const CHAT_ACTIONS = [
   { label: 'Summarize this note', prompt: 'Summarize my note in a few bullet points, then list the 3 most important things to remember.' },
   { label: 'Quiz me on it', prompt: 'Quiz me on my note. Ask 5 questions one at a time and tell me if my answer is right.' },
   { label: 'Explain it simply', prompt: 'Explain the ideas in my note simply, with an example for each.' },
@@ -114,23 +120,61 @@ const EDITOR_THEME = {
   fontFamily: 'var(--font)',
 };
 
-function NoteEditor({ note, dark, onChange, onReady }) {
+const AiLogo = () => <img src="/logo.png" alt="" width={18} height={18} style={{ display: 'block' }} />;
+
+/** "Ask AI" button at the start of the toolbar that shows over selected text */
+function AiToolbarButton({ onAi }) {
+  const Components = useComponentsContext();
+  return (
+    <Components.FormattingToolbar.Button className="bn-ai-button" mainTooltip="Edit or explain with AI (Ctrl+J)"
+      icon={<AiLogo />} label="Ask AI" onClick={() => onAi()}>
+      <AiLogo /><span>Ask AI</span>
+    </Components.FormattingToolbar.Button>
+  );
+}
+
+function NoteEditor({ note, dark, onChange, onReady, onAi }) {
   const editor = useCreateBlockNote({
     initialContent: note.content?.length ? note.content : undefined,
     uploadFile,
   });
   useEffect(() => {
     onReady(editor);
-    // A note written by Ask AI arrives as Markdown: turn it into real blocks once
-    if (note.markdown && !note.content?.length) {
+    // Markdown written by Ask AI in the chat: turn it into real blocks once.
+    // A new note gets it as its content; an existing note gets it at the end.
+    if (note.markdown) {
       const blocks = editor.tryParseMarkdownToBlocks(note.markdown);
-      if (blocks.length) editor.replaceBlocks(editor.document, blocks);
+      if (blocks.length) {
+        if (!note.content?.length) editor.replaceBlocks(editor.document, blocks);
+        else editor.insertBlocks(blocks, editor.document.at(-1), 'after');
+      }
       onChange(editor.document, { markdown: '' });
     }
   }, [editor]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // "/" menu: AI commands first, then the usual blocks
+  const slashItems = async (query) => filterSuggestionItems([
+    { title: 'Ask AI', subtext: 'Write, edit or explain anything', aliases: ['ai', 'write', 'generate', 'gpt'], group: 'AI', icon: <AiLogo />,
+      onItemClick: () => onAi({}) },
+    ...WRITE_ACTIONS.slice(0, 5).map((a) => ({
+      title: a.label, subtext: 'AI', aliases: ['ai', a.id], group: 'AI', icon: <span className="slash-emoji">{a.icon}</span>,
+      onItemClick: () => onAi({ start: { action: a.id } }),
+    })),
+    ...getDefaultReactSlashMenuItems(editor),
+  ], query);
+
   return (
     <BlockNoteView editor={editor} theme={dark ? { dark: EDITOR_THEME, light: EDITOR_THEME } : EDITOR_THEME}
-      data-color-scheme={dark ? 'dark' : 'light'} onChange={() => onChange(editor.document)} />
+      data-color-scheme={dark ? 'dark' : 'light'} onChange={() => onChange(editor.document)}
+      slashMenu={false} formattingToolbar={false}>
+      <SuggestionMenuController triggerCharacter="/" getItems={slashItems} />
+      <FormattingToolbarController formattingToolbar={() => (
+        <FormattingToolbar>
+          <AiToolbarButton key="ai" onAi={() => onAi({ selection: true })} />
+          {getFormattingToolbarItems()}
+        </FormattingToolbar>
+      )} />
+    </BlockNoteView>
   );
 }
 
@@ -191,6 +235,7 @@ export default function Notes() {
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
   const [delOpen, setDelOpen] = useState(false);
+  const [ai, setAi] = useState(null);                 // the AI writer: { ctx, start, key }
 
   const editorRef = useRef(null);
   const titleRef = useRef(null);
@@ -231,7 +276,7 @@ export default function Notes() {
 
   useEffect(() => {
     flush();
-    setEmojiOpen(false); setAiOpen(false); setDelOpen(false); setStatus('');
+    setEmojiOpen(false); setAiOpen(false); setDelOpen(false); setStatus(''); setAi(null);
     editorRef.current = null;
     if (!id) { setCurrent(null); return; }
     setLoadingNote(true);
@@ -323,6 +368,30 @@ export default function Notes() {
     flush();
     navigate('/chat', { state: { note: { name: `${titleOf(current)}.md`, text: `# ${titleOf(current)}\n\n${markdown}`.slice(0, 16000), prompt } } });
   };
+
+  /** Opens the AI writer. selection: use the selected text; start: run an action straight away */
+  const openAi = ({ selection = false, start = null, end = false } = {}) => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    setAiOpen(false);
+    const ctx = end ? { blocks: [], selection: '', anchor: null } : aiContext(editor, { useSelection: selection || !start });
+    setAi({ ctx, start, key: Date.now() });
+  };
+  const closeAi = (inserted) => {
+    setAi(null);
+    if (inserted) notify('Added by AI. Press Ctrl+Z to undo.');
+    setTimeout(() => editorRef.current?.focus(), 0);
+  };
+  useEffect(() => {
+    const key = (e) => {
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'j' && editorRef.current) {
+        e.preventDefault();
+        openAi({ selection: true });
+      }
+    };
+    document.addEventListener('keydown', key);
+    return () => document.removeEventListener('keydown', key);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Grow the title box with the text
   useEffect(() => {
@@ -420,7 +489,13 @@ export default function Notes() {
                 </button>
                 {aiOpen && (
                   <div className="pop-menu" role="menu">
-                    {AI_ACTIONS.map((a) => <button key={a.label} type="button" role="menuitem" onClick={() => askAi(a.prompt)}>{a.label}</button>)}
+                    <p className="pop-label">Write in this page</p>
+                    <button type="button" role="menuitem" onClick={() => openAi({ end: true })}>✨ Ask AI to write… <kbd>Ctrl J</kbd></button>
+                    {WRITE_ACTIONS.slice(1, 5).map((a) => (
+                      <button key={a.id} type="button" role="menuitem" onClick={() => openAi({ end: true, start: { action: a.id } })}>{a.icon} {a.label}</button>
+                    ))}
+                    <p className="pop-label">Chat about this note</p>
+                    {CHAT_ACTIONS.map((a) => <button key={a.label} type="button" role="menuitem" onClick={() => askAi(a.prompt)}>{a.label}</button>)}
                     <button type="button" role="menuitem" onClick={() => askAi('')}>Ask anything about it…</button>
                   </div>
                 )}
@@ -462,7 +537,7 @@ export default function Notes() {
               <textarea ref={titleRef} className="note-title" rows={1} value={current.title} placeholder="Untitled" maxLength={200}
                 onChange={(e) => setMeta({ title: e.target.value.replace(/\n/g, '') })}
                 onKeyDown={(e) => { if (e.key === 'Enter' || (e.key === 'ArrowDown')) { e.preventDefault(); editorRef.current?.focus(); } }} />
-              <NoteEditor note={current} dark={dark}
+              <NoteEditor note={current} dark={dark} onAi={openAi}
                 onReady={(ed) => { editorRef.current = ed; }}
                 onChange={(content, extra = {}) => queue(current.id, { content, ...extra })} />
               {children.length > 0 && (
@@ -476,13 +551,17 @@ export default function Notes() {
                 </section>
               )}
               <button className="add-sub" type="button" onClick={() => create(current.id)}><Icon name="plus" size={14} /> Add a sub-page</button>
+              {ai && editorRef.current && (
+                <NoteAI key={ai.key} editor={editorRef.current} ctx={ai.ctx} start={ai.start} title={titleOf(current)}
+                  onClose={closeAi} notify={notify} />
+              )}
             </article>
           ) : (
             <div className="notes-empty">
               <span className="notes-empty-icon">🗒️</span>
               <h2>{notes?.length ? 'Pick a page, or start a new one' : 'Your notes, all in one place'}</h2>
               <p className="muted">Write lecture notes, study guides and plans. Type <kbd>/</kbd> for headings, lists, to-dos, tables, code and pictures.
-                Ask AI can read your notes, quiz you on them, or write notes for you.</p>
+                Select text or press <kbd>Ctrl</kbd> <kbd>J</kbd> to write and edit with AI, right in the page.</p>
               <div className="templates">
                 {TEMPLATES.map((t) => (
                   <button key={t.id} type="button" className="suggest-card" onClick={() => create(null, t)}>

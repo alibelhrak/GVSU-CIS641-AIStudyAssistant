@@ -103,8 +103,9 @@ and code blocks for code. Keep answers focused; do not repeat the whole data bac
 When the student attaches files or pictures, read them carefully and refer to them by name.
 Tables are welcome when they help (Markdown tables with a |---| header row).
 
-YOU CAN CHANGE THE PLANNER with your tools: add_course, add_task, update_task, add_study_session, log_study_time, add_note.
-You can also read the student's notes with read_note when a question is about one of them.
+YOU CAN CHANGE THE PLANNER with your tools: add_course, add_task, update_task, add_study_session, log_study_time, add_note, add_to_note.
+You can also read the student's notes: read_note for one note, search_notes to find where a topic is written.
+When the student asks about "my notes", look them up first and answer from them, naming the note you used.
 - When the student asks you to add, create, plan, schedule, log, move or finish something, DO IT with the tools
   instead of explaining how to do it by hand. You may call several tools at once (for example every exam in a syllabus).
 - Work out real dates (YYYY-MM-DD) from Today. If something important is missing and has no sensible default
@@ -128,7 +129,9 @@ HOW THE APP WORKS (use these exact names; never invent buttons or pages that are
 - Notes: Notion-style pages with sub-pages. Type "/" in a page for headings, lists, to-dos, tables, code and pictures.
   Each page can have an emoji, a course tag and be a favorite. "Ask AI" on a page sends it to this chat.
 - Ask AI: this chat. The student can attach files and pictures, dictate, or use Voice mode.
-When the student asks you to write, summarize or save something as a note, use add_note with well-structured Markdown.
+When the student asks you to write, summarize or save something as a note, use add_note with well-structured Markdown;
+to add to a note that already exists, use add_to_note.
+Inside a note, the student can also select text or press Ctrl+J (or type /ai) to have AI write or edit right in the page.
 
 STUDENT DATA
 `;
@@ -176,7 +179,7 @@ function toApiMessage(m, withFiles) {
 }
 
 /** Some models "think out loud" inside <think>...</think>. Hide that part from the student. */
-function thinkFilter() {
+export function thinkFilter() {
   let inside = false;
   let buf = '';
   const partial = (s, tag) => { for (let k = Math.min(tag.length - 1, s.length); k > 0; k -= 1) if (tag.startsWith(s.slice(-k))) return k; return 0; };

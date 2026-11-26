@@ -2,11 +2,16 @@
  * Notes: Notion-style pages the student writes in the app.
  * A note can sit inside another note (sub-pages), have an emoji icon, belong to a course and be a favorite.
  * The editor's blocks are stored as they are, plus a plain-text copy used for search and by Ask AI.
+ *
+ * POST /api/notes/ai is the AI inside the editor (like Notion AI): it writes, continues, summarizes or
+ * rewrites text and streams back Markdown, which the editor turns into blocks.
  */
 import { Router } from 'express';
 import mongoose from 'mongoose';
 import { Note, Course } from '../models/index.js';
 import { h, HttpError } from '../middleware/error.js';
+import { config, chatEnabled } from '../config.js';
+import { thinkFilter } from './chat.js';
 
 const r = Router();
 const MAX_CONTENT = 3_000_000;          // characters of editor data per note (pictures included)
@@ -71,6 +76,116 @@ function pick(body = {}) {
 // All pages (without their content), most recently edited first
 r.get('/', h(async (req, res) => {
   res.json(await Note.find({ user: req.userId }).select(LIST_FIELDS).sort({ updatedAt: -1 }));
+}));
+
+// ---------- AI inside the editor ----------
+const WRITE = `You are the writing assistant inside a student's notes app, like Notion AI.
+Reply with ONLY the text that goes into the note, written in Markdown: # headings, - bullets, 1. numbered lists,
+- [ ] to-dos, **bold**, tables, > quotes and \`\`\` code. Never add a preamble ("Here is...", "Sure") or a closing remark,
+and never wrap the whole answer in a code block. Keep it accurate, clear and useful for studying.
+Write in the same language as the note unless asked to translate. Use LaTeX-free plain math (x^2, sqrt(x)).`;
+
+/** What each button asks for. {sel} = the student selected text; otherwise the answer goes at the cursor. */
+const ACTIONS = {
+  // with selected text
+  improve: 'Improve the writing of the SELECTED TEXT: clearer and better flow, same meaning, same format (lists stay lists).',
+  fix: 'Fix spelling, grammar and punctuation in the SELECTED TEXT. Change nothing else.',
+  shorter: 'Make the SELECTED TEXT shorter, keeping the important ideas.',
+  longer: 'Make the SELECTED TEXT longer, with more detail and explanation.',
+  simplify: 'Rewrite the SELECTED TEXT in simpler words a first-year student understands.',
+  explain: 'Explain the SELECTED TEXT simply, with an example. Start with a short heading-free paragraph.',
+  bullets: 'Turn the SELECTED TEXT into a clear bullet list.',
+  table: 'Turn the SELECTED TEXT into a Markdown table with sensible columns.',
+  professional: 'Rewrite the SELECTED TEXT in a formal, academic tone.',
+  // at the cursor
+  continue: 'Continue writing the page from where it stops (the last part of the PAGE). Write 1-3 paragraphs or list items that fit naturally.',
+  summary: 'Write a short summary of the PAGE: a "## Summary" heading and 3-6 bullets.',
+  takeaways: 'Write the key takeaways of the PAGE: a "## Key takeaways" heading and the 5 most important points to remember for an exam.',
+  quiz: 'Write a practice quiz on the PAGE: a "## Practice quiz" heading, 5 numbered questions (mix of multiple choice and short answer), then a "### Answers" heading with the answers.',
+  flashcards: 'Make flashcards from the PAGE: a "## Flashcards" heading and a table with columns Term | Definition (8-12 rows).',
+  todos: 'Find the tasks and things to review in the PAGE and write them as a "## To do" heading with - [ ] to-dos.',
+  outline: 'Write an outline for this page based on its title and content: headings and bullets to fill in.',
+  brainstorm: 'Brainstorm ideas for the topic of the PAGE: a "## Ideas" heading and 8-10 bullets.',
+};
+
+r.post('/ai', h(async (req, res) => {
+  if (!chatEnabled()) throw new HttpError(503, 'The AI is not set up yet. The server needs LLM_BASE_URL, LLM_API_KEY and LLM_MODEL.');
+  const b = req.body || {};
+  const str = (v, max) => (typeof v === 'string' ? v.slice(0, max) : '');
+  const selection = str(b.selection, 12000).trim();
+  const page = str(b.page, 14000);
+  const prompt = str(b.prompt, 2000).trim();
+  const lang = str(b.language, 40).trim();
+  let task = ACTIONS[b.action];
+  if (b.action === 'translate') task = `Translate the ${selection ? 'SELECTED TEXT' : 'PAGE'} to ${lang || 'English'}, keeping the format.`;
+  if (!task && !prompt) throw new HttpError(400, 'Tell the AI what to write');
+  if (task?.includes('SELECTED TEXT') && !selection) throw new HttpError(400, 'Select some text first');
+  if (!task) task = selection
+    ? `Do this with the SELECTED TEXT: ${prompt}\nYour answer replaces the selection or goes under it.`
+    : `Do this: ${prompt}\nYour answer is inserted into the page at the cursor.`;
+  else if (prompt) task += `\nAlso: ${prompt}`;
+
+  const parts = [`PAGE TITLE: ${str(b.title, 200) || 'Untitled'}`, `PAGE:\n${page.trim() || '(empty page)'}`];
+  if (selection) parts.push(`SELECTED TEXT:\n${selection}`);
+  parts.push(`TASK: ${task}`);
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 90000);
+  res.on('close', () => controller.abort());
+  let upstream;
+  try {
+    upstream = await fetch(`${config.llm.baseUrl}/chat/completions`, {
+      method: 'POST',
+      signal: controller.signal,
+      headers: { 'Content-Type': 'application/json', ...(config.llm.apiKey ? { Authorization: `Bearer ${config.llm.apiKey}` } : {}) },
+      body: JSON.stringify({
+        model: config.llm.chatModel, stream: true, temperature: 0.4, max_tokens: 2500,
+        messages: [{ role: 'system', content: WRITE }, { role: 'user', content: parts.join('\n\n') }],
+      }),
+    });
+  } catch (err) {
+    clearTimeout(timer);
+    if (err.name === 'AbortError') return res.end();
+    throw new HttpError(502, 'Could not reach the AI service. Try again in a moment.');
+  }
+  if (!upstream.ok || !upstream.body) {
+    clearTimeout(timer);
+    const detail = await upstream.text().catch(() => '');
+    console.warn('Notes AI: LLM responded', upstream.status, detail.slice(0, 300));
+    throw new HttpError(502, upstream.status === 429 ? 'The AI is busy right now. Wait a few seconds and try again.' : 'The AI service returned an error. Try again in a moment.');
+  }
+
+  // Pass the words on as plain text while they arrive
+  res.status(200).set({ 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no' });
+  res.flushHeaders();
+  const filter = thinkFilter();
+  const reader = upstream.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+      for (const line of lines) {
+        const data = line.replace(/^data:\s*/, '').trim();
+        if (!data || data === '[DONE]' || !line.startsWith('data:')) continue;
+        try {
+          const piece = JSON.parse(data).choices?.[0]?.delta?.content;
+          if (piece) { const out = filter(piece); if (out) res.write(out); }
+        } catch { /* a broken line; skip it */ }
+      }
+    }
+    const rest = filter.flush();
+    if (rest) res.write(rest);
+  } catch (err) {
+    if (err.name !== 'AbortError') console.warn('Notes AI: stream stopped:', err.message);
+  } finally {
+    clearTimeout(timer);
+    res.end();
+  }
 }));
 
 // Search titles and text
