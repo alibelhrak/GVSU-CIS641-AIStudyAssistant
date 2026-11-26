@@ -474,6 +474,11 @@ export default function Chat() {
     stop();
     run([...messages.slice(0, i), { ...m, content: text.trim() }]);
   };
+  const resend = (i) => {
+    if (busy) return;
+    stop();
+    run(messages.slice(0, i + 1));
+  };
 
   const newChat = async () => {
     await leave();
@@ -689,6 +694,9 @@ export default function Chat() {
                       <button type="button" onClick={() => copy(i)} title="Copy" aria-label="Copy"><Icon name={copied === i ? 'check' : 'copy'} size={14} /></button>
                       {!busy && (
                         <button type="button" onClick={() => setEditing({ i, text: m.content })} title="Edit" aria-label="Edit message"><Icon name="pencil" size={14} /></button>
+                      )}
+                      {!busy && (
+                        <button type="button" onClick={() => resend(i)} title="Send again" aria-label="Send again"><Icon name="refresh" size={14} /></button>
                       )}
                     </div>
                   </>
