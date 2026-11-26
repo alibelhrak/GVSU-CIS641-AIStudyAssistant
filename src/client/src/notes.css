@@ -459,10 +459,22 @@ html[data-theme="dark"] .note-page [data-content-type="codeBlock"] .shiki,
 html[data-theme="midnight"] .note-page [data-content-type="codeBlock"] .shiki{color:var(--shiki-dark)}
 html[data-theme="dark"] .note-page .bn-block-content[data-content-type="codeBlock"]{background:#161616}
 html[data-theme="midnight"] .note-page .bn-block-content[data-content-type="codeBlock"]{background:#0b101d}
-/* the language picker: a small label at the top-left, clearer on hover */
-.note-page [data-content-type="codeBlock"] > div > select{opacity:.55;top:9px;left:12px;padding:3px 8px;border-radius:6px;color:var(--muted);font-family:var(--font);font-size:.74rem;font-weight:600;transition:opacity .15s,background-color .15s}
-.note-page [data-content-type="codeBlock"]:hover > div > select,.note-page [data-content-type="codeBlock"] > div > select:focus{opacity:1;background:var(--hover)}
-.note-page [data-content-type="codeBlock"] > div > select > option{color:var(--fg);background:var(--surface)}
+/* BlockNote's own language dropdown is replaced by the menu below (its clicks were caught by the editor) */
+.note-page [data-content-type="codeBlock"] > div:has(> select){display:none}
+.code-lang-btn{position:absolute;z-index:5;display:inline-flex;align-items:center;gap:4px;height:26px;padding:0 6px 0 9px;border:0;border-radius:7px;background:none;
+  color:var(--muted);font:inherit;font-size:.75rem;font-weight:600;cursor:pointer;transition:background-color .12s,color .12s}
+.code-lang-btn:hover,.code-lang-btn.open{background:var(--hover);color:var(--fg)}
+.code-lang-btn svg{opacity:.7}
+.code-lang-pop{position:absolute;z-index:30}
+.code-lang-menu{width:230px;display:grid;gap:4px;padding:6px;border:1px solid var(--line);border-radius:12px;background:var(--surface);box-shadow:var(--shadow-lg);animation:lang-in .15s var(--ease) both}
+.code-lang-menu input{height:32px;padding:0 10px;border:1px solid var(--line-strong);border-radius:8px;background:var(--bg);color:var(--fg);font:inherit;font-size:.84rem}
+.code-lang-menu input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.code-lang-list{max-height:260px;overflow-y:auto;display:grid;gap:1px}
+.code-lang-list button{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 9px;border:0;border-radius:7px;background:none;color:var(--fg);
+  font:inherit;font-size:.86rem;text-align:start;cursor:pointer}
+.code-lang-list button.at{background:var(--hover)}
+.code-lang-list button.on{color:var(--accent);font-weight:600}
+.code-lang-empty{padding:8px 10px;margin:0;font-size:.84rem;color:var(--faint)}
 [dir="rtl"] .note-page [data-content-type="codeBlock"] > pre{direction:ltr;text-align:left}   /* code always reads left to right */
 .code-copy{position:absolute;z-index:5;display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 9px;border:1px solid var(--line);border-radius:7px;
   background:var(--surface);color:var(--muted);font:inherit;font-size:.74rem;font-weight:600;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.08);animation:fade-in .15s ease both}

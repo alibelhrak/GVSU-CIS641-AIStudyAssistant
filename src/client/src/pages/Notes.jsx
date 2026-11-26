@@ -240,39 +240,102 @@ const SCHEMA = BlockNoteSchema.create({
   blockSpecs: { ...defaultBlockSpecs, codeBlock: createCodeBlockSpec({ ...codeBlockOptions, defaultLanguage: 'text' }) },
 });
 
-/** A "Copy" button that appears on the code block under the mouse */
-function CodeCopy({ wrap, editor }) {
-  const [box, setBox] = useState(null);   // { el, top, right }
+const LANGUAGES = Object.entries(codeBlockOptions.supportedLanguages)
+  .map(([id, l]) => ({ id, name: l.name, aliases: l.aliases || [] }))
+  .sort((a, b) => (a.id === 'text' ? -1 : b.id === 'text' ? 1 : a.name.localeCompare(b.name)));
+const langName = (id) => LANGUAGES.find((l) => l.id === id)?.name || 'Plain Text';
+
+/** The language menu of a code block: search, arrow keys, Enter */
+function LanguageMenu({ value, onPick, onClose }) {
+  const [q, setQ] = useState('');
+  const [at, setAt] = useState(0);
+  const list = useRef(null);
+  const query = q.trim().toLowerCase();
+  const shown = LANGUAGES.filter((l) => !query || l.name.toLowerCase().includes(query) || l.id.includes(query) || l.aliases.some((a) => a.startsWith(query)));
+  useEffect(() => { setAt(0); }, [q]);
+  useEffect(() => { list.current?.children[at]?.scrollIntoView({ block: 'nearest' }); }, [at]);
+  const key = (e) => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); setAt((i) => Math.min(i + 1, shown.length - 1)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setAt((i) => Math.max(i - 1, 0)); }
+    else if (e.key === 'Enter') { e.preventDefault(); if (shown[at]) onPick(shown[at].id); }
+    else if (e.key === 'Escape') { e.preventDefault(); onClose(); }
+  };
+  return (
+    <div className="code-lang-menu" onMouseDown={(e) => e.stopPropagation()}>
+      <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={key} placeholder="Search for a language…" aria-label="Search for a language" />
+      <div className="code-lang-list" ref={list} role="listbox" data-no-translate>
+        {shown.length === 0 && <p className="code-lang-empty">No match</p>}
+        {shown.map((l, i) => (
+          <button key={l.id} type="button" role="option" aria-selected={l.id === value} className={`${i === at ? 'at' : ''} ${l.id === value ? 'on' : ''}`}
+            onMouseEnter={() => setAt(i)} onClick={() => onPick(l.id)}>
+            <span>{l.name}</span>{l.id === value && <Icon name="tick" size={14} />}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** On the code block under the mouse: the language button (top left) and Copy (top right) */
+function CodeTools({ wrap, editor }) {
+  const [box, setBox] = useState(null);     // { id, top, left, right }
+  const [open, setOpen] = useState(false);  // language menu
   const [copied, setCopied] = useState(false);
+  const openRef = useRef(false);
+  openRef.current = open;
   useEffect(() => {
     const root = wrap.current;
     if (!root) return undefined;
     const move = (e) => {
-      if (e.target.closest?.('.code-copy')) return;
+      if (openRef.current || e.target.closest?.('.code-tools, .code-lang-menu')) return;
       const el = e.target.closest?.('[data-content-type="codeBlock"]');
       if (!el) { setBox(null); return; }
-      const r = el.getBoundingClientRect(); const w = root.getBoundingClientRect();
       const id = el.closest('[data-id]')?.getAttribute('data-id');
-      setBox((b) => (b?.id === id ? b : { id, top: r.top - w.top + 6, right: w.right - r.right + 8 }));
+      const r = el.getBoundingClientRect(); const w = root.getBoundingClientRect();
+      setBox((b) => (b?.id === id ? b : { id, top: r.top - w.top + 6, left: r.left - w.left + 8, right: w.right - r.right + 8 }));
       setCopied(false);
     };
-    const leave = () => setBox(null);
+    const leave = () => { if (!openRef.current) setBox(null); };
     root.addEventListener('mousemove', move);
     root.addEventListener('mouseleave', leave);
     return () => { root.removeEventListener('mousemove', move); root.removeEventListener('mouseleave', leave); };
   }, [wrap]);
+  // Close the menu when clicking elsewhere
+  useEffect(() => {
+    if (!open) return undefined;
+    const away = (e) => { if (!e.target.closest?.('.code-lang-menu, .code-lang-btn')) { setOpen(false); setBox(null); } };
+    document.addEventListener('mousedown', away);
+    return () => document.removeEventListener('mousedown', away);
+  }, [open]);
   if (!box) return null;
+  const block = editor.getBlock(box.id);
+  if (!block || block.type !== 'codeBlock') return null;
+  const language = block.props?.language || 'text';
   const copy = async () => {
     // read the code from the editor itself (the screen copy is redrawn while it is highlighted)
-    const block = editor.getBlock(box.id);
-    const text = Array.isArray(block?.content) ? block.content.map((c) => c.text || '').join('') : '';
-    try { await navigator.clipboard.writeText(text.replace(/\n$/, '')); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch { /* clipboard blocked */ }
+    const text = Array.isArray(block.content) ? block.content.map((c) => c.text || '').join('') : '';
+    try { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch { /* clipboard blocked */ }
+  };
+  const pick = (id) => {
+    editor.updateBlock(box.id, { props: { language: id } });
+    setOpen(false);
   };
   return (
-    <button type="button" className={`code-copy ${copied ? 'done' : ''}`} style={{ top: box.top, right: box.right }}
-      onMouseDown={(e) => e.preventDefault()} onClick={copy}>
-      <Icon name={copied ? 'tick' : 'copy'} size={14} /> {copied ? 'Copied' : 'Copy'}
-    </button>
+    <>
+      <button type="button" className={`code-tools code-lang-btn ${open ? 'open' : ''}`} style={{ top: box.top, left: box.left }}
+        onMouseDown={(e) => e.preventDefault()} onClick={() => setOpen((o) => !o)} aria-haspopup="listbox" aria-expanded={open}>
+        <span data-no-translate>{langName(language)}</span><Icon name="chevronDown" size={13} />
+      </button>
+      {open && (
+        <div className="code-lang-pop" style={{ top: box.top + 32, left: box.left }}>
+          <LanguageMenu value={language} onPick={pick} onClose={() => setOpen(false)} />
+        </div>
+      )}
+      <button type="button" className={`code-tools code-copy ${copied ? 'done' : ''}`} style={{ top: box.top, right: box.right }}
+        onMouseDown={(e) => e.preventDefault()} onClick={copy}>
+        <Icon name={copied ? 'tick' : 'copy'} size={14} /> {copied ? 'Copied' : 'Copy'}
+      </button>
+    </>
   );
 }
 
@@ -303,7 +366,7 @@ function NoteEditor({ note, dark, onChange, onReady, onAi }) {
 
   return (
     <div className="note-editor-wrap" ref={wrap}>
-    <CodeCopy wrap={wrap} editor={editor} />
+    <CodeTools wrap={wrap} editor={editor} />
     <BlockNoteView editor={editor} theme={dark ? { dark: EDITOR_THEME, light: EDITOR_THEME } : EDITOR_THEME}
       data-color-scheme={dark ? 'dark' : 'light'} onChange={() => onChange(editor.document)}
       slashMenu={false} formattingToolbar={false}>
