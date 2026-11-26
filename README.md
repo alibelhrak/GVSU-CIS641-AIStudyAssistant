@@ -55,7 +55,7 @@ Built for **CIS 641 (Software Engineering)** at Grand Valley State University.
 ## What's new
 
 - **Settings (November 2026):** one window for your account, appearance, language and region, notifications and your data, with fonts, text size, reduce motion, data export, password and email changes, and "sign out of other devices".
-- **Languages (November 2026):** the app now works in English, French, Spanish, Arabic, Chinese and Hindi. Pick one with the 🌐 menu on the welcome page and the sign-in page, or **Language** in the sidebar. Your choice is saved to your account.
+- **Languages (November 2026):** the app now works in English, French, Spanish, Arabic, Chinese and Hindi. Pick one with the 🌐 menu on the welcome page and the sign-in page, or in **Settings › Language & region**. Your choice is saved to your account.
 - **Notes (November 2026):** a Notion-style notes space with sub-pages, covers (including your own pictures), icons, favorites, course tags and search.
 - **AI in your notes:** edit or explain selected text, `/` AI commands, and the **Notes AI** chat panel that can edit the page for you with steps, Show changes and Undo.
 - **Ask AI knows your notes:** it can search, read, write and add to them.
@@ -169,7 +169,7 @@ More things you can do in the chat:
 
 ### 9. Get reminders
 
-Click **Reminders** in the sidebar and turn on what you want:
+Open **Settings › Notifications › Open reminder settings** and turn on what you want:
 
 - **Morning summary:** your top priorities, what is due today and tomorrow, and today's study sessions, at the hour you choose.
 - **Deadline alerts:** the morning before something is due, and on the day itself.
@@ -191,7 +191,7 @@ Click **Appearance** at the bottom of the sidebar to pick a theme (System, Light
 
 ### 11. Choose your language
 
-Pick a language with the 🌐 button on the welcome page or the sign-in page, or with **Language** at the bottom of the sidebar. The menus, buttons, dates and messages change at once, Arabic switches the layout to right to left, and the note editor's menus follow too. The AI then answers in your language (unless you write to it in another one), the study advice is written in it, and reminder and password emails arrive in it. Your notes and course names stay exactly as you wrote them.
+Pick a language with the 🌐 button on the welcome page or the sign-in page, or in **Settings › Language & region**. The menus, buttons, dates and messages change at once, Arabic switches the layout to right to left, and the note editor's menus follow too. The AI then answers in your language (unless you write to it in another one), the study advice is written in it, and reminder and password emails arrive in it. Your notes and course names stay exactly as you wrote them.
 
 <p align="center"><img src="docs/screenshots/languages.png" alt="The dashboard in Arabic, right to left, and on a phone in Hindi" width="900" /></p>
 

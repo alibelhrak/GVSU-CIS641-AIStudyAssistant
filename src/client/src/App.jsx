@@ -9,7 +9,7 @@ import { daysUntil } from './lib/dates.js';
 import { Icon } from './icons.jsx';
 import { InstallButton } from './lib/install.jsx';
 import { RemindersPanel } from './lib/reminders.jsx';
-import { LanguageSelect, getLang, chosenHere, setLang } from './lib/i18n.jsx';
+import { getLang, chosenHere, setLang } from './lib/i18n.jsx';
 import Landing from './pages/Landing.jsx';
 import Login from './pages/Login.jsx';
 import ForgotPassword from './pages/ForgotPassword.jsx';
@@ -49,7 +49,7 @@ const PAGES = [
     title: () => 'Ask AI', sub: 'Chat with an AI study coach that knows your courses, deadlines and study hours.' },
 ];
 
-function Sidebar({ onNavigate, onSettings, onReminders }) {
+function Sidebar({ onNavigate, onSettings }) {
   const { user } = useAuth();
   const { courses, tasks, recs } = useData();
   const dueSoon = tasks.filter((t) => !t.done && daysUntil(t.dueDate) >= 0 && daysUntil(t.dueDate) <= 7).length;
@@ -88,8 +88,6 @@ function Sidebar({ onNavigate, onSettings, onReminders }) {
 
       <div className="side-bottom">
         <InstallButton variant="side" />
-        <button className="side-link" type="button" onClick={() => { onNavigate(); onReminders(); }}><Icon name="bell" /><span>Reminders</span></button>
-        <LanguageSelect variant="side" />
         <button className="side-link" type="button" onClick={() => { onNavigate(); onSettings('account'); }}>
           <Icon name="settings" /><span>Settings</span><kbd className="side-kbd" data-no-translate>{/Mac|iPhone|iPad/.test(navigator.platform) ? '⌘,' : 'Ctrl+,'}</kbd>
         </button>
@@ -168,7 +166,7 @@ function Shell() {
 
   return (
     <div className={`app ${open ? 'menu-open' : ''}`}>
-      <Sidebar onNavigate={() => setOpen(false)} onSettings={setSettings} onReminders={() => setReminders(true)} />
+      <Sidebar onNavigate={() => setOpen(false)} onSettings={setSettings} />
       {settings && <SettingsPanel start={settings} onClose={() => setSettings(null)} onOpenReminders={() => { setSettings(null); setReminders(true); }} />}
       {reminders && <RemindersPanel onClose={() => setReminders(false)} />}
       <div className="scrim" onClick={() => setOpen(false)} aria-hidden="true" />

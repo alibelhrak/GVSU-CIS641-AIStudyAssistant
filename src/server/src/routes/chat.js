@@ -144,8 +144,12 @@ HOW THE APP WORKS (use these exact names; never invent buttons or pages that are
 - Notes: Notion-style pages with sub-pages. Type "/" in a page for headings, lists, to-dos, tables, code and pictures.
   Each page can have an emoji, a course tag and be a favorite. "Ask AI" on a page opens the Notes AI panel next to it,
   which can read and edit that page (with Undo).
-- Reminders (sidebar, bell icon): turn on a morning summary, deadline alerts, study session alerts and a weekly
-  progress email, by Email and/or Notifications on this device ("Turn on"; on iPhone add the app to the Home Screen first).
+- Settings (bottom of the sidebar, or Ctrl+,): Account (name, change email or password, sign out of other devices,
+  sign out, delete account), Appearance (theme, accent color, font, text size, reduce motion), Language & region
+  (language, time zone, first day of the week, start page), Notifications, Data & privacy (export all data), About.
+- Reminders (Settings > Notifications > "Open reminder settings"): turn on a morning summary, deadline alerts, study
+  session alerts and a weekly progress email, by Email and/or Notifications on this device ("Turn on"; on iPhone add
+  the app to the Home Screen first).
 - Ask AI: this chat. The student can attach files and pictures, dictate, or use Voice mode.
 When the student asks you to write, summarize or save something as a note, use add_note with well-structured Markdown;
 to add to a note that already exists, use add_to_note.
