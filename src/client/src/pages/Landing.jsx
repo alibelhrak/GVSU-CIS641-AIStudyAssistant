@@ -34,6 +34,120 @@ function useTyping(messages, speed = 32, pause = 2200) {
   return text;
 }
 
+/** Moves through steps of an animation (each with its own length in ms), then starts again. */
+function useLoop(durations) {
+  const [step, setStep] = useState(0);
+  useEffect(() => {
+    const t = setTimeout(() => setStep((s) => (s + 1) % durations.length), durations[step]);
+    return () => clearTimeout(t);
+  }, [step, durations]);
+  return step;
+}
+
+/** Types its text once, letter by letter, when it appears */
+function Typer({ text, speed = 22 }) {
+  const [n, setN] = useState(0);
+  useEffect(() => {
+    if (n >= text.length) return undefined;
+    const t = setTimeout(() => setN((v) => v + 1), speed);
+    return () => clearTimeout(t);
+  }, [n, text, speed]);
+  return <>{text.slice(0, n)}{n < text.length && <span className="caret" />}</>;
+}
+
+const CHAT_STEPS = [700, 1900, 900, 650, 500, 500, 500, 2600, 3200];
+const CHAT_CARDS = [
+  { icon: 'check', title: 'Added exam', detail: 'Final exam · CIS 641 · due Sat, Dec 12 · 10 h' },
+  { icon: 'calendar', title: 'Planned study session', detail: 'CIS 641 · Mon, Dec 7 · 19:00 · 2 h' },
+  { icon: 'calendar', title: 'Planned study session', detail: 'CIS 641 · Wed, Dec 9 · 19:00 · 2 h' },
+  { icon: 'calendar', title: 'Planned study session', detail: 'CIS 641 · Fri, Dec 11 · 19:00 · 2 h' },
+];
+
+/** The Ask AI chat, acted out: the student asks, the assistant adds things to the planner */
+function ChatShowcase() {
+  const step = useLoop(CHAT_STEPS);
+  return (
+    <div className="sc-window sc-chat" aria-hidden="true">
+      <div className="pv-bar"><span className="pv-dot" /><span className="pv-dot" /><span className="pv-dot" /><span className="pv-url">Ask AI</span></div>
+      <div className="sc-chat-body">
+        {step >= 1 && (
+          <div className="sc-user"><Typer key="u" text="Add my CIS 641 final on Dec 12 and plan three 2-hour sessions before it" speed={18} /></div>
+        )}
+        {step === 2 && <span className="thinking"><i /><i /><i /></span>}
+        {step >= 3 && (
+          <div className="sc-cards">
+            {CHAT_CARDS.slice(0, Math.min(4, step - 2)).map((c, k) => (
+              <div key={k} className="sc-card">
+                <span className="sc-card-icon"><Icon name={c.icon} size={14} /></span>
+                <span className="sc-card-text"><b>{c.title}</b><span>{c.detail}</span></span>
+                <span className="sc-undo">Undo</span>
+              </div>
+            ))}
+          </div>
+        )}
+        {step >= 7 && (
+          <p className="sc-answer"><Typer text="Done! Your final is on Saturday, Dec 12, with three evening sessions before it. Want me to add one more this weekend?" speed={14} /></p>
+        )}
+      </div>
+      <div className="sc-composer"><span>Ask anything, or attach your notes…</span><i><Icon name="send" size={13} /></i></div>
+    </div>
+  );
+}
+
+const NOTE_STEPS = [1400, 1900, 2300, 2600, 3400];
+
+/** A notes page, acted out: the "/" menu, the AI writing, and the Notes AI panel editing the page */
+function NotesShowcase() {
+  const step = useLoop(NOTE_STEPS);
+  return (
+    <div className="sc-window sc-notes" aria-hidden="true">
+      <div className="pv-bar"><span className="pv-dot" /><span className="pv-dot" /><span className="pv-dot" /><span className="pv-url">Notes · Sequence diagrams</span></div>
+      <div className="sc-notes-body">
+        <div className="sc-page">
+          <div className="sc-cover" />
+          <span className="sc-icon">🧠</span>
+          <h4>Sequence diagrams</h4>
+          <p className="sc-quote">Objects work together over time, one message after another.</p>
+          <p className="sc-h">Key ideas</p>
+          <ul><li><b>Lifeline:</b> one object over time</li><li><b>Message:</b> an arrow between objects</li></ul>
+          {step === 1 && (
+            <div className="sc-line">
+              <span className="sc-slash">/</span>
+              <div className="sc-menu">
+                <p>✦ AI</p>
+                <span className="on">❓ Practice quiz</span><span>🃏 Flashcards</span>
+                <p>Basic blocks</p>
+                <span>☑ To-do list</span><span>▦ Table</span>
+              </div>
+            </div>
+          )}
+          {step === 2 && (
+            <div className="sc-ai">
+              <div className="sc-ai-out">
+                <b>Practice quiz</b>
+                <Typer text="1. What does a lifeline show?  2. What is an activation bar?  3. When is a message asynchronous?" speed={16} />
+              </div>
+              <div className="sc-ai-bar"><img src="/logo.png" alt="" width={14} height={14} /><span>AI is writing…</span></div>
+            </div>
+          )}
+          {step >= 3 && (
+            <div className="sc-new">
+              <p className="sc-h">Practice quiz</p>
+              <ol><li>What does a lifeline show?</li><li>What is an activation bar?</li><li>When is a message asynchronous?</li></ol>
+            </div>
+          )}
+        </div>
+        <div className={`sc-panel ${step === 4 ? 'open' : ''}`}>
+          <div className="sc-panel-head"><img src="/logo.png" alt="" width={14} height={14} /> Notes AI</div>
+          <div className="sc-user small">Fix the formatting everywhere</div>
+          <div className="sc-steps"><span>✓ Edited "Key ideas"</span><span>✓ Edited the quote</span><span>✓ Added a summary</span></div>
+          <div className="sc-changes"><b>Edited the page · 3 changes</b><span>Show changes</span><span>↶ Undo</span></div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const AI_LINES = [
   'Spend more time on CIS 678: your Midterm exam is in 3 days.',
   'You have studied 2 h, but this exam needs about 10 h.',
@@ -53,7 +167,7 @@ function AppPreview() {
         <div className="pv-body">
           <div className="pv-side">
             <div className="pv-ws"><span className="pv-avatar">A</span><b>Ali's Study Space</b></div>
-            {['Dashboard', 'Courses', 'Assignments & Exams', 'Study Schedule', 'Materials'].map((t, k) => (
+            {['Dashboard', 'Courses', 'Assignments & Exams', 'Study Schedule', 'Materials', 'Notes', 'Ask AI'].map((t, k) => (
               <div key={t} className={`pv-nav ${k === 0 ? 'on' : ''}`}><span />{t}</div>
             ))}
             <p className="pv-label">My courses</p>
@@ -91,18 +205,18 @@ function AppPreview() {
 }
 
 const FEATURES = [
-  { icon: 'book', title: 'Courses with weekly goals', text: 'Add each course with how many hours a week you want to study it. Every course gets its own color.' },
+  { icon: 'book', title: 'Courses with weekly goals', text: 'Add each course with how many hours a week you want to study it, and watch it fill up as you log time.' },
   { icon: 'check', title: 'Assignments & exams', text: 'Keep every deadline in one list with its type, priority and the hours it needs.' },
   { icon: 'calendar', title: 'Weekly study schedule', text: 'Plan study sessions on a calendar, see deadlines on the same week, and tick sessions off.' },
-  { icon: 'clip', title: 'Course materials', text: 'Drop in PDFs, slides and notes, or save links, all filed under the right course.' },
-  { icon: 'chart', title: 'Progress you can see', text: 'Log study time and watch each course fill up against its weekly goal.' },
-  { icon: 'spark', title: 'AI recommendations', text: 'Get told which course to focus on next, with a ready-made plan you can accept in one click.', hot: true },
+  { icon: 'note', title: 'Notes, like Notion', text: 'Pages and sub-pages with headings, to-dos, tables, covers and pictures. AI is built right into the page.', hot: true },
+  { icon: 'chat', title: 'Ask AI', text: 'A study coach that knows your deadlines and notes, reads your PDFs, and adds exams and sessions for you.', hot: true },
+  { icon: 'spark', title: 'AI recommendations', text: 'Get told which course to focus on next, with a ready-made plan you can accept in one click.' },
 ];
 
 const STEPS = [
   { n: '1', who: 'Rules', title: 'Find the study gap', text: 'For every task due in the next 14 days.', code: 'gap = needed − studied − planned' },
   { n: '2', who: 'Rules', title: 'Rank and plan', text: 'By deadline, priority and task type. The top 3 get a plan.', code: 'sessions of up to 2 h' },
-  { n: '3', who: 'LLM', title: 'Explain it', text: 'A language model writes a short, friendly message from those numbers.', code: 'Llama 3.2 · rule-based fallback' },
+  { n: '3', who: 'LLM', title: 'Explain it', text: 'A language model writes a short, friendly message from those numbers.', code: 'any LLM · rule-based fallback' },
   { n: '4', who: 'You', title: 'Accept or dismiss', text: 'Accepting puts the sessions straight into your schedule.', code: 'one click' },
 ];
 
@@ -126,6 +240,8 @@ export default function Landing() {
           <a className="lp-brand" href="#top"><img src="/logo.png" alt="" width={30} height={30} style={{ display: 'block' }} />Study Assistant</a>
           <nav className="lp-links">
             <a href="#features">Features</a>
+            <a href="#ask-ai">Ask AI</a>
+            <a href="#notes">Notes</a>
             <a href="#how">How the AI works</a>
             <a href="#themes">Themes</a>
           </nav>
@@ -144,8 +260,8 @@ export default function Landing() {
         <span className="eyebrow" data-reveal><Icon name="spark" size={14} /> An AI study planner for students</span>
         <h1 data-reveal>Know exactly<br /><span className="grad">what to study next.</span></h1>
         <p className="hero-sub" data-reveal>
-          Courses, deadlines, study sessions and materials in one place. The assistant looks at what is due and how much
-          you have studied, then builds you a plan.
+          Courses, deadlines, study sessions, notes and an AI study coach in one place. The assistant looks at what is due
+          and how much you have studied, then builds you a plan.
         </p>
         <div className="hero-cta" data-reveal>
           <Link className="btn primary lg" to="/signup">Get started, it's free <Icon name="arrow" size={16} /></Link>
@@ -169,6 +285,36 @@ export default function Landing() {
             </article>
           ))}
         </div>
+      </section>
+
+      <section className="lp-section lp-wrap showcase" id="ask-ai">
+        <div className="sc-text" data-reveal>
+          <span className="eyebrow"><Icon name="chat" size={14} /> Ask AI</span>
+          <h2>A study coach that does the work for you.</h2>
+          <p className="muted">It knows your courses, deadlines, hours and notes, so its answers are about your semester, not anyone's.</p>
+          <ul className="sc-list">
+            <li><Icon name="check" size={16} /><span><b>Adds things for you.</b> "Add my final on Dec 12 and plan three sessions": done, each with an Undo button.</span></li>
+            <li><Icon name="file" size={16} /><span><b>Reads your files.</b> Drop in a syllabus PDF or a screenshot and ask about it.</span></li>
+            <li><Icon name="mic" size={16} /><span><b>Talk to it.</b> Dictate a question, or use Voice mode to hear the answers.</span></li>
+            <li><Icon name="history" size={16} /><span><b>Remembers.</b> Every chat is saved, with tables, code and quizzes when you need them.</span></li>
+          </ul>
+        </div>
+        <div data-reveal style={{ transitionDelay: '.1s' }}><ChatShowcase /></div>
+      </section>
+
+      <section className="lp-section lp-wrap showcase flip" id="notes">
+        <div className="sc-text" data-reveal>
+          <span className="eyebrow"><Icon name="note" size={14} /> Notes</span>
+          <h2>Notes like Notion, with AI inside.</h2>
+          <p className="muted">Write lecture notes and study guides in a clean editor, then let the AI turn them into quizzes, flashcards and summaries.</p>
+          <ul className="sc-list">
+            <li><Icon name="plus" size={16} /><span><b>Type /</b> for headings, to-dos, tables, code, quotes and pictures. Pages can hold sub-pages.</span></li>
+            <li><Icon name="image" size={16} /><span><b>Make it yours</b> with an emoji, a gradient cover or your own photo.</span></li>
+            <li><Icon name="spark" size={16} /><span><b>Select text</b> to improve, shorten, explain or translate it, or press Ctrl+J to ask for anything.</span></li>
+            <li><Icon name="undo" size={16} /><span><b>Notes AI</b> chats beside your page and edits it for you, step by step, with one-click Undo.</span></li>
+          </ul>
+        </div>
+        <div data-reveal style={{ transitionDelay: '.1s' }}><NotesShowcase /></div>
       </section>
 
       <section className="lp-section lp-wrap" id="how">
@@ -222,7 +368,7 @@ export default function Landing() {
       <section className="lp-section lp-wrap">
         <div className="final" data-reveal>
           <h2>Your next study session is one click away.</h2>
-          <p>Create an account, add your courses and deadlines, and let the assistant plan the week.</p>
+          <p>Create an account, add your courses and deadlines, write your notes, and let the assistant plan the week.</p>
           <Link className="btn primary lg" to="/signup">Create your free account <Icon name="arrow" size={16} /></Link>
         </div>
       </section>

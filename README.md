@@ -69,6 +69,10 @@ Open the [live app](https://gvsu-cis641-aistudyassistant.onrender.com) and click
   <img src="docs/screenshots/sign-up.png" alt="Create your account" width="49%" />
 </p>
 
+The welcome page also shows Ask AI and Notes in action with short animations:
+
+<p align="center"><img src="docs/screenshots/landing-notes.png" alt="Welcome page section showing Notes with AI inside" width="900" /></p>
+
 Forgot your password? On the sign-in page, click **Forgot password?**, type your email, and open the link in the email you receive to choose a new password.
 
 ### 2. Add your courses
