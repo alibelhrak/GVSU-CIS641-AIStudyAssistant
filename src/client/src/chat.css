@@ -49,12 +49,13 @@
 .suggest-card:hover{transform:translateY(-2px);border-color:var(--accent-line);box-shadow:var(--shadow);background:var(--accent-soft)}
 
 /* ---------- Messages ---------- */
-.msgs{max-width:780px;margin:0 auto;display:grid;gap:20px;padding-bottom:8px}
+.msgs{max-width:780px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr);gap:20px;padding-bottom:8px}
+.msgs > *{min-width:0}
 .msg{display:flex;gap:12px;align-items:flex-start;animation:rise .35s var(--ease) both}
 .msg.me{flex-direction:column;align-items:flex-end;gap:6px}
-.msg.me .bubble{background:var(--accent);color:var(--accent-ink);border-radius:18px 18px 4px 18px;padding:10px 16px;max-width:78%;
-  white-space:pre-wrap;overflow-wrap:anywhere;box-shadow:0 4px 14px var(--accent-soft)}
-.msg.bot .bubble{flex:1;min-width:0;padding-top:3px}
+.msg.me .bubble{background:var(--surface-2);color:var(--fg);border-radius:20px;padding:10px 16px;max-width:78%;
+  white-space:pre-wrap;overflow-wrap:anywhere}
+.msg.bot .bubble{flex:1;min-width:0;max-width:100%;padding-top:3px}
 .bot-avatar{width:30px;height:30px;flex:none;display:block}
 .error-msg .bubble{color:var(--crit);background:var(--crit-bg);border-radius:10px;padding:10px 14px}
 
@@ -66,6 +67,8 @@
   cursor:pointer;padding:5px 7px;border-radius:7px;transition:color .15s,background-color .15s}
 .msg-actions button:hover,.msg-actions button.on{color:var(--fg);background:var(--hover)}
 .msg-actions button.on{color:var(--accent)}
+.msg-actions button.on.down{color:var(--crit)}
+.msg-actions button.on svg{animation:star-pop .45s var(--ease)}
 @media (hover:none){.msg-actions{opacity:1}}
 
 /* Editing a sent message */
@@ -86,9 +89,11 @@
 .md code{font-family:var(--mono);font-size:.84em;background:var(--surface-2);padding:2px 6px;border-radius:5px}
 .md pre{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px 14px;overflow-x:auto}
 .md pre code{background:none;padding:0;font-size:.82rem;line-height:1.55;white-space:pre}
-.md-table{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
-.md table{border-collapse:collapse;width:100%;font-size:.88rem;line-height:1.5}
-.md th,.md td{padding:8px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.md-table{overflow-x:auto;border:1px solid var(--line);border-radius:10px;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
+.md table{border-collapse:collapse;width:max-content;min-width:100%;font-size:.88rem;line-height:1.5}
+.md th,.md td{padding:8px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top;min-width:90px;max-width:260px;
+  overflow-wrap:break-word;word-break:normal;hyphens:auto}
+.md th + th,.md td + td{border-left:1px solid var(--line)}
 .md th{background:var(--surface-2);font-weight:650;white-space:nowrap}
 .md tr:last-child td{border-bottom:0}
 .md tbody tr:hover td{background:var(--hover)}
@@ -192,3 +197,31 @@
 /* Waiting for the AI service (free plan limit) */
 .ai-wait{margin:8px 0 0;font-size:.8rem;color:var(--muted);display:flex;align-items:center;gap:6px;animation:fade-in .2s both}
 .ai-wait::before{content:'';width:12px;height:12px;border-radius:50%;border:2px solid var(--line-strong);border-top-color:var(--accent);animation:spin .9s linear infinite}
+
+/* ---------- Phones: a full-screen chat like Notion ---------- */
+@media (max-width:900px){
+  .page.page-chat{padding:0;max-width:none}
+  .page-chat .page-head{display:none}
+  .chat{height:calc(100dvh - 53px - env(safe-area-inset-top) - env(safe-area-inset-bottom));min-height:0;border:0;border-radius:0;background:var(--bg);animation:none}
+  .chat-top{border-bottom:1px solid transparent;padding:6px 8px 6px 12px;min-height:44px}
+  .chat-scroll{padding:12px 16px 12px}
+  .msgs{gap:22px}
+  .bot-avatar{display:none}
+  .msg.bot .bubble{padding-top:0}
+  .msg.me .bubble{max-width:85%;font-size:1rem}
+  .md{font-size:1rem;line-height:1.6}
+  .md table{font-size:.9rem}
+  .md th,.md td{max-width:200px;min-width:110px}
+  .md-table{background:linear-gradient(to left,transparent,var(--bg) 70%) left/24px 100% no-repeat local,linear-gradient(to right,transparent,var(--bg) 70%) right/24px 100% no-repeat local,radial-gradient(farthest-side at 100% 50%,color-mix(in srgb,var(--fg) 16%,transparent),transparent) right/10px 100% no-repeat scroll}
+  .msg-actions{gap:4px;margin-left:-6px}
+  .msg-actions button{padding:6px}
+  .msg-actions button span{display:none}
+  .composer-wrap{border-top:0;padding:6px 10px calc(8px + env(safe-area-inset-bottom));background:var(--bg)}
+  .composer{border-radius:24px;padding:6px 6px 6px 14px;background:var(--surface-2);border-color:transparent}
+  .composer:focus-within{box-shadow:none;border-color:var(--line-strong)}
+  .composer textarea{font-size:16px;padding:8px 0 4px}
+  .composer-note{display:none}
+  .send{border-radius:50%;width:36px;height:36px}
+  .chat-empty{padding:8px 4px 16px}
+  .chat-empty h2{font-size:1.4rem}
+}

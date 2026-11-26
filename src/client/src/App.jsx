@@ -181,7 +181,7 @@ function Shell() {
           <span className="topbar-title">Study Assistant</span>
         </div>
         {/* key: a new page animates in when the section changes (not when moving between notes) */}
-        <main className={`page ${pageFor(pathname).bare ? 'page-wide' : ''}`} key={pathname.split('/')[1] || 'home'}>
+        <main className={`page page-${pathname.split('/')[1] || 'home'} ${pageFor(pathname).bare ? 'page-wide' : ''}`} key={pathname.split('/')[1] || 'home'}>
           <PageHeader />
           {loading ? <Skeleton /> : (
             <Suspense fallback={<Skeleton />}>

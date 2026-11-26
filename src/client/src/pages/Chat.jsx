@@ -522,6 +522,14 @@ export default function Chat() {
     run([...messages.slice(0, i), { ...m, content: text.trim() }]);
   };
 
+  /** Thumbs up / down, saved so the team can see which answers help */
+  const rate = (i, rating) => {
+    const next = messages[i].rating === rating ? null : rating;
+    setMessages((ms) => ms.map((x, k) => (k === i ? { ...x, rating: next } : x)));
+    if (next) api.post('/notes/feedback', { where: 'ask-ai', rating: next, prompt: messages[i - 1]?.content || '', answer: messages[i].content })
+      .then(() => notify(next === 'up' ? 'Thanks for the feedback!' : 'Thanks. This helps us improve the AI.')).catch(() => {});
+  };
+
   const newChat = async () => {
     await leave();
     savedRef.current = '';
@@ -772,6 +780,16 @@ export default function Chat() {
                         <button type="button" onClick={() => toggleRead(i)} title={speaking === i ? 'Stop reading' : 'Read aloud'} aria-label="Read aloud" className={speaking === i ? 'on' : ''}>
                           <Icon name={speaking === i ? 'stop' : 'volume'} size={14} /><span>{speaking === i ? 'Stop' : 'Read aloud'}</span>
                         </button>
+                      )}
+                      {!m.error && m.content && (
+                        <>
+                          <button type="button" onClick={() => rate(i, 'up')} title="Good answer" aria-label="Good answer" className={m.rating === 'up' ? 'on' : ''}>
+                            <Icon name="thumbUp" size={14} />
+                          </button>
+                          <button type="button" onClick={() => rate(i, 'down')} title="Bad answer" aria-label="Bad answer" className={m.rating === 'down' ? 'on down' : ''}>
+                            <Icon name="thumbDown" size={14} />
+                          </button>
+                        </>
                       )}
                       {i === lastBot && !busy && (
                         <button type="button" onClick={retry} title="Try again" aria-label="Try again"><Icon name="refresh" size={14} /><span>Retry</span></button>

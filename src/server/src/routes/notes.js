@@ -205,7 +205,7 @@ r.post('/chat', h(notesChat));
 r.post('/feedback', h(async (req, res) => {
   const b = req.body || {};
   if (b.rating !== 'up' && b.rating !== 'down') throw new HttpError(400, 'Rating must be up or down');
-  await Feedback.create({ user: req.userId, where: 'notes-ai', rating: b.rating,
+  await Feedback.create({ user: req.userId, where: b.where === 'ask-ai' ? 'ask-ai' : 'notes-ai', rating: b.rating,
     prompt: String(b.prompt || '').slice(0, 2000), answer: String(b.answer || '').slice(0, 4000) });
   res.status(201).json({ ok: true });
 }));
