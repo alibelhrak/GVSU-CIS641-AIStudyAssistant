@@ -626,7 +626,7 @@ export default function Chat() {
           <button className="icon-btn" type="button" onClick={() => setPanel(false)} aria-label="Hide chat history" title="Hide"><Icon name="sidebar" size={17} /></button>
         </div>
         <button className="btn primary sm history-new" type="button" onClick={newChat}><Icon name="plus" size={15} /> New chat</button>
-        <div className="history-list">
+        <div className="history-list fade-scroll">
           {history.length === 0 && <p className="history-empty">Your conversations will be saved here, so you can come back to them.</p>}
           {groups.map(([label, items]) => (
             <div key={label}>

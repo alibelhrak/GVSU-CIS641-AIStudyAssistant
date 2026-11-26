@@ -15,7 +15,7 @@ import { thinkFilter } from './chat.js';
 
 const r = Router();
 const MAX_CONTENT = 3_000_000;          // characters of editor data per note (pictures included)
-const LIST_FIELDS = 'title icon cover parent course favorite updatedAt createdAt';
+const LIST_FIELDS = 'title icon parent course favorite updatedAt createdAt';
 
 const mine = (req) => {
   if (!mongoose.isValidObjectId(req.params.id)) throw new HttpError(404, 'Note not found');
@@ -61,7 +61,13 @@ function pick(body = {}) {
   if (typeof body.title === 'string') out.title = body.title.slice(0, 200);
   if (typeof body.icon === 'string') out.icon = body.icon.slice(0, 16);
   if (typeof body.favorite === 'boolean') out.favorite = body.favorite;
-  if (typeof body.cover === 'string') out.cover = body.cover.slice(0, 40);
+  if (typeof body.cover === 'string') {
+    const ok = body.cover === '' || /^[a-z]{2,20}$/.test(body.cover)
+      || (body.cover.length <= 1_500_000 && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/.test(body.cover));
+    if (!ok) throw new HttpError(400, 'That cover picture is too big or not a picture. Try a JPG or PNG.');
+    out.cover = body.cover;
+  }
+  if (typeof body.coverY === 'number' && Number.isFinite(body.coverY)) out.coverY = Math.min(100, Math.max(0, Math.round(body.coverY)));
   if (body.parent !== undefined) out.parent = body.parent || null;
   if (body.course !== undefined) out.course = body.course || null;
   if (typeof body.markdown === 'string') out.markdown = body.markdown.slice(0, 100000);
@@ -221,7 +227,7 @@ r.patch('/:id', h(async (req, res) => {
   await checkRefs(req.userId, data, req.params.id);
   const note = await Note.findOneAndUpdate(mine(req), data, { new: true, runValidators: true });
   if (!note) throw new HttpError(404, 'Note not found');
-  const { content, text, ...meta } = note.toJSON();   // the editor already has the content
+  const { content, text, cover, ...meta } = note.toJSON();   // the editor already has these
   res.json(meta);
 }));
 

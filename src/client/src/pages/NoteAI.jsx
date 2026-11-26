@@ -197,7 +197,7 @@ export function NoteAI({ editor, ctx, title, start, onClose, notify }) {
         <div className="note-ai-quote"><span>Selected</span>{ctx.selection.slice(0, 220)}{ctx.selection.length > 220 ? '…' : ''}</div>
       )}
       {(phase !== 'ask' || result) && (
-        <div className="note-ai-result">
+        <div className="note-ai-result fade-scroll">
           {result
             ? <div className="md" dangerouslySetInnerHTML={{ __html: markdown(result) }} />
             : <span className="thinking"><i /><i /><i /></span>}
@@ -220,7 +220,7 @@ export function NoteAI({ editor, ctx, title, start, onClose, notify }) {
           </button>
         )}
       </div>
-      <div className="note-ai-menu" role="menu">
+      <div className="note-ai-menu fade-scroll" role="menu">
         {phase === 'ask' && (
           <>
             <p className="history-group">{where}</p>

@@ -399,3 +399,23 @@ input[type=checkbox]:checked::after{transform:rotate(45deg) scale(1)}
 @keyframes fade-in{from{opacity:0}}
 @media (max-width:680px){.install-btn span{display:none}.install-btn{padding:8px 10px}}
 
+
+/* ---------- Scrollbars: thin, in the theme's colors, and only clear when you need them ---------- */
+:root{--scroll-thumb:color-mix(in srgb,var(--fg) 22%,transparent);--scroll-thumb-hover:color-mix(in srgb,var(--fg) 40%,transparent)}
+/* Firefox; Chrome and Edge use the ::-webkit rules (they ignore them when scrollbar-color is set) */
+@supports not selector(::-webkit-scrollbar){*{scrollbar-width:thin;scrollbar-color:var(--scroll-thumb) transparent}}
+::-webkit-scrollbar{width:10px;height:10px;background:transparent}
+::-webkit-scrollbar-track,::-webkit-scrollbar-corner{background:transparent}
+::-webkit-scrollbar-button{display:none;width:0;height:0}
+::-webkit-scrollbar-thumb{border-radius:10px;border:3px solid transparent;background-clip:padding-box;background-color:var(--scroll-thumb);min-height:36px}
+::-webkit-scrollbar-thumb:hover{border-width:2px;background-color:var(--scroll-thumb-hover)}
+::-webkit-scrollbar-thumb:active{border-width:2px;background-color:var(--accent)}
+/* Inner lists and menus: the bar fades in while you point at them */
+@supports selector(::-webkit-scrollbar){
+  .fade-scroll{color:transparent;transition:color .35s ease}
+  .fade-scroll > *{color:var(--fg)}
+  .fade-scroll:hover,.fade-scroll:focus-within{color:var(--scroll-thumb)}
+  .fade-scroll::-webkit-scrollbar-thumb{background-color:transparent;box-shadow:inset 0 0 0 10px}
+  .fade-scroll::-webkit-scrollbar-thumb:hover{box-shadow:inset 0 0 0 10px var(--scroll-thumb-hover)}
+}
+@media (hover:none){::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-thumb{border-width:0}}

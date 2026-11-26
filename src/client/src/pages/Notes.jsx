@@ -269,6 +269,118 @@ function NoteEditor({ note, dark, onChange, onReady, onAi }) {
   );
 }
 
+/* ---------- Covers: a gradient, or a picture from the computer or phone ---------- */
+const isPicture = (c) => typeof c === 'string' && c.startsWith('data:image/');
+function coverStyle(note) {
+  if (isPicture(note?.cover)) return { backgroundImage: `url("${note.cover}")`, backgroundPosition: `center ${note.coverY ?? 50}%`, backgroundSize: 'cover' };
+  const preset = COVERS[note?.cover];
+  return preset ? { background: preset.bg } : null;
+}
+
+/** Makes a cover picture smaller (wide side 1800px) so it saves fast */
+async function readCover(file) {
+  if (!file?.type?.startsWith('image/')) throw new Error('Choose a picture (JPG, PNG, HEIC or WebP)');
+  if (file.size > 25 * 1048576) throw new Error('That picture is larger than 25 MB');
+  let bitmap;
+  try { bitmap = await createImageBitmap(file); } catch { throw new Error('This picture type cannot be read here. Try a JPG or PNG.'); }
+  const scale = Math.min(1, 1800 / bitmap.width);
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+  canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  for (const q of [0.82, 0.7, 0.55, 0.4]) {
+    const url = canvas.toDataURL('image/jpeg', q);
+    if (url.length < 1_400_000) return url;
+  }
+  throw new Error('That picture is too detailed. Try a smaller one.');
+}
+
+function CoverPicker({ note, setMeta, close, notify }) {
+  const fileRef = useRef(null);
+  const [busy, setBusy] = useState(false);
+  const upload = async (file) => {
+    if (!file) return;
+    setBusy(true);
+    try {
+      setMeta({ cover: await readCover(file), coverY: 50 }, true);
+      close();
+    } catch (err) {
+      notify(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="pop-menu cover-grid" role="menu">
+      <button type="button" className="cover-upload" onClick={() => fileRef.current?.click()} disabled={busy}>
+        <Icon name="image" size={16} />
+        <span><b>{busy ? 'Adding your picture…' : 'Upload your own picture'}</b><small>From your computer or phone · or drop it on the cover</small></span>
+      </button>
+      <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => { upload(e.target.files?.[0]); e.target.value = ''; }} />
+      {Object.entries(COVERS).map(([k, c]) => (
+        <button key={k} type="button" title={c.label} className={`${c.moving ? 'moving' : ''} ${note.cover === k ? 'on' : ''}`} style={{ background: c.bg }}
+          onClick={() => { setMeta({ cover: k }, true); close(); }}><span>{c.label}</span></button>
+      ))}
+    </div>
+  );
+}
+
+function Cover({ note, setMeta, open, setOpen, notify }) {
+  const [moving, setMoving] = useState(null);         // the position while repositioning
+  const [drop, setDrop] = useState(false);
+  const drag = useRef(null);
+  const ref = useRef(null);
+  const picture = isPicture(note.cover);
+  const style = coverStyle(moving == null ? note : { ...note, coverY: moving });
+
+  const down = (e) => {
+    if (moving == null) return;
+    e.preventDefault();
+    drag.current = { y: e.clientY, start: moving };
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+  };
+  const move = (e) => {
+    if (!drag.current) return;
+    const h = ref.current?.offsetHeight || 200;
+    setMoving(Math.min(100, Math.max(0, drag.current.start - ((e.clientY - drag.current.y) / h) * 100)));
+  };
+  const onDrop = async (e) => {
+    e.preventDefault();
+    setDrop(false);
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+    try { setMeta({ cover: await readCover(file), coverY: 50 }, true); } catch (err) { notify(err.message); }
+  };
+
+  return (
+    <div ref={ref} style={style}
+      className={`note-cover ${COVERS[note.cover]?.moving ? 'moving' : ''} ${moving != null ? 'repositioning' : ''} ${drop ? 'dropping' : ''}`}
+      onPointerDown={down} onPointerMove={move} onPointerUp={() => { drag.current = null; }}
+      onDragOver={(e) => { if (e.dataTransfer.types.includes('Files')) { e.preventDefault(); setDrop(true); } }}
+      onDragLeave={() => setDrop(false)} onDrop={onDrop}>
+      {moving != null && <span className="cover-hint">Drag the picture to reposition</span>}
+      {drop && <span className="cover-hint">Drop to use this picture</span>}
+      <div className="cover-tools">
+        {moving != null ? (
+          <>
+            <button type="button" onClick={() => { setMeta({ coverY: Math.round(moving) }, true); setMoving(null); }}>Save position</button>
+            <button type="button" onClick={() => setMoving(null)}>Cancel</button>
+          </>
+        ) : (
+          <>
+            <div className="pop-wrap">
+              <button type="button" onClick={() => setOpen((v) => !v)}>Change cover</button>
+              {open && <CoverPicker note={note} setMeta={setMeta} close={() => setOpen(false)} notify={notify} />}
+            </div>
+            {picture && <button type="button" onClick={() => { setOpen(false); setMoving(note.coverY ?? 50); }}>Reposition</button>}
+            <button type="button" onClick={() => setMeta({ cover: '' }, true)}>Remove</button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function TreeItem({ note, depth, byParent, currentId, expanded, toggle, onOpen, onAdd, confirmDel, setConfirmDel, onDelete, courseColor }) {
   const kids = byParent.get(note.id) || [];
   const open = expanded.has(note.id);
@@ -520,7 +632,7 @@ export default function Notes() {
           <Icon name="search" size={15} />
           <input type="search" placeholder="Search notes" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search notes" />
         </label>
-        <div className="history-list">
+        <div className="history-list fade-scroll">
           {notes === null && <div className="chat-loading"><span className="thinking"><i /><i /><i /></span></div>}
           {results ? (
             <>
@@ -622,23 +734,10 @@ export default function Notes() {
             <div className="chat-loading"><span className="thinking"><i /><i /><i /></span></div>
           ) : current ? (
             <Fragment key={current.id}>
-            {COVERS[current.cover] && (
-              <div className={`note-cover ${COVERS[current.cover].moving ? 'moving' : ''}`} style={{ background: COVERS[current.cover].bg }}>
-                <div className="cover-tools">
-                  <div className="pop-wrap">
-                    <button type="button" onClick={() => setCoverOpen((v) => !v)}>Change cover</button>
-                    {coverOpen && <div className="pop-menu cover-grid" role="menu">
-                      {Object.entries(COVERS).map(([k, c]) => (
-                        <button key={k} type="button" title={c.label} className={`${c.moving ? 'moving' : ''} ${current.cover === k ? 'on' : ''}`} style={{ background: c.bg }}
-                          onClick={() => { setMeta({ cover: k }, true); setCoverOpen(false); }}><span>{c.label}</span></button>
-                      ))}
-                    </div>}
-                  </div>
-                  <button type="button" onClick={() => setMeta({ cover: '' }, true)}>Remove</button>
-                </div>
-              </div>
+            {coverStyle(current) && (
+              <Cover note={current} setMeta={setMeta} open={coverOpen} setOpen={setCoverOpen} notify={notify} />
             )}
-            <article className={`note-page ${COVERS[current.cover] ? 'has-cover' : ''} ${entering ? 'entering' : ''}`}>
+            <article className={`note-page ${coverStyle(current) ? 'has-cover' : ''} ${entering ? 'entering' : ''}`}>
               {current.icon && (
                 <div className="note-icon-row">
                   <div className="pop-wrap">
@@ -663,15 +762,10 @@ export default function Notes() {
                     )}
                   </div>
                 )}
-                {!COVERS[current.cover] && (
+                {!coverStyle(current) && (
                   <div className="pop-wrap">
                     <button type="button" className="add-icon" onClick={() => setCoverOpen((v) => !v)}><Icon name="image" size={15} /> Add cover</button>
-                    {coverOpen && <div className="pop-menu cover-grid" role="menu">
-                      {Object.entries(COVERS).map(([k, c]) => (
-                        <button key={k} type="button" title={c.label} className={`${c.moving ? 'moving' : ''} ${current.cover === k ? 'on' : ''}`} style={{ background: c.bg }}
-                          onClick={() => { setMeta({ cover: k }, true); setCoverOpen(false); }}><span>{c.label}</span></button>
-                      ))}
-                    </div>}
+                    {coverOpen && <CoverPicker note={current} setMeta={setMeta} close={() => setCoverOpen(false)} notify={notify} />}
                   </div>
                 )}
               </div>

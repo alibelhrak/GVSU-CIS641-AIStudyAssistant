@@ -118,7 +118,8 @@ export const Note = model('Note', new Schema({
   course: { type: Schema.Types.ObjectId, ref: 'Course', default: null },
   title: { type: String, default: '', trim: true, maxlength: 200 },
   icon: { type: String, default: '', maxlength: 16 },
-  cover: { type: String, default: '', maxlength: 40 },
+  cover: { type: String, default: '', maxlength: 1_500_000 },   // a preset name or a picture (data URL)
+  coverY: { type: Number, default: 50, min: 0, max: 100 },       // which part of the picture shows (top 0 - bottom 100)
   favorite: { type: Boolean, default: false },
   content: { type: [Schema.Types.Mixed], default: [] },
   text: { type: String, default: '' },   // plain text of the content, for search and for the AI
