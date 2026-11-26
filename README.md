@@ -54,6 +54,8 @@ Built for **CIS 641 (Software Engineering)** at Grand Valley State University.
 
 ## What's new
 
+- **Code blocks in Notes (November 2026):** type ``` or pick *Code* in the / menu. Choose from about 45 languages (Python, Java, C++, SQL, JavaScript ...), get syntax highlighting in light and dark themes, and copy the code with one click. Code written by the AI is highlighted too.
+- **Hide the sidebar (November 2026):** click « at the top of the sidebar or press `Ctrl+\` for more room; touch the left edge to peek at it, or click the button in the corner to bring it back.
 - **Settings (November 2026):** one window for your account, appearance, language and region, notifications and your data, with fonts, text size, reduce motion, data export, password and email changes, and "sign out of other devices".
 - **Languages (November 2026):** the app now works in English, French, Spanish, Arabic, Chinese and Hindi. Pick one with the 🌐 menu on the welcome page and the sign-in page, or in **Settings › Language & region**. Your choice is saved to your account.
 - **Notes (November 2026):** a Notion-style notes space with sub-pages, covers (including your own pictures), icons, favorites, course tags and search.

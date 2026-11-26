@@ -685,3 +685,33 @@ select.set-input{padding-inline-end:28px}
 }
 [dir="rtl"] .toggle span{left:auto;right:3px}
 [dir="rtl"] .toggle.on span{transform:translateX(-18px)}
+
+/* ---------- Hide / show the sidebar (computers only; phones use the slide-out menu) ---------- */
+.side-hide,.side-open,.side-edge{display:none}
+@media (min-width:901px){
+  .app{transition:grid-template-columns .26s var(--ease)}
+  .sidebar{overflow-x:hidden}
+  .sidebar > *{min-width:calc(var(--side-w) - 17px)}   /* keeps the text from squeezing while it slides */
+  .side-hide{display:grid;width:28px;height:28px;flex:none;opacity:0;color:var(--faint);transition:opacity .15s,background-color .15s,color .15s}
+  .sidebar:hover .side-hide,.side-hide:focus-visible{opacity:1}
+  .side-hide:hover{color:var(--fg)}
+  [dir="rtl"] .side-hide svg{transform:scaleX(-1)}
+  .app.side-hidden{grid-template-columns:0 minmax(0,1fr)}
+  .sidebar{transition:padding .26s var(--ease),visibility 0s}
+  .app.side-hidden .sidebar{border-right-color:transparent;border-left-color:transparent;padding-inline:0;visibility:hidden;
+    transition:padding .26s var(--ease),visibility 0s .26s}   /* hide fully once it has slid away */
+  .app.side-hidden .side-hide{display:none}
+  /* While hidden, a small button in the corner brings it back */
+  .side-open{display:grid;position:fixed;top:12px;left:12px;z-index:28;width:34px;height:34px;background:var(--surface);border:1px solid var(--line);
+    box-shadow:0 2px 8px rgba(0,0,0,.08);animation:fade-in .25s ease both}
+  [dir="rtl"] .side-open{left:auto;right:12px}
+  /* ...and touching the left edge (or that button) shows it as a floating panel */
+  .side-edge{display:block;position:fixed;top:0;bottom:0;left:0;width:14px;z-index:27}
+  [dir="rtl"] .side-edge{left:auto;right:0}
+  .app.side-hidden.peek .sidebar{visibility:visible;padding:10px 8px;transition:none;position:fixed;z-index:40;top:56px;left:8px;width:var(--side-w);height:calc(100vh - 112px);border:1px solid var(--line);
+    border-radius:12px;box-shadow:var(--shadow-lg);animation:peek-in .2s var(--ease) both}
+  [dir="rtl"] .app.side-hidden.peek .sidebar{left:auto;right:8px;animation-name:peek-in-rtl}
+  @keyframes peek-in{from{opacity:0;transform:translateX(-24px)}to{opacity:1;transform:none}}
+  @keyframes peek-in-rtl{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:none}}
+  .app.side-hidden.peek .side-hide{display:none}
+}

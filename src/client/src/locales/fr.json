@@ -754,5 +754,10 @@
 "Choose a password you have not used here before": "Choisissez un mot de passe que vous n’avez pas encore utilisé ici",
 "Enter a name (up to {n} characters)": "Saisissez un nom ({n} caractères max.)",
 "This is already your email": "C’est déjà votre e-mail",
-"You were signed out. Sign in again": "Vous avez été déconnecté. Reconnectez-vous"
+"You were signed out. Sign in again": "Vous avez été déconnecté. Reconnectez-vous",
+"Hide sidebar": "Masquer la barre latérale",
+"Show sidebar": "Afficher la barre latérale",
+"Hide sidebar (Ctrl+\\)": "Masquer la barre latérale (Ctrl+\\)",
+"Show sidebar (Ctrl+\\)": "Afficher la barre latérale (Ctrl+\\)",
+"Hide or show the sidebar": "Masquer ou afficher la barre latérale"
 }

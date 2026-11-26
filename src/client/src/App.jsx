@@ -49,20 +49,24 @@ const PAGES = [
     title: () => 'Ask AI', sub: 'Chat with an AI study coach that knows your courses, deadlines and study hours.' },
 ];
 
-function Sidebar({ onNavigate, onSettings }) {
+const SIDE_KEY = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘\\' : 'Ctrl+\\';
+const readHidden = () => { try { return localStorage.getItem('sa-sidebar') === 'hidden'; } catch { return false; } };
+
+function Sidebar({ onNavigate, onSettings, onHide, onLeave }) {
   const { user } = useAuth();
   const { courses, tasks, recs } = useData();
   const dueSoon = tasks.filter((t) => !t.done && daysUntil(t.dueDate) >= 0 && daysUntil(t.dueDate) <= 7).length;
   const badge = { '/': recs.length, '/tasks': dueSoon };
 
   return (
-    <aside className="sidebar">
+    <aside className="sidebar" onMouseLeave={onLeave}>
       <div className="side-top">
         <button type="button" className="workspace" onClick={() => { onNavigate(); onSettings('account'); }} title="Account settings">
           <span className="avatar">{user.name.trim()[0]?.toUpperCase() || '?'}</span>
           <div className="ws-text"><b>{user.name.split(' ')[0]}'s Study Space</b><span>{user.email}</span></div>
         </button>
         <button className="icon-btn only-mobile" type="button" onClick={onNavigate} aria-label="Close menu"><Icon name="close" /></button>
+        <button className="icon-btn side-hide" type="button" onClick={onHide} aria-label="Hide sidebar" title={`Hide sidebar (${SIDE_KEY})`}><Icon name="hideSide" size={17} /></button>
       </div>
 
       <nav className="side-nav">
@@ -153,20 +157,39 @@ function Shell() {
   const [open, setOpen] = useState(false);
   const [settings, setSettings] = useState(null);     // null, or the section to open
   const [reminders, setReminders] = useState(false);
+  // Desktop: the sidebar can be hidden (remembered on this device); while hidden it can "peek" on hover
+  const [hidden, setHidden] = useState(readHidden);
+  const [peek, setPeek] = useState(false);
+  const hide = (value) => {
+    setHidden(value); setPeek(false);
+    try { localStorage.setItem('sa-sidebar', value ? 'hidden' : 'shown'); } catch { /* private mode */ }
+  };
   useEffect(() => { window.scrollTo({ top: 0 }); }, [pathname]);
   usePrefsSync();
   // Open on the page chosen in Settings (only when the app starts on the home address)
   useEffect(() => { if (pathname === '/' && START[prefs.startPage]) navigate(START[prefs.startPage], { replace: true }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   // Ctrl+, (or Cmd+,) opens Settings, like in most desktop apps
   useEffect(() => {
-    const key = (e) => { if ((e.ctrlKey || e.metaKey) && e.key === ',') { e.preventDefault(); setSettings((s) => (s ? null : 'account')); } };
+    const key = (e) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      if (e.key === ',') { e.preventDefault(); setSettings((s) => (s ? null : 'account')); }
+      // Ctrl+\ hides or shows the sidebar, like in Notion
+      if (e.key === '\\') { e.preventDefault(); setHidden((h) => { try { localStorage.setItem('sa-sidebar', h ? 'shown' : 'hidden'); } catch { /* ignore */ } return !h; }); setPeek(false); }
+    };
     document.addEventListener('keydown', key);
     return () => document.removeEventListener('keydown', key);
   }, []);
 
   return (
-    <div className={`app ${open ? 'menu-open' : ''}`}>
-      <Sidebar onNavigate={() => setOpen(false)} onSettings={setSettings} />
+    <div className={`app ${open ? 'menu-open' : ''} ${hidden ? 'side-hidden' : ''} ${hidden && peek ? 'peek' : ''}`}>
+      <Sidebar onNavigate={() => setOpen(false)} onSettings={setSettings} onHide={() => hide(true)} onLeave={() => setPeek(false)} />
+      {hidden && (
+        <>
+          <div className="side-edge" onMouseEnter={() => setPeek(true)} aria-hidden="true" />
+          <button type="button" className="icon-btn side-open" onClick={() => hide(false)} onMouseEnter={() => setPeek(true)}
+            aria-label="Show sidebar" title={`Show sidebar (${SIDE_KEY})`}><Icon name="sidebar" size={18} /></button>
+        </>
+      )}
       {settings && <SettingsPanel start={settings} onClose={() => setSettings(null)} onOpenReminders={() => { setSettings(null); setReminders(true); }} />}
       {reminders && <RemindersPanel onClose={() => setReminders(false)} />}
       <div className="scrim" onClick={() => setOpen(false)} aria-hidden="true" />

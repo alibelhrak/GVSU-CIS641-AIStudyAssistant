@@ -862,5 +862,10 @@
 "Choose a password you have not used here before": "ऐसा पासवर्ड चुनें जो आपने यहाँ पहले इस्तेमाल न किया हो",
 "Enter a name (up to {n} characters)": "नाम डालें ({n} अक्षर तक)",
 "This is already your email": "यह पहले से आपका ईमेल है",
-"You were signed out. Sign in again": "आप साइन आउट हो गए। फिर से साइन इन करें"
+"You were signed out. Sign in again": "आप साइन आउट हो गए। फिर से साइन इन करें",
+"Hide sidebar": "साइडबार छिपाएँ",
+"Show sidebar": "साइडबार दिखाएँ",
+"Hide sidebar (Ctrl+\\)": "साइडबार छिपाएँ (Ctrl+\\)",
+"Show sidebar (Ctrl+\\)": "साइडबार दिखाएँ (Ctrl+\\)",
+"Hide or show the sidebar": "साइडबार छिपाएँ या दिखाएँ"
 }

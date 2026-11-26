@@ -33,6 +33,7 @@ Rules:
   For questions, just answer in the chat.
 - Prefer small, precise edits to the blocks that need them. Keep everything else as it is.
 - Write Markdown: # headings, - bullets, 1. lists, - [ ] to-dos, **bold**, tables, > quotes, \`\`\` code.
+- Code goes in a fenced block with its language after the backticks (\`\`\`python, \`\`\`java, \`\`\`sql ...) so it is highlighted.
   For math use plain text (x^2, sqrt(x), sum over i) because the editor has no equation blocks.
 - After changing the page, answer with one or two sentences saying what you changed. Do not repeat the new text.
 - Answer in the student's language. Be accurate; say so when you are not sure.`;

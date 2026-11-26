@@ -762,5 +762,10 @@
 "Choose a password you have not used here before": "Elige una contraseña que no hayas usado aquí antes",
 "Enter a name (up to {n} characters)": "Escribe un nombre (hasta {n} caracteres)",
 "This is already your email": "Este ya es tu correo",
-"You were signed out. Sign in again": "Se cerró tu sesión. Inicia sesión de nuevo"
+"You were signed out. Sign in again": "Se cerró tu sesión. Inicia sesión de nuevo",
+"Hide sidebar": "Ocultar la barra lateral",
+"Show sidebar": "Mostrar la barra lateral",
+"Hide sidebar (Ctrl+\\)": "Ocultar la barra lateral (Ctrl+\\)",
+"Show sidebar (Ctrl+\\)": "Mostrar la barra lateral (Ctrl+\\)",
+"Hide or show the sidebar": "Ocultar o mostrar la barra lateral"
 }

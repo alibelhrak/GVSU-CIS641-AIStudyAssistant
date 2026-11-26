@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { filterSuggestionItems } from '@blocknote/core';
+import { BlockNoteSchema, createCodeBlockSpec, defaultBlockSpecs, filterSuggestionItems } from '@blocknote/core';
+import { codeBlockOptions, syntaxHighlighter } from '@blocknote/code-block';
 import { en, fr, es, ar, zh } from '@blocknote/core/locales';
 import { getLang, locale, t } from '../lib/i18n.jsx';
 import {
@@ -234,8 +235,52 @@ const DICTIONARY = {
 };
 const englishEditor = base === en;
 
+/** Code blocks like Notion: a language picker and syntax highlighting for about 45 languages */
+const SCHEMA = BlockNoteSchema.create({
+  blockSpecs: { ...defaultBlockSpecs, codeBlock: createCodeBlockSpec({ ...codeBlockOptions, defaultLanguage: 'text' }) },
+});
+
+/** A "Copy" button that appears on the code block under the mouse */
+function CodeCopy({ wrap, editor }) {
+  const [box, setBox] = useState(null);   // { el, top, right }
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    const root = wrap.current;
+    if (!root) return undefined;
+    const move = (e) => {
+      if (e.target.closest?.('.code-copy')) return;
+      const el = e.target.closest?.('[data-content-type="codeBlock"]');
+      if (!el) { setBox(null); return; }
+      const r = el.getBoundingClientRect(); const w = root.getBoundingClientRect();
+      const id = el.closest('[data-id]')?.getAttribute('data-id');
+      setBox((b) => (b?.id === id ? b : { id, top: r.top - w.top + 6, right: w.right - r.right + 8 }));
+      setCopied(false);
+    };
+    const leave = () => setBox(null);
+    root.addEventListener('mousemove', move);
+    root.addEventListener('mouseleave', leave);
+    return () => { root.removeEventListener('mousemove', move); root.removeEventListener('mouseleave', leave); };
+  }, [wrap]);
+  if (!box) return null;
+  const copy = async () => {
+    // read the code from the editor itself (the screen copy is redrawn while it is highlighted)
+    const block = editor.getBlock(box.id);
+    const text = Array.isArray(block?.content) ? block.content.map((c) => c.text || '').join('') : '';
+    try { await navigator.clipboard.writeText(text.replace(/\n$/, '')); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch { /* clipboard blocked */ }
+  };
+  return (
+    <button type="button" className={`code-copy ${copied ? 'done' : ''}`} style={{ top: box.top, right: box.right }}
+      onMouseDown={(e) => e.preventDefault()} onClick={copy}>
+      <Icon name={copied ? 'tick' : 'copy'} size={14} /> {copied ? 'Copied' : 'Copy'}
+    </button>
+  );
+}
+
 function NoteEditor({ note, dark, onChange, onReady, onAi }) {
+  const wrap = useRef(null);
   const editor = useCreateBlockNote({
+    schema: SCHEMA,
+    extensions: [syntaxHighlighter],
     initialContent: note.content?.length ? note.content : undefined,
     uploadFile,
     dictionary: DICTIONARY,
@@ -257,6 +302,8 @@ function NoteEditor({ note, dark, onChange, onReady, onAi }) {
   const getItems = async (query) => { slashQuery.text = query; return filterSuggestionItems(slashItems(editor, onAi), query); };
 
   return (
+    <div className="note-editor-wrap" ref={wrap}>
+    <CodeCopy wrap={wrap} editor={editor} />
     <BlockNoteView editor={editor} theme={dark ? { dark: EDITOR_THEME, light: EDITOR_THEME } : EDITOR_THEME}
       data-color-scheme={dark ? 'dark' : 'light'} onChange={() => onChange(editor.document)}
       slashMenu={false} formattingToolbar={false}>
@@ -268,6 +315,7 @@ function NoteEditor({ note, dark, onChange, onReady, onAi }) {
         </FormattingToolbar>
       )} />
     </BlockNoteView>
+    </div>
   );
 }
 

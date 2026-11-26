@@ -770,5 +770,10 @@
 "Choose a password you have not used here before": "اختر كلمة مرور لم تستخدمها هنا من قبل",
 "Enter a name (up to {n} characters)": "أدخل اسمًا (حتى {n} حرفًا)",
 "This is already your email": "هذا بريدك الحالي بالفعل",
-"You were signed out. Sign in again": "تم تسجيل خروجك. سجّل الدخول مجددًا"
+"You were signed out. Sign in again": "تم تسجيل خروجك. سجّل الدخول مجددًا",
+"Hide sidebar": "إخفاء الشريط الجانبي",
+"Show sidebar": "إظهار الشريط الجانبي",
+"Hide sidebar (Ctrl+\\)": "إخفاء الشريط الجانبي (Ctrl+\\)",
+"Show sidebar (Ctrl+\\)": "إظهار الشريط الجانبي (Ctrl+\\)",
+"Hide or show the sidebar": "إخفاء الشريط الجانبي أو إظهاره"
 }

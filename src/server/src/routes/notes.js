@@ -38,7 +38,7 @@ export function blocksToText(blocks, depth = 0) {
       const t = inline(b?.content);
       const mark = { heading: '#'.repeat(b?.props?.level || 1) + ' ', bulletListItem: '- ', numberedListItem: '1. ',
         checkListItem: b?.props?.checked ? '[x] ' : '[ ] ', quote: '> ' }[b?.type] || '';
-      line = b?.type === 'codeBlock' ? `\`\`\`\n${t}\n\`\`\`` : t ? mark + t : '';
+      line = b?.type === 'codeBlock' ? `\`\`\`${String(b.props?.language || '').replace(/[^\w+#-]/g, '').replace(/^text$/, '')}\n${t}\n\`\`\`` : t ? mark + t : '';
     }
     const kids = blocksToText(b?.children, depth + 1);
     return [line && pad + line, kids].filter(Boolean).join('\n');
@@ -91,7 +91,7 @@ r.get('/', h(async (req, res) => {
 // ---------- AI inside the editor ----------
 const WRITE = `You are the writing assistant inside a student's notes app, like Notion AI.
 Reply with ONLY the text that goes into the note, written in Markdown: # headings, - bullets, 1. numbered lists,
-- [ ] to-dos, **bold**, tables, > quotes and \`\`\` code. Never add a preamble ("Here is...", "Sure") or a closing remark,
+- [ ] to-dos, **bold**, tables, > quotes and \`\`\` code (always name the language: \`\`\`python, \`\`\`java ...). Never add a preamble ("Here is...", "Sure") or a closing remark,
 and never wrap the whole answer in a code block. Keep it accurate, clear and useful for studying.
 Write in the same language as the note unless asked to translate. Use LaTeX-free plain math (x^2, sqrt(x)).`;
 

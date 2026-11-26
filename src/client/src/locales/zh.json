@@ -769,5 +769,10 @@
 "Choose a password you have not used here before": "请选择一个此前未在这里使用过的密码",
 "Enter a name (up to {n} characters)": "请输入姓名（最多 {n} 个字符）",
 "This is already your email": "这已经是你的邮箱",
-"You were signed out. Sign in again": "你已退出登录，请重新登录"
+"You were signed out. Sign in again": "你已退出登录，请重新登录",
+"Hide sidebar": "隐藏侧边栏",
+"Show sidebar": "显示侧边栏",
+"Hide sidebar (Ctrl+\\)": "隐藏侧边栏 (Ctrl+\\)",
+"Show sidebar (Ctrl+\\)": "显示侧边栏 (Ctrl+\\)",
+"Hide or show the sidebar": "隐藏或显示侧边栏"
 }

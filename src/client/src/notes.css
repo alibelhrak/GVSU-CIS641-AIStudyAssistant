@@ -448,3 +448,23 @@ select.course-tag{width:auto;min-height:30px;padding:4px 8px;font-size:.8rem;bac
   .ai-btn{padding-inline:8px}
 }
 @media (prefers-reduced-motion:reduce){.nai,.nai *{animation:none !important}}
+
+/* ---------- Code blocks (like Notion): follow the app theme, language picker, copy button ---------- */
+.note-editor-wrap{position:relative}
+.note-page .bn-block-content[data-content-type="codeBlock"]{background:var(--surface-2);color:var(--fg);border:1px solid var(--line);border-radius:10px;margin:4px 0}
+.note-page [data-content-type="codeBlock"] > pre{padding:38px 18px 16px;font-family:var(--mono);font-size:.84rem;line-height:1.65;tab-size:4;--bn-suggestion-surface:var(--surface-2)}
+.note-page [data-content-type="codeBlock"] code{background:none;color:inherit;padding:0;border-radius:0;font-size:inherit;font-family:inherit}
+.note-page [data-content-type="codeBlock"] .shiki{color:var(--shiki-light)}
+html[data-theme="dark"] .note-page [data-content-type="codeBlock"] .shiki,
+html[data-theme="midnight"] .note-page [data-content-type="codeBlock"] .shiki{color:var(--shiki-dark)}
+html[data-theme="dark"] .note-page .bn-block-content[data-content-type="codeBlock"]{background:#161616}
+html[data-theme="midnight"] .note-page .bn-block-content[data-content-type="codeBlock"]{background:#0b101d}
+/* the language picker: a small label at the top-left, clearer on hover */
+.note-page [data-content-type="codeBlock"] > div > select{opacity:.55;top:9px;left:12px;padding:3px 8px;border-radius:6px;color:var(--muted);font-family:var(--font);font-size:.74rem;font-weight:600;transition:opacity .15s,background-color .15s}
+.note-page [data-content-type="codeBlock"]:hover > div > select,.note-page [data-content-type="codeBlock"] > div > select:focus{opacity:1;background:var(--hover)}
+.note-page [data-content-type="codeBlock"] > div > select > option{color:var(--fg);background:var(--surface)}
+[dir="rtl"] .note-page [data-content-type="codeBlock"] > pre{direction:ltr;text-align:left}   /* code always reads left to right */
+.code-copy{position:absolute;z-index:5;display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 9px;border:1px solid var(--line);border-radius:7px;
+  background:var(--surface);color:var(--muted);font:inherit;font-size:.74rem;font-weight:600;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.08);animation:fade-in .15s ease both}
+.code-copy:hover{color:var(--fg);border-color:var(--line-strong)}
+.code-copy.done{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 40%,transparent)}

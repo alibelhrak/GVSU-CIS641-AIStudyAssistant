@@ -354,6 +354,7 @@ function DataPrivacy({ onClose }) {
 function About() {
   const keys = [
     [[MOD, ','], 'Open Settings'],
+    [[MOD, '\\'], 'Hide or show the sidebar'],
     [[MOD, 'J'], 'Notes AI on a note'],
     [['/'], 'Insert a block in a note'],
     [['Enter'], 'Send a message in Ask AI'],
