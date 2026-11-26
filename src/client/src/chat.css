@@ -188,3 +188,7 @@
   .action-card{flex-wrap:wrap}
   .action-btns{width:100%;justify-content:flex-end}
 }
+
+/* Waiting for the AI service (free plan limit) */
+.ai-wait{margin:8px 0 0;font-size:.8rem;color:var(--muted);display:flex;align-items:center;gap:6px;animation:fade-in .2s both}
+.ai-wait::before{content:'';width:12px;height:12px;border-radius:50%;border:2px solid var(--line-strong);border-top-color:var(--accent);animation:spin .9s linear infinite}

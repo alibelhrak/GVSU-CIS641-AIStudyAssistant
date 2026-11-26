@@ -85,7 +85,7 @@ export default async function notesChat(req, res) {
   ];
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 150000);
+  const timer = setTimeout(() => controller.abort(), 240000);
   res.on('close', () => controller.abort());
   let started = false;
   const send = (obj) => {
@@ -106,7 +106,7 @@ export default async function notesChat(req, res) {
         headers: { 'Content-Type': 'application/json', ...(config.llm.apiKey ? { Authorization: `Bearer ${config.llm.apiKey}` } : {}) },
         body: JSON.stringify({ model, stream: true, temperature: 0.3, max_tokens: 4000, messages: convo,
           ...(withTools ? { tools: TOOLS, tool_choice: 'auto' } : {}) }),
-      });
+      }, { onWait: (ms) => send({ t: 'status', v: `The AI service is busy (free plan limit). Continuing in ${Math.ceil(ms / 1000)} s…` }) });
     } catch (err) {
       if (err.name === 'AbortError') return null;
       fail(502, 'Could not reach the AI service. Try again in a moment.');

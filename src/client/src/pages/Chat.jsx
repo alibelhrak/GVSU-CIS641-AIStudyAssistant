@@ -200,6 +200,17 @@ function groupOf(when) {
 }
 const wide = () => typeof window !== 'undefined' && window.innerWidth > 900;
 
+/** "Continuing in 23 s…" that counts down by itself */
+export function Countdown({ text }) {
+  const start = useRef(Date.now());
+  const total = Number(text.match(/(\d+) s/)?.[1] || 0);
+  const [, tick] = useState(0);
+  useEffect(() => { start.current = Date.now(); }, [text]);
+  useEffect(() => { const t = setInterval(() => tick((n) => n + 1), 1000); return () => clearInterval(t); }, []);
+  const left = Math.max(0, total - Math.floor((Date.now() - start.current) / 1000));
+  return <>{text.replace(/\d+ s/, `${left} s`)}</>;
+}
+
 export function AttachmentChip({ a, onRemove }) {
   return (
     <div className={`att ${a.type === 'image' ? 'att-img' : ''}`} title={a.name}>
@@ -415,7 +426,8 @@ export default function Chat() {
         if (!line.trim()) return;
         let ev;
         try { ev = JSON.parse(line); } catch { return; }
-        if (ev.t === 'text') { answer += ev.v; addText(ev.v); }
+        if (ev.t === 'status') update((last) => ({ ...last, status: ev.v }));
+        else if (ev.t === 'text') { answer += ev.v; update((last) => (last.status ? { ...last, status: '' } : last)); addText(ev.v); }
         else if (ev.t === 'action') {
           changed = true;
           const { t, ...action } = ev;
@@ -748,6 +760,7 @@ export default function Chat() {
                     <div className="md" dangerouslySetInnerHTML={{ __html: markdown(m.content) }} />
                   )}
                   {m.pending && m.parts?.[m.parts.length - 1]?.type === 'action' && <span className="thinking"><i /><i /><i /></span>}
+                  {m.pending && m.status && <p className="ai-wait"><Countdown text={m.status} /></p>}
                   {!m.pending && (
                     <div className="msg-actions bot-actions">
                       {!m.error && m.content && (

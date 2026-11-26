@@ -8,7 +8,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { api, getToken } from '../lib/api.js';
-import { markdown, readFile, AttachmentChip, MAX_FILES } from './Chat.jsx';
+import { markdown, readFile, AttachmentChip, MAX_FILES, Countdown } from './Chat.jsx';
 import { Icon } from '../icons.jsx';
 
 const SUGGESTIONS = [
@@ -183,7 +183,8 @@ export function NotesChat({ note, getEditor, onClose, notify, onChanged }) {
           if (!line.trim()) continue;
           let ev;
           try { ev = JSON.parse(line); } catch { continue; }
-          if (ev.t === 'text') update((m) => ({ ...m, content: m.content + ev.v }));
+          if (ev.t === 'status') update((m) => ({ ...m, status: ev.v }));
+          else if (ev.t === 'text') update((m) => ({ ...m, status: '', content: m.content + ev.v }));
           else if (ev.t === 'cut') update((m) => ({ ...m, content: m.content.slice(0, Math.max(0, m.content.length - ev.n)) }));
           else if (ev.t === 'error') update((m) => ({ ...m, content: `${m.content}${m.content ? '\n\n' : ''}⚠️ ${ev.v}` }));
           else if (ev.t === 'edit' && editor) {
@@ -309,6 +310,7 @@ export function NotesChat({ note, getEditor, onClose, notify, onChanged }) {
             {m.content
               ? <div className="md" dangerouslySetInnerHTML={{ __html: markdown(m.content) }} />
               : m.pending && !m.steps?.length && <span className="thinking"><i /><i /><i /></span>}
+            {m.pending && m.status && <p className="ai-wait"><Countdown text={m.status} /></p>}
             {!m.pending && m.edits?.length > 0 && (
               <Changes m={m} onUndo={() => undo(i)} onShow={() => flash(m.edits.flatMap((e) => e.ids || []))} />
             )}

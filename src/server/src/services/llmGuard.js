@@ -2,7 +2,8 @@
  * Two safety nets for the AI service.
  *
  * fetchLLM: when the service says "too many requests" (HTTP 429, common on free plans), wait the time it
- * asks for (up to 20 seconds) and try again, twice at most, instead of failing straight away.
+ * asks for (up to about a minute) and try again, three times at most, instead of failing straight away.
+ * onWait(ms) lets the caller tell the student it is waiting.
  *
  * isGarbled: some models sometimes get stuck and stream "... … ..." for hundreds of lines. This spots it
  * (almost no letters in the last part of the text) so the server can stop and clean up the answer.
@@ -22,13 +23,14 @@ function waitFor(res) {
   return 6000;
 }
 
-export async function fetchLLM(url, options, { retries = 2, maxWait = 20000 } = {}) {
+export async function fetchLLM(url, options, { retries = 3, maxWait = 65000, onWait } = {}) {
   for (let attempt = 0; ; attempt += 1) {
     const res = await fetch(url, options);
     if (res.status !== 429 || attempt >= retries) return res;
     const ms = waitFor(res);
     if (ms > maxWait) return res;
     console.warn(`AI service is busy (429). Trying again in ${Math.ceil(ms / 1000)} s`);
+    onWait?.(ms);
     await res.body?.cancel().catch(() => {});
     await sleep(ms + 400, options.signal);
     if (options.signal?.aborted) return res;

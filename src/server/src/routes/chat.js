@@ -247,7 +247,7 @@ r.post('/', h(async (req, res) => {
 
   // Stop asking the model if the student closes the page or presses Stop
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 120000);
+  const timer = setTimeout(() => controller.abort(), 240000);
   res.on('close', () => controller.abort());
 
   // The answer is sent as one JSON object per line (see the top of this file)
@@ -284,7 +284,7 @@ r.post('/', h(async (req, res) => {
           messages: convo,
           ...(withTools ? { tools: TOOLS, tool_choice: 'auto' } : {}),
         }),
-      });
+      }, { onWait: (ms) => send({ t: 'status', v: `The AI service is busy (free plan limit). Continuing in ${Math.ceil(ms / 1000)} s…` }) });
     } catch (err) {
       if (err.name === 'AbortError') return null;
       console.warn('Chat: could not reach the LLM:', err.message);
