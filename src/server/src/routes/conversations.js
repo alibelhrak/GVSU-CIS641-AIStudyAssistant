@@ -9,7 +9,7 @@ import { h, HttpError } from '../middleware/error.js';
 
 const r = Router();
 const text = (v, max) => String(v ?? '').slice(0, max);
-const UNDO_PATH = /^\/(courses|tasks|sessions|logs)\/[a-f0-9]{24}$/;
+const UNDO_PATH = /^\/(courses|tasks|sessions|logs|notes)\/[a-f0-9]{24}$/;
 
 /** Keeps only the fields the chat page uses, with size limits */
 function cleanMessages(list) {
@@ -29,7 +29,7 @@ function cleanMessages(list) {
           ? { method: p.undo.method, path: p.undo.path, ...(p.undo.body && typeof p.undo.body === 'object' ? { body: p.undo.body } : {}) }
           : undefined;
         return { type: 'action', icon: text(p.icon, 20), title: text(p.title, 80), detail: text(p.detail, 300),
-          page: text(p.page, 20), ...(undo ? { undo } : {}), ...(p.undone ? { undone: true } : {}) };
+          page: text(p.page, 40), ...(undo ? { undo } : {}), ...(p.undone ? { undone: true } : {}) };
       });
     }
     return out;

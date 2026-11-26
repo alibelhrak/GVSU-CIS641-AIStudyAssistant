@@ -4,8 +4,9 @@
  * The AI model only *asks* for an action (a tool name and its arguments). This file checks every
  * argument, finds courses and tasks by name, and saves the change for the signed-in student only.
  * Nothing can be deleted from here; every action comes with an "undo" the browser can use.
+ * The AI can also read the student's notes (read_note) and write new ones (add_note).
  */
-import { Course, Task, StudySession, StudyLog, TASK_TYPES } from '../models/index.js';
+import { Course, Task, StudySession, StudyLog, Note, TASK_TYPES } from '../models/index.js';
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const TIME = /^\d{1,2}:\d{2}$/;
@@ -93,6 +94,31 @@ export const TOOLS = [
   {
     type: 'function',
     function: {
+      name: 'add_note',
+      description: 'Create a new page in the student\'s Notes, for example a summary of an attached file, a study guide or lecture notes.',
+      parameters: {
+        type: 'object',
+        properties: {
+          title: { type: 'string' },
+          markdown: { type: 'string', description: 'The note in Markdown: # headings, - bullets, 1. numbered lists, - [ ] to-dos, **bold**, tables, ```code```' },
+          course: { type: 'string', description: 'Optional course code or name to tag the note with' },
+          icon: { type: 'string', description: 'Optional single emoji for the page, for example 📘' },
+        },
+        required: ['title', 'markdown'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'read_note',
+      description: 'Read one of the student\'s notes by its title, to answer questions, quiz the student or summarize it.',
+      parameters: { type: 'object', properties: { title: { type: 'string' } }, required: ['title'] },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'log_study_time',
       description: 'Record study time the student already did (it counts toward their weekly goal).',
       parameters: {
@@ -146,6 +172,20 @@ async function findTask(userId, text) {
   if (open.length === 1) return open[0];
   if (!found.length) throw new ToolError(`No task matches "${text}". Open tasks: ${tasks.filter((t) => !t.done).map((t) => t.title).join(', ') || 'none'}.`);
   throw new ToolError(`Several tasks match "${text}": ${found.map((t) => `${t.title} (due ${t.dueDate})`).join(', ')}. Use the exact title.`);
+}
+
+/** Finds one of the student's notes by its title */
+async function findNote(userId, text) {
+  const q = clean(text).toLowerCase();
+  if (!q) throw new ToolError('Say which note.');
+  const notes = await Note.find({ user: userId }).select('title text icon course updatedAt').lean();
+  const title = (n) => (n.title || 'Untitled').toLowerCase();
+  const exact = notes.filter((n) => title(n) === q);
+  const found = exact.length ? exact : notes.filter((n) => title(n).includes(q) || q.includes(title(n)));
+  if (found.length === 1) return found[0];
+  const list = notes.map((n) => n.title || 'Untitled').slice(0, 30).join(', ') || 'none';
+  if (!found.length) throw new ToolError(`No note matches "${text}". The student's notes are: ${list}.`);
+  throw new ToolError(`Several notes match "${text}": ${found.map((n) => n.title).join(', ')}. Use the exact title.`);
 }
 
 const RUN = {
@@ -224,6 +264,25 @@ const RUN = {
       action: { icon: 'calendar', title: 'Planned study session', detail: `${c.code} · ${shortDate(day)} ${startTime} · ${doc.hours} h${doc.note ? ` · ${doc.note}` : ''}`,
         page: '/schedule', undo: { method: 'DELETE', path: `/sessions/${doc.id}` } },
     };
+  },
+
+  async add_note(userId, a) {
+    const title = clean(a.title, 200) || 'Untitled';
+    const markdown = typeof a.markdown === 'string' ? a.markdown.slice(0, 60000) : '';
+    if (!markdown.trim()) throw new ToolError('The note needs some content.');
+    const course = a.course ? (await findCourse(userId, a.course))._id : null;
+    const icon = typeof a.icon === 'string' && a.icon.trim().length <= 8 ? a.icon.trim() : '📝';
+    const doc = await Note.create({ user: userId, title, icon, course, markdown, text: markdown });
+    return {
+      result: { ok: true, added: `note "${title}"` },
+      action: { icon: 'note', title: 'Created note', detail: `${icon} ${title}`,
+        page: `/notes/${doc.id}`, undo: { method: 'DELETE', path: `/notes/${doc.id}` } },
+    };
+  },
+
+  async read_note(userId, a) {
+    const n = await findNote(userId, a.title);
+    return { result: { ok: true, title: n.title, text: (n.text || '(empty note)').slice(0, 12000) } };
   },
 
   async log_study_time(userId, a, today) {

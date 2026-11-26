@@ -18,7 +18,7 @@
  */
 import { Router } from 'express';
 import { config, chatEnabled } from '../config.js';
-import { Course, Task, StudySession, StudyLog, Recommendation, User } from '../models/index.js';
+import { Course, Task, StudySession, StudyLog, Recommendation, User, Note } from '../models/index.js';
 import { h, HttpError } from '../middleware/error.js';
 import { addDays, buildCandidates, daysBetween } from '../services/recommendationEngine.js';
 import { TOOLS, runTool } from '../services/chatTools.js';
@@ -35,13 +35,14 @@ const PRIORITY = { high: 'high', med: 'medium', low: 'low' };
 
 /** A short, plain-text summary of the student's data for the model. */
 async function studentContext(userId, today) {
-  const [user, courses, tasks, sessions, logs, recs] = await Promise.all([
+  const [user, courses, tasks, sessions, logs, recs, notes] = await Promise.all([
     User.findById(userId).lean(),
     Course.find({ user: userId }).lean(),
     Task.find({ user: userId, done: false }).sort({ dueDate: 1 }).lean(),
     StudySession.find({ user: userId }).lean(),
     StudyLog.find({ user: userId }).lean(),
     Recommendation.find({ user: userId, status: 'pending' }).lean(),
+    Note.find({ user: userId }).select('title course updatedAt').sort({ updatedAt: -1 }).limit(40).lean(),
   ]);
   const code = new Map(courses.map((c) => [String(c._id), c.code]));
   const weekStart = addDays(today, -6);
@@ -78,6 +79,10 @@ async function studentContext(userId, today) {
   if (!upcoming.length) lines.push('- none');
   for (const s of upcoming.slice(0, 20)) lines.push(`- ${s.date} ${s.startTime}, ${s.hours} h, ${code.get(String(s.course)) || '?'}${s.note ? ` (${s.note})` : ''}`);
 
+  lines.push('', 'Notes the student wrote (titles only; use read_note to read one):');
+  if (!notes.length) lines.push('- none');
+  for (const n of notes) lines.push(`- ${n.title || 'Untitled'}${n.course ? ` (${code.get(String(n.course)) || '?'})` : ''}`);
+
   if (recs.length) {
     lines.push('', 'Recommendations currently shown on the dashboard:');
     for (const rec of recs) lines.push(`- ${rec.message}`);
@@ -98,7 +103,8 @@ and code blocks for code. Keep answers focused; do not repeat the whole data bac
 When the student attaches files or pictures, read them carefully and refer to them by name.
 Tables are welcome when they help (Markdown tables with a |---| header row).
 
-YOU CAN CHANGE THE PLANNER with your tools: add_course, add_task, update_task, add_study_session, log_study_time.
+YOU CAN CHANGE THE PLANNER with your tools: add_course, add_task, update_task, add_study_session, log_study_time, add_note.
+You can also read the student's notes with read_note when a question is about one of them.
 - When the student asks you to add, create, plan, schedule, log, move or finish something, DO IT with the tools
   instead of explaining how to do it by hand. You may call several tools at once (for example every exam in a syllabus).
 - Work out real dates (YYYY-MM-DD) from Today. If something important is missing and has no sensible default
@@ -119,7 +125,10 @@ HOW THE APP WORKS (use these exact names; never invent buttons or pages that are
 - Study Schedule: the "Add a study session" form has Course, Date, Start, Hours and Focus, then "Add session".
   Sessions are ticked off when finished.
 - Materials: choose a course under "Add to a course", then "Upload files" or "Add a link".
+- Notes: Notion-style pages with sub-pages. Type "/" in a page for headings, lists, to-dos, tables, code and pictures.
+  Each page can have an emoji, a course tag and be a favorite. "Ask AI" on a page sends it to this chat.
 - Ask AI: this chat. The student can attach files and pictures, dictate, or use Voice mode.
+When the student asks you to write, summarize or save something as a note, use add_note with well-structured Markdown.
 
 STUDENT DATA
 `;

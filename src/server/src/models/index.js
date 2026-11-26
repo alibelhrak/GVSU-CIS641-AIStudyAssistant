@@ -111,3 +111,16 @@ export const Conversation = model('Conversation', new Schema({
   messages: { type: [Schema.Types.Mixed], default: [] },
 }, opts));
 
+// Notes (Notion-style pages). `content` holds the editor's blocks; `parent` makes sub-pages.
+export const Note = model('Note', new Schema({
+  user: ref('User'),
+  parent: { type: Schema.Types.ObjectId, ref: 'Note', default: null, index: true },
+  course: { type: Schema.Types.ObjectId, ref: 'Course', default: null },
+  title: { type: String, default: '', trim: true, maxlength: 200 },
+  icon: { type: String, default: '', maxlength: 16 },
+  favorite: { type: Boolean, default: false },
+  content: { type: [Schema.Types.Mixed], default: [] },
+  text: { type: String, default: '' },   // plain text of the content, for search and for the AI
+  markdown: { type: String, default: '' },   // a note written by Ask AI; the editor turns it into blocks when first opened
+}, opts));
+
