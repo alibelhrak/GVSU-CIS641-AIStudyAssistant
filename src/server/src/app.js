@@ -39,6 +39,8 @@ export function createApp() {
   const dist = path.resolve(process.env.CLIENT_DIST || '../client/dist');
   if (fs.existsSync(dist)) {
     app.use(express.static(dist));
+        // Android app link check (Google Play): Express hides folders starting with a dot unless allowed
+    app.use('/.well-known', express.static(path.join(dist, '.well-known'), { dotfiles: 'allow' }));
     app.get(/^\/(?!api(\/|$)).*/, (_req, res) => res.sendFile(path.join(dist, 'index.html')));
   }
 
