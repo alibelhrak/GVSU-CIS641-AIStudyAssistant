@@ -362,10 +362,13 @@ export default function Landing() {
           <Link className="btn lg" to="/login">Sign in</Link>
         </div>
         <div className="hero-where" data-reveal>
-          <span><Icon name="monitor" size={15} /> Web</span>
-          <span><Icon name="download" size={15} /> Phone and laptop</span>
+          <Link to="/signup" title="Use it in your browser: create a free account"><Icon name="monitor" size={15} /> Web</Link>
+          <InstallButton variant="inline"><Icon name="download" size={15} /> Phone and laptop</InstallButton>
           <a href={STORE_URL} target="_blank" rel="noopener noreferrer"><WinLogo /> Microsoft Store</a>
-          <span><Icon name="globe" size={15} /> 6 languages</span>
+          <button type="button" className="where-link" title="Choose your language"
+            onClick={(e) => { e.stopPropagation(); window.scrollTo({ top: 0, behavior: 'smooth' }); setTimeout(() => document.querySelector('.lp-cta .lang-menu .lang-btn')?.click(), 250); }}>
+            <Icon name="globe" size={15} /> 6 languages
+          </button>
         </div>
         <AppPreview />
       </section>

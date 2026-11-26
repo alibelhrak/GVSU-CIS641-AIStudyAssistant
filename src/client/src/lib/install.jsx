@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 /**
  * "Download app": installs the website as an app on the computer or phone.
  *
@@ -73,7 +74,8 @@ function InstallHelp({ onClose }) {
     document.addEventListener('keydown', esc);
     return () => document.removeEventListener('keydown', esc);
   }, [onClose]);
-  return (
+  // on document.body, so it stays centered even inside animated sections
+  return createPortal(
     <div className="install-overlay" onClick={onClose} role="presentation">
       <div className="install-card" role="dialog" aria-modal="true" aria-labelledby="install-title" onClick={(e) => e.stopPropagation()}>
         <img src="/logo.png" alt="" width={56} height={56} />
@@ -84,19 +86,22 @@ function InstallHelp({ onClose }) {
         </ol>
         <button className="btn primary block" type="button" onClick={onClose} autoFocus>Got it</button>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
-/** The "Download app" button. `variant` is 'nav' (welcome page) or 'side' (sidebar). */
-export function InstallButton({ variant = 'nav' }) {
+/** The "Download app" button. `variant` is 'nav' (welcome page), 'side' (sidebar) or 'inline' (a text link with `children`). */
+export function InstallButton({ variant = 'nav', children }) {
   const { installed, prompt } = useInstall();
   const [help, setHelp] = useState(false);
-  if (installed) return null;
+  if (installed) return variant === 'inline' ? <span className="where-on">{children}</span> : null;
   const click = async () => { if (!(await prompt())) setHelp(true); };
   return (
     <>
-      {variant === 'side' ? (
+      {variant === 'inline' ? (
+        <button className="where-link" type="button" onClick={click} title="Install Study Assistant on this device">{children}</button>
+      ) : variant === 'side' ? (
         <button className="side-link" type="button" onClick={click}><Icon name="download" /><span>Download app</span></button>
       ) : (
         <button className="btn install-btn" type="button" onClick={click} title="Install Study Assistant on this device">
