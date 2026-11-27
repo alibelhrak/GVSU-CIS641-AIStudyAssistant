@@ -19,6 +19,7 @@ import folderRoutes from './routes/folders.js';
 import trashRoutes from './routes/trash.js';
 import groupRoutes from './routes/groups.js';
 import publicRoutes from './routes/public.js';
+import reportRoutes from './routes/reports.js';
 import reminderRoutes, { publicReminders } from './routes/reminders.js';
 
 export function createApp() {
@@ -30,6 +31,7 @@ export function createApp() {
   app.use('/api/auth', authRoutes);
   app.use('/api/reminders', publicReminders);   // the scheduler and the email unsubscribe link (no login)
   app.use('/api/public', publicRoutes);         // pages shared to the web (no login)
+  app.use('/api/reports', reportRoutes);       // reporting harmful content (login optional), and the moderator's link
 
   // Everything below under /api needs a valid login token
   app.use('/api', requireAuth);

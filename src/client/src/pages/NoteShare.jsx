@@ -5,6 +5,7 @@ import { api } from '../lib/api.js';
 import { t } from '../lib/i18n.jsx';
 import { colorFor } from '../lib/live.js';
 import { Icon } from '../icons.jsx';
+import { ReportDialog } from './Report.jsx';
 
 const initial = (name = '?') => name.trim()[0]?.toUpperCase() || '?';
 
@@ -43,6 +44,7 @@ export function ShareDialog({ note, onClose, onChanged, onLeft, notify }) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [reporting, setReporting] = useState(false);
 
   useEffect(() => {
     if (owner) api.get(`/notes/${note.id}/sharing`).then(setData).catch((err) => setError(err.message));
@@ -87,8 +89,13 @@ export function ShareDialog({ note, onClose, onChanged, onLeft, notify }) {
           <div className="share-guest">
             <p><b data-no-translate>{note.owner}</b> {note.role === 'viewer' ? t('shared this page with you. You can view it.') : t('shared this page with you. You can edit it, and everyone sees changes as they are typed.')}</p>
             {error && <p className="error-box">{error}</p>}
-            <button className="btn danger" type="button" onClick={leave} disabled={busy}>Leave this page</button>
+            <div className="share-guest-actions">
+              <button className="btn danger" type="button" onClick={leave} disabled={busy}>Leave this page</button>
+              <button className="btn" type="button" onClick={() => setReporting(true)}><Icon name="flag" size={14} /> Report this page</button>
+            </div>
             <p className="note">You can only leave pages shared with you directly. Pages shared with a study group stay while you are in the group.</p>
+            <p className="note"><Link to="/guidelines" target="_blank">Community guidelines</Link></p>
+            {reporting && <ReportDialog kind="page" id={note.id} name={`${note.icon || ''} ${title}`.trim()} onClose={() => setReporting(false)} />}
           </div>
         ) : !data ? (
           error ? <p className="error-box">{error}</p> : <div className="chat-loading"><span className="thinking"><i /><i /><i /></span></div>
@@ -158,6 +165,7 @@ export function ShareDialog({ note, onClose, onChanged, onLeft, notify }) {
               )}
             </div>
             <p className="note share-live"><Icon name="spark" size={13} /> Everyone who can edit sees changes live, as they are typed.</p>
+            <p className="note share-rules">Everything you share must follow the rules. <Link to="/guidelines" target="_blank">Community guidelines</Link></p>
           </>
         )}
       </div>

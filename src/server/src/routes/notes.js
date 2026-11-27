@@ -11,7 +11,7 @@ import mongoose from 'mongoose';
 import crypto from 'node:crypto';
 import { Note, Course, Feedback, Folder, User, Group } from '../models/index.js';
 import { noteAccess, canEdit, groupIdsOf } from '../services/access.js';
-import { claimSeed, seedDone } from '../services/collab.js';
+import { claimSeed, seedDone, closeRoom } from '../services/collab.js';
 import { moveToTrash } from '../services/trash.js';
 import { h, HttpError } from '../middleware/error.js';
 import { config, chatEnabled } from '../config.js';
@@ -408,6 +408,7 @@ r.patch('/:id/share/:userId', h(async (req, res) => {
   if (!s) throw new HttpError(404, 'Not shared with this person');
   s.role = req.body?.role === 'viewer' ? 'viewer' : 'editor';
   await note.save();
+  closeRoom(note._id);   // live editors reconnect with their new role
   res.json(await sharingOf(note, req.userId));
 }));
 
@@ -426,6 +427,7 @@ r.delete('/:id/share/:userId', h(async (req, res) => {
   const note = await ownNote(req);
   note.shares = note.shares.filter((x) => String(x.user) !== req.params.userId);
   await note.save();
+  closeRoom(note._id);   // the removed person stops getting live changes right away
   res.json(await sharingOf(note, req.userId));
 }));
 
@@ -436,6 +438,7 @@ r.put('/:id/groups', h(async (req, res) => {
   const mineOnly = await Group.find({ _id: { $in: ids }, 'members.user': req.userId }).select('_id').lean();
   note.groups = mineOnly.map((g) => g._id);
   await note.save();
+  closeRoom(note._id);
   res.json(await sharingOf(note, req.userId));
 }));
 

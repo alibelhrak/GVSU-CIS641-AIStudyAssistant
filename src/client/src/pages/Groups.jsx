@@ -6,6 +6,7 @@ import { t } from '../lib/i18n.jsx';
 import { daysUntil, relDay } from '../lib/dates.js';
 import { Icon } from '../icons.jsx';
 import { Face } from './NoteShare.jsx';
+import { ReportDialog } from './Report.jsx';
 
 const COLORS = ['#2383e2', '#e8590c', '#2f9e44', '#9c36b5', '#d6336c', '#0c8599'];
 const TYPES = ['Assignment', 'Exam', 'Quiz', 'Project', 'Reading'];
@@ -39,7 +40,10 @@ function GroupList() {
   return (
     <div className="groups">
       <div className="groups-top">
+        <div className="groups-intro">
         <p className="muted">Work with classmates: shared deadlines, shared note pages you edit together live, and a group chat. Only people who already have an account can be added.</p>
+        <p className="muted groups-rules">Be kind: to report a message, point at it and click the flag. <Link to="/guidelines">Community guidelines</Link></p>
+        </div>
         {!form && <button className="btn primary" type="button" onClick={() => setForm({ name: '', description: '', color: COLORS[0] })}><Icon name="plus" size={16} /> New group</button>}
       </div>
       {form && (
@@ -178,6 +182,7 @@ function GroupChat({ id }) {
   const [msgs, setMsgs] = useState(null);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
+  const [reporting, setReporting] = useState(null);
   const box = useRef(null);
   const last = useRef(null);
   const stick = useRef(true);
@@ -233,13 +238,16 @@ function GroupChat({ id }) {
                     <div className="gchat-bubble-wrap">
                       {!m.me && !grouped && <span className="gchat-name" data-no-translate>{m.user.name}</span>}
                       <div className="gchat-bubble" data-no-translate>{m.text}</div>
-                      <span className="gchat-time">{timeOf(m.at)}{m.me && <button type="button" onClick={() => removeMsg(m.id)} aria-label="Delete message" title="Delete"><Icon name="trash" size={11} /></button>}</span>
+                      <span className="gchat-time">{timeOf(m.at)}{m.me
+                        ? <button type="button" onClick={() => removeMsg(m.id)} aria-label="Delete message" title="Delete"><Icon name="trash" size={11} /></button>
+                        : <button type="button" onClick={() => setReporting(m)} aria-label="Report this message" title="Report"><Icon name="flag" size={11} /></button>}</span>
                     </div>
                   </div>
                 </div>
               );
             })}
       </div>
+      {reporting && <ReportDialog kind="message" id={reporting.id} name={`${reporting.user.name}: ${reporting.text.slice(0, 80)}`} onClose={() => setReporting(null)} />}
       <form className="gchat-compose" onSubmit={send}>
         <textarea rows={1} value={text} onChange={(e) => setText(e.target.value)} placeholder="Message your group…" maxLength={2000} aria-label="Message"
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }} />

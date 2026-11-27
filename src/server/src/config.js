@@ -12,6 +12,8 @@ export const config = {
     from: process.env.MAIL_FROM || '',
     fromName: process.env.MAIL_FROM_NAME || 'Study Assistant',
   },
+  // Where reports of shared pages and chat messages are emailed (default: MAIL_FROM)
+  reportEmail: process.env.REPORT_EMAIL || process.env.MAIL_FROM || '',
   // Push notifications (create the keys once with: npx web-push generate-vapid-keys)
   push: {
     publicKey: process.env.VAPID_PUBLIC_KEY || '',

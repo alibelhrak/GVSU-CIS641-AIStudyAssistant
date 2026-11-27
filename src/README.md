@@ -36,6 +36,7 @@ Put these in `src/server/.env` on your computer, or in the **Environment** tab o
 | `BREVO_API_KEY` | For email | Brevo API key (starts with `xkeysib-`) for password reset emails |
 | `MAIL_FROM` | For email | The sender address you verified in Brevo |
 | `MAIL_FROM_NAME` | No | Sender name (default `Study Assistant`) |
+| `REPORT_EMAIL` | No | Where reports of shared pages and chat messages are sent (default: `MAIL_FROM`). Use an inbox you read |
 | `APP_URL` | For email | The site address used in reset links (default `http://localhost:5173`) |
 | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | For push | Keys for push notifications. Create them once with `npx web-push generate-vapid-keys` (in `src/server`) |
 | `VAPID_SUBJECT` | No | Contact for the push services, for example `mailto:you@example.com` (default: `MAIL_FROM`) |
@@ -109,6 +110,8 @@ All routes start with `/api`. Every route except `/auth/*` and `/health` needs t
 | `POST /notes/:id/public` | Owner only: `{ on }` turns the public read-only link on (a random id) or off |
 | `GET /public/notes/:publicId` | **No login**: a page shared to the web, read only |
 | `/groups` | Study groups: list, create `{ name, description, color }`, open (`GET /:id`: members, deadlines, shared pages), rename / delete (owner). Members: `POST /:id/members { email }`, `DELETE /:id/members/:userId` (or `me` to leave). Chat: `GET /:id/messages?after=`, `POST`, `DELETE /:id/messages/:mid`. Deadlines: `/:id/tasks` CRUD |
+| `POST /reports` | Login optional: `{ kind: 'page' \| 'public' \| 'message', id, reason, details }`. Saves a Report and emails the moderator (at most 10 an hour per person) |
+| `GET`/`POST /reports/:id/moderate?sig=` | **No login**, signed link from the report email: shows the report, and takes the content down on confirm |
 | `WS /collab/:noteId?token=` | Live co-editing (WebSocket, Yjs protocol); see below |
 | `/conversations` | Chat history: list (`GET`), open (`GET /:id`), save (`POST`, `PATCH /:id`) and delete (`DELETE /:id`) |
 
@@ -119,6 +122,7 @@ All routes start with `/api`. Every route except `/auth/*` and `/health` needs t
 - **First load:** when a room starts empty, the first editor to ask `POST /notes/:id/collab/seed` fills it from the saved page; the others wait for it. Editors keep saving the page through `PATCH /notes/:id` as before, so the database always has the latest copy and the AI features, search and the public link keep working.
 - **Browser** (`client/src/lib/live.js`): `y-websocket`'s `WebsocketProvider` and BlockNote's `withCollaboration()` (cursors and names). The title, icon and cover go through a shared Yjs map. If the socket can't connect in 9 seconds, the page falls back to normal saving and says so.
 - **Invite emails** (`server/src/services/invites.js`): inviting someone to a page (not changing their role) or adding them to a group sends them an email through Brevo, in their own language, with a button to the page or group, plus a push notification if they turned those on. It runs in the background, so a failed email never blocks the invite.
+- **Reports** (`server/src/routes/reports.js`): the 🚩 button sends `POST /api/reports`. A page can be reported by anyone it is shared with (or anyone, from its public link); a chat message by the other members of the group. Each report is saved with a copy of the content and emailed to `REPORT_EMAIL` (or `MAIL_FROM`). The email's **Review and take it down** button opens a page signed with `JWT_SECRET`; confirming there unshares the page (its owner keeps it, its public link stops) or deletes the message. This covers Microsoft Store policy 11.12 and Google Play's user-generated content policy, together with the community guidelines page at `/guidelines`.
 - **Hosting:** Render's free plan supports WebSockets. The rooms live in one server's memory, so running several server copies would need a shared Yjs backend (e.g. Redis); one copy is fine for this project.
 
 ## Reminders (email and push)
@@ -180,6 +184,7 @@ src/
     src/services/access.js who may open or edit a note page
     src/services/collab.js live co-editing over WebSocket (Yjs)
     src/services/invites.js invite emails for shared pages and study groups
+    src/routes/reports.js  reporting shared content, and the moderator's take-down link
     src/services/trash.js  moving to the Trash, restoring, and deleting for good after 30 days
     src/services/reminders.js  morning summary, deadline, session and weekly reminders (email and push)
     test/engine.test.js    unit tests for the rules
@@ -187,7 +192,7 @@ src/
     public/                logo, app icons, manifest.webmanifest, sw.js (installable app)
     public/.well-known/assetlinks.json   proves to Android that the Google Play app and this website belong together
     src/App.jsx            sidebar, pages and routes
-    src/pages/             Landing, Login, ForgotPassword, Dashboard, Courses, Tasks, Schedule, Materials, Notes, NoteAI (AI inside notes), NotesChat (the Notes AI panel), NoteShare (Share window, faces), Groups (study groups), PublicNote (read-only public page), Chat (Ask AI)
+    src/pages/             Landing, Login, ForgotPassword, Dashboard, Courses, Tasks, Schedule, Materials, Notes, NoteAI (AI inside notes), NotesChat (the Notes AI panel), NoteShare (Share window, faces), Groups (study groups), PublicNote (read-only public page), Report (the report window), Guidelines (community guidelines), Privacy, Chat (Ask AI)
     src/lib/               api helper, login state, data store, themes, dates, install.jsx (Download app button), runCode.js (Run in code blocks), trash.jsx (Trash window), avatar.jsx (profile picture), resize.jsx (drag to resize), live.js (live co-editing)
     src/run/               the Python (Pyodide) and SQL (SQLite) workers
     src/styles.css         design, the four themes and the scrollbars

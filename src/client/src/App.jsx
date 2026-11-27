@@ -15,6 +15,7 @@ import Login from './pages/Login.jsx';
 import ForgotPassword from './pages/ForgotPassword.jsx';
 import VerifyEmail from './pages/VerifyEmail.jsx';
 import Privacy from './pages/Privacy.jsx';
+import Guidelines from './pages/Guidelines.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Courses from './pages/Courses.jsx';
 import Tasks from './pages/Tasks.jsx';
@@ -242,6 +243,7 @@ export default function App() {
   if (!ready) return null;
   // The privacy policy (and account deletion) works signed in or out, outside the app's sidebar
   if (pathname === '/privacy') return <Privacy />;
+  if (pathname === '/guidelines') return <Guidelines />;
   // A page shared to the web: readable by anyone, signed in or not
   if (pathname.startsWith('/p/')) return <Suspense fallback={null}><Routes><Route path="/p/:id" element={<PublicNote />} /></Routes></Suspense>;
   // Signed out: welcome page, sign in and sign up

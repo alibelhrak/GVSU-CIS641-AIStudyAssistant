@@ -354,6 +354,9 @@ function DataPrivacy({ onClose }) {
       <Row title="Privacy policy" desc="What the app stores, who handles it, and how to delete it.">
         <Link className="btn" to="/privacy" onClick={onClose}>Read</Link>
       </Row>
+      <Row title="Community guidelines" desc="The rules for shared pages, public links and study group chats, and how to report something.">
+        <Link className="btn" to="/guidelines" onClick={onClose}>Read</Link>
+      </Row>
       <div className="set-note">
         <Icon name="shield" size={16} />
         <p>No ads, no tracking, and nothing is sold. AI features send only what is needed to answer you.</p>

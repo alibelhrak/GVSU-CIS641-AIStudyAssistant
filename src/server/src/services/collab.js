@@ -123,6 +123,16 @@ export function seedDone(noteId) {
 }
 
 /** How many people have each page open (for tests and the health check) */
+/**
+ * Closes every live connection to a page after its access changed (someone removed, a role changed,
+ * a report taken down). Browsers reconnect by themselves, and the access check runs again:
+ * people who still have access rejoin, the others are refused.
+ */
+export function closeRoom(noteId) {
+  const room = rooms.get(String(noteId));
+  if (room) for (const ws of [...room.conns.keys()]) closeConn(room, ws);
+}
+
 export const roomStats = () => [...rooms.values()].map((r) => ({ id: r.id, people: r.conns.size }));
 
 /** Adds the WebSocket endpoint to the HTTP server */

@@ -251,3 +251,19 @@ export const GroupTask = model('GroupTask', new Schema({
   dueDate: isoDate,
   done: { type: Boolean, default: false },
 }, opts).index({ group: 1, dueDate: 1 }));
+
+/** A report about a shared page or a group chat message, for the app's moderator to review */
+export const REPORT_REASONS = ['harassment', 'hate', 'sexual', 'violence', 'spam', 'privacy', 'cheating', 'other'];
+export const Report = model('Report', new Schema({
+  kind: { type: String, enum: ['page', 'message'], required: true },
+  note: { type: Schema.Types.ObjectId, ref: 'Note', default: null },
+  message: { type: Schema.Types.ObjectId, ref: 'GroupMessage', default: null },
+  group: { type: Schema.Types.ObjectId, ref: 'Group', default: null },
+  author: { type: Schema.Types.ObjectId, ref: 'User', default: null },     // who wrote the reported content
+  reporter: { type: Schema.Types.ObjectId, ref: 'User', default: null },   // null: someone without an account (public link)
+  via: { type: String, enum: ['app', 'public'], default: 'app' },
+  reason: { type: String, enum: REPORT_REASONS, required: true },
+  details: { type: String, default: '', trim: true, maxlength: 1000 },
+  snapshot: { type: String, default: '', maxlength: 2500 },                 // what the content said when it was reported
+  status: { type: String, enum: ['open', 'removed'], default: 'open' },
+}, opts).index({ reporter: 1, note: 1, message: 1, createdAt: -1 }));

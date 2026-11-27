@@ -23,6 +23,7 @@ import { useResizable } from '../lib/resize.jsx';
 import { useLive, colorFor } from '../lib/live.js';
 import { useAuth } from '../lib/auth.jsx';
 import { ShareDialog, Presence } from './NoteShare.jsx';
+import { ReportDialog } from './Report.jsx';
 import { Icon } from '../icons.jsx';
 import { NoteAI, WRITE_ACTIONS, aiContext } from './NoteAI.jsx';
 import { NotesChat } from './NotesChat.jsx';
@@ -943,6 +944,7 @@ export default function Notes() {
   const [moveOpen, setMoveOpen] = useState(null);     // page whose "Move to" menu is open
   const [sharedNotes, setSharedNotes] = useState([]); // pages other people shared with me
   const [shareOpen, setShareOpen] = useState(false);
+  const [reporting, setReporting] = useState(false);
   const [people, setPeople] = useState([]);           // who else has this (shared) page open
   const [liveOff, setLiveOff] = useState(() => new Set());   // pages where live editing could not connect
   const liveApi = useRef(null);
@@ -1017,7 +1019,7 @@ export default function Notes() {
 
   useEffect(() => {
     flush();
-    setEmojiOpen(false); setDelOpen(false); setStatus(''); setAi(null); setCoverOpen(false); setShareOpen(false); setPeople([]);
+    setEmojiOpen(false); setDelOpen(false); setStatus(''); setAi(null); setCoverOpen(false); setShareOpen(false); setReporting(false); setPeople([]);
     editorRef.current = null;
     if (!id) { setCurrent(null); return; }
     setLoadingNote(true);
@@ -1381,6 +1383,11 @@ export default function Notes() {
                   <span className={`role-chip ${viewer ? 'view' : ''}`}>{viewer ? 'View only' : 'Can edit'}</span>
                 </button>
               )}
+              {!owner && current.owner && (
+                <button className="icon-btn report-btn" type="button" onClick={() => setReporting(true)} title="Report this page" aria-label="Report this page">
+                  <Icon name="flag" size={15} />
+                </button>
+              )}
               {owner && (
                 <>
                   <select className="course-tag" value={current.course || ''} onChange={(e) => setMeta({ course: e.target.value || null }, true)} aria-label="Course">
@@ -1412,6 +1419,7 @@ export default function Notes() {
               </div>}
             </div>
           )}
+          {reporting && current && <ReportDialog kind="page" id={current.id} name={`${current.icon || ''} ${current.title || t('Untitled')}`.trim()} onClose={() => setReporting(false)} />}
           {shareOpen && current && (
             <ShareDialog note={current} notify={notify} onClose={() => setShareOpen(false)} onChanged={sharingChanged}
               onLeft={() => { setShareOpen(false); setSharedNotes((l) => l.filter((n) => n.id !== current.id)); notify(t('You left the page')); navigate('/notes', { replace: true }); }} />
