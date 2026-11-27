@@ -402,6 +402,7 @@ r.delete('/me', requireAuth, h(async (req, res) => {
   await deleteGroups((await Group.find({ owner: req.userId }).select('_id').lean()).map((g) => g._id));
   const me = new mongoose.Types.ObjectId(String(req.userId));
   await Group.updateMany({ 'members.user': me }, { $pull: { members: { user: me } } });
+  await Group.updateMany({ 'invites.user': me }, { $pull: { invites: { user: me } } }).catch(() => {});   // invitations they never answered
   await GroupMessage.deleteMany({ user: me });
   await NoteMessage.deleteMany({ user: me });
   const myNotes = (await Note.find(mine).select('_id').lean()).map((n) => n._id);

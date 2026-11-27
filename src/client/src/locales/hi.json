@@ -1439,5 +1439,22 @@
 "Databases: tables, boards and calendars of pages": "डेटाबेस: पेजों की तालिकाएँ, बोर्ड और कैलेंडर",
 "CSV (Excel, Google Sheets)": "CSV (Excel, Google Sheets)",
 "Database": "डेटाबेस",
-"A table, board or calendar of pages": "पेजों की तालिका, बोर्ड या कैलेंडर"
+"A table, board or calendar of pages": "पेजों की तालिका, बोर्ड या कैलेंडर",
+"Invitations": "आमंत्रण",
+"{name} invited you to": "{name} ने आपको आमंत्रित किया:",
+"You are invited to": "आपको आमंत्रित किया गया है:",
+"You join only if you accept.": "आप तभी जुड़ेंगे जब आप स्वीकार करेंगे।",
+"Decline": "अस्वीकार करें",
+"You joined {name}": "आप {name} में शामिल हो गए",
+"You joined this group": "आप इस ग्रुप में शामिल हो गए",
+"Invitation declined": "आमंत्रण अस्वीकार किया",
+"Invitation cancelled": "आमंत्रण रद्द किया",
+"Invitation sent to {email}. They join when they accept.": "{email} को आमंत्रण भेजा गया। स्वीकार करने पर वे जुड़ जाएँगे।",
+"Invited": "आमंत्रित",
+"Waiting for them to accept": "उनके स्वीकार करने का इंतज़ार",
+"Cancel the invitation": "आमंत्रण रद्द करें",
+"Invite by email": "ईमेल से आमंत्रित करें",
+"Only people with a StudyPilot account can be invited. They get an email and a notification, and join only if they accept.": "सिर्फ़ StudyPilot खाते वाले लोगों को आमंत्रित किया जा सकता है। उन्हें ईमेल और सूचना मिलती है, और वे स्वीकार करने पर ही जुड़ते हैं।",
+"Work with classmates: shared deadlines, shared note pages you edit together live, and a group chat. Only people who already have an account can be invited, and they choose whether to join.": "सहपाठियों के साथ काम करें: साझा समय-सीमाएँ, साथ में लाइव संपादित नोट पेज और ग्रुप चैट। सिर्फ़ खाते वाले लोगों को आमंत्रित किया जा सकता है, और वे तय करते हैं कि जुड़ना है या नहीं।",
+"Make a group for a project team or a study circle. Invite classmates by their email, share deadlines and pages, and chat in one place.": "प्रोजेक्ट टीम या स्टडी सर्कल के लिए ग्रुप बनाएँ। सहपाठियों को ईमेल से आमंत्रित करें, समय-सीमाएँ और पेज साझा करें, और एक जगह चैट करें।"
 }

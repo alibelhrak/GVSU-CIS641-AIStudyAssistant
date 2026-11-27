@@ -245,7 +245,9 @@ export const Group = model('Group', new Schema({
   color: { type: String, default: '#2383e2', maxlength: 20 },
   owner: ref('User'),
   members: [{ _id: false, user: { type: Schema.Types.ObjectId, ref: 'User', required: true }, role: { type: String, enum: ['owner', 'member'], default: 'member' }, at: { type: Date, default: Date.now } }],
-}, opts).index({ 'members.user': 1 }));
+  // People asked to join who have not answered yet: they see nothing of the group until they accept
+  invites: [{ _id: false, user: { type: Schema.Types.ObjectId, ref: 'User', required: true }, by: { type: Schema.Types.ObjectId, ref: 'User' }, at: { type: Date, default: Date.now } }],
+}, opts).index({ 'members.user': 1 }).index({ 'invites.user': 1 }));
 
 export const GroupMessage = model('GroupMessage', new Schema({
   group: ref('Group'),
@@ -328,7 +330,7 @@ export const NoteMessage = model('NoteMessage', new Schema({
 export const Notification = model('Notification', new Schema({
   user: ref('User'),                                                         // who it is for
   actor: { type: Schema.Types.ObjectId, ref: 'User', default: null },       // who did it
-  kind: { type: String, enum: ['share', 'group', 'mention', 'comment', 'meeting', 'suggestion'], required: true },
+  kind: { type: String, enum: ['share', 'group', 'invite', 'mention', 'comment', 'meeting', 'suggestion'], required: true },
   title: { type: String, default: '', maxlength: 300 },
   body: { type: String, default: '', maxlength: 500 },
   url: { type: String, default: '', maxlength: 300 },

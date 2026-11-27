@@ -59,7 +59,7 @@ Built for **CIS 641 (Software Engineering)** at Grand Valley State University.
 | **Lock page** | **⋯ › Lock page** stops everyone, the owner included, from changing a page (by typing, live editing or the AI) until it is unlocked |
 | **Inbox** | 🔔 **Inbox** in the sidebar, with a count of unread items: pages shared with you, @mentions, comments and replies, suggested edits, study groups and meetings. Click one to go straight to it |
 | **Live co-editing** | Everyone who can edit a shared page sees the changes **as they are typed**, with each person's colored cursor and name, and their faces at the top of the page |
-| **Study groups** | Make a group for a project team or a study circle: members, a **group chat**, **shared deadlines** (each member can copy one into their own assignments) and the **pages the group edits together** |
+| **Study groups** | Make a group for a project team or a study circle and **invite** classmates (they **Accept** or **Decline**; nobody is added without agreeing): members, a **group chat**, **shared deadlines** (each member can copy one into their own assignments) and the **pages the group edits together** |
 | **Group meetings** | **Start Zoom** in a study group starts a Zoom call right away; **Schedule** plans one for later. Everyone in the group gets an email (and a push notification) with the Join link; for scheduled meetings the email carries a **calendar invitation** (Outlook, Gmail and Apple Calendar can add it in one click), and cancelling removes it from everyone's calendar. Each meeting also has an **Add to calendar** button (Google, Outlook, Apple). Only the person starting the meeting links their Zoom account (Settings › Connected apps). Groups can also schedule a meeting with a pasted Microsoft Teams or Google Meet link |
 | **Safety** | [Terms of Service](https://gvsu-cis641-aistudyassistant.onrender.com/terms) (accepted at sign-up, with a "13 or older" check) and [community guidelines](https://gvsu-cis641-aistudyassistant.onrender.com/guidelines) for everything shared. A **Report** button (🚩) on shared pages, public pages and group chat messages sends the report to the moderator, who can take the content down with one click |
 | **Trash** | Anything you delete (courses, tasks, sessions, files, pages, chats) waits in the Trash for 30 days. **Undo** right after deleting, or **Restore** it later |
@@ -263,7 +263,7 @@ Deleting never loses your work right away. When you delete a course, task, study
 
 **Edit together, live.** When a page is shared, everyone who has it open sees the others' changes as they are typed, each with a colored cursor and name. The faces of the people on the page show next to the Share button.
 
-**Study groups.** Click **Study groups** in the sidebar, then **New group**. Add members by email; each new member gets an email with a link to the group. Each group has:
+**Study groups.** Click **Study groups** in the sidebar, then **New group**. Invite classmates by email under **Members**. Each one gets an invitation by email and in their 🔔 Inbox, and joins only when they click **Accept** (or says no with **Decline**). Until then they show as **Invited** and see nothing of the group; you can cancel the invitation with ×. Invitations also wait at the top of the Study groups page. Each group has:
 
 - a **group chat**,
 - **deadlines** for the whole team; **Add to my assignments** copies one into your own Assignments under the course you choose,

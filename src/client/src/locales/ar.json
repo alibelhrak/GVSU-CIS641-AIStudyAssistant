@@ -1350,5 +1350,22 @@
 "Databases: tables, boards and calendars of pages": "قواعد البيانات: جداول ولوحات وتقويمات من الصفحات",
 "CSV (Excel, Google Sheets)": "CSV (Excel، Google Sheets)",
 "Database": "قاعدة بيانات",
-"A table, board or calendar of pages": "جدول أو لوحة أو تقويم من الصفحات"
+"A table, board or calendar of pages": "جدول أو لوحة أو تقويم من الصفحات",
+"Invitations": "الدعوات",
+"{name} invited you to": "دعاك {name} إلى",
+"You are invited to": "أنت مدعو إلى",
+"You join only if you accept.": "لن تنضم إلا إذا قبلت.",
+"Decline": "رفض",
+"You joined {name}": "انضممت إلى {name}",
+"You joined this group": "انضممت إلى هذه المجموعة",
+"Invitation declined": "تم رفض الدعوة",
+"Invitation cancelled": "تم إلغاء الدعوة",
+"Invitation sent to {email}. They join when they accept.": "أُرسلت الدعوة إلى {email}. سينضم عند القبول.",
+"Invited": "مدعو",
+"Waiting for them to accept": "بانتظار القبول",
+"Cancel the invitation": "إلغاء الدعوة",
+"Invite by email": "دعوة عبر البريد",
+"Only people with a StudyPilot account can be invited. They get an email and a notification, and join only if they accept.": "يمكن دعوة أصحاب حسابات StudyPilot فقط. يصلهم بريد وإشعار، ولا ينضمون إلا إذا قبلوا.",
+"Work with classmates: shared deadlines, shared note pages you edit together live, and a group chat. Only people who already have an account can be invited, and they choose whether to join.": "اعمل مع زملائك: مواعيد نهائية مشتركة وصفحات ملاحظات تعدّلونها معًا مباشرةً ودردشة جماعية. يمكن دعوة أصحاب الحسابات فقط، وهم يختارون الانضمام أو لا.",
+"Make a group for a project team or a study circle. Invite classmates by their email, share deadlines and pages, and chat in one place.": "أنشئ مجموعة لفريق مشروع أو حلقة دراسة. ادعُ زملاءك عبر البريد وشارك المواعيد والصفحات وتحدثوا في مكان واحد."
 }

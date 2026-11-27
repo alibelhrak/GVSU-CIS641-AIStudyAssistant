@@ -1342,5 +1342,22 @@
 "Databases: tables, boards and calendars of pages": "Bases de datos: tablas, tableros y calendarios de páginas",
 "CSV (Excel, Google Sheets)": "CSV (Excel, Google Sheets)",
 "Database": "Base de datos",
-"A table, board or calendar of pages": "Una tabla, tablero o calendario de páginas"
+"A table, board or calendar of pages": "Una tabla, tablero o calendario de páginas",
+"Invitations": "Invitaciones",
+"{name} invited you to": "{name} te invitó a",
+"You are invited to": "Te invitaron a",
+"You join only if you accept.": "Solo te unes si aceptas.",
+"Decline": "Rechazar",
+"You joined {name}": "Te uniste a {name}",
+"You joined this group": "Te uniste a este grupo",
+"Invitation declined": "Invitación rechazada",
+"Invitation cancelled": "Invitación cancelada",
+"Invitation sent to {email}. They join when they accept.": "Invitación enviada a {email}. Se unirá cuando la acepte.",
+"Invited": "Invitado",
+"Waiting for them to accept": "Esperando a que acepte",
+"Cancel the invitation": "Cancelar la invitación",
+"Invite by email": "Invitar por correo",
+"Only people with a StudyPilot account can be invited. They get an email and a notification, and join only if they accept.": "Solo se puede invitar a personas con cuenta de StudyPilot. Reciben un correo y una notificación, y solo se unen si aceptan.",
+"Work with classmates: shared deadlines, shared note pages you edit together live, and a group chat. Only people who already have an account can be invited, and they choose whether to join.": "Trabaja con compañeros: fechas límite compartidas, páginas de notas que editáis juntos en directo y un chat de grupo. Solo se puede invitar a quien ya tiene cuenta, y cada uno decide si se une.",
+"Make a group for a project team or a study circle. Invite classmates by their email, share deadlines and pages, and chat in one place.": "Crea un grupo para un equipo de proyecto o de estudio. Invita a compañeros por correo, comparte fechas límite y páginas, y chatead en un solo lugar."
 }

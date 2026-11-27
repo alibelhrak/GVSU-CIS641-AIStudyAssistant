@@ -1349,5 +1349,22 @@
 "Databases: tables, boards and calendars of pages": "数据库：由页面组成的表格、看板和日历",
 "CSV (Excel, Google Sheets)": "CSV（Excel、Google 表格）",
 "Database": "数据库",
-"A table, board or calendar of pages": "由页面组成的表格、看板或日历"
+"A table, board or calendar of pages": "由页面组成的表格、看板或日历",
+"Invitations": "邀请",
+"{name} invited you to": "{name} 邀请你加入",
+"You are invited to": "你被邀请加入",
+"You join only if you accept.": "只有接受后才会加入。",
+"Decline": "拒绝",
+"You joined {name}": "你已加入 {name}",
+"You joined this group": "你已加入此小组",
+"Invitation declined": "已拒绝邀请",
+"Invitation cancelled": "已取消邀请",
+"Invitation sent to {email}. They join when they accept.": "邀请已发送给 {email}，对方接受后即加入。",
+"Invited": "已邀请",
+"Waiting for them to accept": "等待对方接受",
+"Cancel the invitation": "取消邀请",
+"Invite by email": "通过邮箱邀请",
+"Only people with a StudyPilot account can be invited. They get an email and a notification, and join only if they accept.": "只能邀请拥有 StudyPilot 账号的人。他们会收到邮件和通知，接受后才会加入。",
+"Work with classmates: shared deadlines, shared note pages you edit together live, and a group chat. Only people who already have an account can be invited, and they choose whether to join.": "和同学一起学习：共享截止日期、实时共同编辑的笔记页面和小组聊天。只能邀请已有账号的人，由他们决定是否加入。",
+"Make a group for a project team or a study circle. Invite classmates by their email, share deadlines and pages, and chat in one place.": "为项目团队或学习圈创建小组。通过邮箱邀请同学，共享截止日期和页面，在一个地方聊天。"
 }

@@ -6,8 +6,9 @@ import { api } from '../lib/api.js';
 import { t } from '../lib/i18n.jsx';
 import { Icon } from '../icons.jsx';
 import { Face } from './NoteShare.jsx';
+import { useInvites, answerInvite } from './Groups.jsx';
 
-const KIND_ICON = { share: 'share', group: 'users', mention: 'link', comment: 'comment', meeting: 'video', suggestion: 'pencil' };
+const KIND_ICON = { share: 'share', group: 'users', invite: 'mail', mention: 'link', comment: 'comment', meeting: 'video', suggestion: 'pencil' };
 const ago = (at) => {
   const s = (Date.now() - new Date(at)) / 1000;
   if (s < 60) return t('now');
@@ -35,6 +36,20 @@ export default function Inbox({ onClose, onRead }) {
   const navigate = useNavigate();
   const [list, setList] = useState(null);
   const [unreadOnly, setUnreadOnly] = useState(false);
+  const [invites, setInvites] = useInvites();
+  const [answered, setAnswered] = useState({});   // group id -> 'accepted' | 'declined'
+  const [busy, setBusy] = useState(null);
+  const inviteOf = (n) => (n.kind === 'invite' ? new URLSearchParams(n.url.split('?')[1] || '').get('invite') : null);
+  const answer = async (n, gid, accept) => {
+    setBusy(gid);
+    try {
+      await answerInvite(gid, accept);
+      setInvites((l) => l.filter((x) => x.id !== gid));
+      setAnswered((a) => ({ ...a, [gid]: accept ? 'accepted' : 'declined' }));
+      if (!n.read) { api.post('/notifications/read', { ids: [n.id] }).catch(() => {}); onRead(-1); setList((l) => l.map((x) => (x.id === n.id ? { ...x, read: true } : x))); }
+      if (accept) { onClose(); navigate(`/groups/${gid}`); }
+    } catch (err) { setAnswered((a) => ({ ...a, [gid]: err.message })); } finally { setBusy(null); }
+  };
   useEffect(() => { api.get('/notifications').then(setList).catch(() => setList([])); }, []);
   useEffect(() => { const esc = (e) => { if (e.key === 'Escape') onClose(); }; document.addEventListener('keydown', esc); return () => document.removeEventListener('keydown', esc); }, [onClose]);
 
@@ -69,8 +84,12 @@ export default function Inbox({ onClose, onRead }) {
             : !shown.length ? (
               <div className="pchat-empty"><Icon name="bell" size={28} /><b>{unreadOnly ? t('You’re all caught up') : t('Nothing here yet')}</b>
                 <p className="muted">{t('When someone shares a page with you, @mentions you, comments or suggests edits, it shows up here.')}</p></div>
-            ) : shown.map((n) => (
-              <button key={n.id} type="button" className={`inbox-item ${n.read ? '' : 'unread'}`} onClick={() => openOne(n)}>
+            ) : shown.map((n) => {
+              const gid = inviteOf(n);
+              const pending = gid && invites.some((x) => x.id === gid) && !answered[gid];
+              return (
+              <div key={n.id} className="inbox-row">
+              <button type="button" className={`inbox-item ${n.read ? '' : 'unread'}`} onClick={() => openOne(n)}>
                 <span className="inbox-face">{n.actor ? <Face person={n.actor} size={30} /> : <Icon name="bell" size={18} />}
                   <span className="inbox-kind"><Icon name={KIND_ICON[n.kind] || 'bell'} size={11} /></span></span>
                 <span className="inbox-text">
@@ -80,7 +99,16 @@ export default function Inbox({ onClose, onRead }) {
                 </span>
                 {!n.read && <span className="inbox-dot" aria-label={t('Unread')} />}
               </button>
-            ))}
+              {pending && (
+                <div className="inbox-actions">
+                  <button type="button" className="btn primary sm" disabled={busy === gid} onClick={() => answer(n, gid, true)}><Icon name="tick" size={14} /> {t('Accept')}</button>
+                  <button type="button" className="btn sm" disabled={busy === gid} onClick={() => answer(n, gid, false)}>{t('Decline')}</button>
+                </div>
+              )}
+              {gid && answered[gid] && <p className="inbox-answer muted">{answered[gid] === 'accepted' ? t('You joined this group') : answered[gid] === 'declined' ? t('Invitation declined') : answered[gid]}</p>}
+              </div>
+              );
+            })}
         </div>
         {list?.some((n) => n.read) && <button type="button" className="inbox-clear" onClick={clearRead}>{t('Clear read notifications')}</button>}
       </div>

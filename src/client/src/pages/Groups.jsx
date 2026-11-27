@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useData } from '../lib/store.jsx';
 import { t } from '../lib/i18n.jsx';
@@ -21,9 +21,58 @@ export default function Groups() {
   return id ? <GroupView id={id} key={id} /> : <GroupList />;
 }
 
+/** Invitations waiting for an answer: join the group, or say no */
+export function useInvites() {
+  const [invites, setInvites] = useState([]);
+  const load = useCallback(() => api.get('/groups/invites').then(setInvites).catch(() => {}), []);
+  useEffect(() => { load(); }, [load]);
+  return [invites, setInvites, load];
+}
+export async function answerInvite(id, accept) {
+  return api.post(`/groups/${id}/${accept ? 'accept' : 'decline'}`);
+}
+
+function Invitations({ invites, setInvites, focus, notify }) {
+  const navigate = useNavigate();
+  const [busy, setBusy] = useState(null);
+  const ref = useRef(null);
+  useEffect(() => { if (focus) ref.current?.querySelector(`[data-invite="${focus}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, [focus, invites]);
+  if (!invites.length) return null;
+  const answer = async (inv, accept) => {
+    setBusy(inv.id);
+    try {
+      await answerInvite(inv.id, accept);
+      setInvites((l) => l.filter((x) => x.id !== inv.id));
+      window.dispatchEvent(new Event('sa-inbox'));
+      if (accept) { notify(t('You joined {name}', { name: inv.name })); navigate(`/groups/${inv.id}`); } else notify(t('Invitation declined'));
+    } catch (err) { notify(err.message); } finally { setBusy(null); }
+  };
+  return (
+    <section className="ginvites" ref={ref} aria-label="Invitations">
+      <h3 className="card-title"><Icon name="mail" size={17} /> {t('Invitations')} <span className="muted">{invites.length}</span></h3>
+      {invites.map((inv) => (
+        <div key={inv.id} data-invite={inv.id} className={`panel ginvite ${focus === inv.id ? 'on' : ''}`} style={{ '--g': inv.color }}>
+          <span className="group-badge" aria-hidden="true"><Icon name="users" size={18} /></span>
+          <div className="ginvite-text">
+            <b>{inv.from ? t('{name} invited you to', { name: inv.from.name }) : t('You are invited to')} <span data-no-translate>{inv.name}</span></b>
+            {inv.description && <span className="muted" data-no-translate>{inv.description}</span>}
+            <span className="muted">{inv.members === 1 ? t('1 member') : t('{n} members', { n: inv.members })} · {t('You join only if you accept.')}</span>
+          </div>
+          <div className="ginvite-actions">
+            <button type="button" className="btn primary sm" disabled={busy === inv.id} onClick={() => answer(inv, true)}><Icon name="tick" size={14} /> {t('Accept')}</button>
+            <button type="button" className="btn sm" disabled={busy === inv.id} onClick={() => answer(inv, false)}>{t('Decline')}</button>
+          </div>
+        </div>
+      ))}
+    </section>
+  );
+}
+
 function GroupList() {
   const { notify } = useData();
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const [invites, setInvites] = useInvites();
   const [groups, setGroups] = useState(null);
   const [form, setForm] = useState(null);   // null, or { name, description, color } while creating
   const [busy, setBusy] = useState(false);
@@ -42,11 +91,12 @@ function GroupList() {
     <div className="groups">
       <div className="groups-top">
         <div className="groups-intro">
-        <p className="muted">Work with classmates: shared deadlines, shared note pages you edit together live, and a group chat. Only people who already have an account can be added.</p>
+        <p className="muted">Work with classmates: shared deadlines, shared note pages you edit together live, and a group chat. Only people who already have an account can be invited, and they choose whether to join.</p>
         <p className="muted groups-rules">Be kind: to report a message, point at it and click the flag. <Link to="/guidelines">Community guidelines</Link></p>
         </div>
         {!form && <button className="btn primary" type="button" onClick={() => setForm({ name: '', description: '', color: COLORS[0] })}><Icon name="plus" size={16} /> New group</button>}
       </div>
+      <Invitations invites={invites} setInvites={setInvites} focus={params.get('invite')} notify={notify} />
       {form && (
         <form className="panel group-new" onSubmit={create}>
           <h3>New study group</h3>
@@ -62,11 +112,11 @@ function GroupList() {
         </form>
       )}
       {groups === null ? <div className="chat-loading"><span className="thinking"><i /><i /><i /></span></div>
-        : groups.length === 0 && !form ? (
+        : groups.length === 0 && !form && !invites.length ? (
           <div className="panel groups-empty">
             <span aria-hidden="true">👥</span>
             <b>No study groups yet</b>
-            <p className="muted">Make a group for a project team or a study circle. Add classmates by their email, share deadlines and pages, and chat in one place.</p>
+            <p className="muted">Make a group for a project team or a study circle. Invite classmates by their email, share deadlines and pages, and chat in one place.</p>
             <button className="btn primary" type="button" onClick={() => setForm({ name: '', description: '', color: COLORS[0] })}><Icon name="plus" size={16} /> New group</button>
           </div>
         ) : (
@@ -328,8 +378,13 @@ function Members({ g, setG, notify }) {
   const add = async (e) => {
     e.preventDefault();
     setBusy(true); setError('');
-    try { setG({ ...g, ...(await api.post(`/groups/${g.id}/members`, { email: email.trim() })) }); setEmail(''); } catch (err) { setError(err.message); } finally { setBusy(false); }
+    try {
+      setG({ ...g, ...(await api.post(`/groups/${g.id}/members`, { email: email.trim() })) });
+      notify(t('Invitation sent to {email}. They join when they accept.', { email: email.trim() }));
+      setEmail('');
+    } catch (err) { setError(err.message); } finally { setBusy(false); }
   };
+  const cancel = async (m) => { try { setG({ ...g, ...(await api.del(`/groups/${g.id}/invites/${m.id}`)) }); notify(t('Invitation cancelled')); } catch (err) { notify(err.message); } };
   const remove = async (m) => { try { setG({ ...g, ...(await api.del(`/groups/${g.id}/members/${m.id}`)) }); } catch (err) { notify(err.message); } };
   return (
     <section className="panel">
@@ -342,13 +397,21 @@ function Members({ g, setG, notify }) {
             {m.role === 'owner' ? <span className="role-chip">Owner</span> : g.mine && <button className="icon-btn" type="button" onClick={() => remove(m)} title="Remove from group" aria-label={`Remove ${m.name}`}><Icon name="close" size={14} /></button>}
           </div>
         ))}
+        {(g.invited || []).map((m) => (
+          <div key={m.id} className="share-row invited">
+            <Face person={m} />
+            <div className="share-who"><b data-no-translate>{m.name}</b><span className="muted" data-no-translate>{m.email}</span></div>
+            <span className="role-chip view" title={t('Waiting for them to accept')}>{t('Invited')}</span>
+            {m.canCancel && <button className="icon-btn" type="button" onClick={() => cancel(m)} title={t('Cancel the invitation')} aria-label={`${t('Cancel the invitation')}: ${m.name}`}><Icon name="close" size={14} /></button>}
+          </div>
+        ))}
       </div>
       <form className="gmember-add" onSubmit={add}>
-        <input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setError(''); }} placeholder="Add by email" aria-label="Add a member by email" />
-        <button className="btn sm" type="submit" disabled={busy || !email.trim()}>Add</button>
+        <input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setError(''); }} placeholder="Invite by email" aria-label="Invite someone by email" />
+        <button className="btn sm" type="submit" disabled={busy || !email.trim()}>Invite</button>
       </form>
       {error && <p className="error-box">{error}</p>}
-      <p className="note">Only people with a StudyPilot account can be added. They get an email with a link to the group.</p>
+      <p className="note">Only people with a StudyPilot account can be invited. They get an email and a notification, and join only if they accept.</p>
     </section>
   );
 }

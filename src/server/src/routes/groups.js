@@ -1,12 +1,12 @@
 /**
  * Study groups: a few students who share deadlines, note pages and a chat.
- * Only people who already have an account can be added (by email).
+ * Only people who already have an account can be invited (by email). They join only if they accept the invitation.
  * The owner can rename or delete the group and remove members; any member can invite and leave.
  */
 import { Router } from 'express';
 import mongoose from 'mongoose';
 import { Group, GroupMeeting, GroupMessage, GroupTask, Note, User, TASK_TYPES } from '../models/index.js';
-import { notifyGroupAdded, notifyMeeting, notifyMeetingCancelled } from '../services/invites.js';
+import { notifyGroupInvited, notifyInviteAnswered, notifyMeeting, notifyMeetingCancelled } from '../services/invites.js';
 import { calendarLinks, meetingIcs } from '../services/calendar.js';
 import { zoomApi } from '../services/zoom.js';
 import { zoomEnabled } from '../config.js';
@@ -30,7 +30,8 @@ async function memberOf(req) {
 const isOwner = (group, userId) => String(group.owner) === String(userId);
 
 async function view(group, userId) {
-  const people = await User.find({ _id: { $in: group.members.map((m) => m.user) } }).select('name email avatar').lean();
+  const invites = group.invites || [];
+  const people = await User.find({ _id: { $in: [...group.members.map((m) => m.user), ...invites.map((i) => i.user)] } }).select('name email avatar').lean();
   const byId = new Map(people.map((u) => [String(u._id), u]));
   return {
     id: String(group._id), name: group.name, description: group.description, color: group.color,
@@ -38,6 +39,11 @@ async function view(group, userId) {
     members: group.members.filter((m) => byId.has(String(m.user))).map((m) => {
       const u = byId.get(String(m.user));
       return { id: String(u._id), name: u.name, email: u.email, avatar: u.avatar || '', role: m.role, me: String(u._id) === String(userId) };
+    }),
+    // waiting for an answer (the owner, or whoever invited them, can cancel)
+    invited: invites.filter((i) => byId.has(String(i.user))).map((i) => {
+      const u = byId.get(String(i.user));
+      return { id: String(u._id), name: u.name, email: u.email, avatar: u.avatar || '', at: i.at, canCancel: isOwner(group, userId) || String(i.by) === String(userId) };
     }),
   };
 }
@@ -49,6 +55,19 @@ async function findUser(email) {
   if (!user || user.emailVerified === false) throw new HttpError(404, `No account uses ${e} yet. Ask them to sign up first, then add them.`);
   return user;
 }
+
+// The groups I am invited to (not yet answered)
+r.get('/invites', h(async (req, res) => {
+  const groups = await Group.find({ 'invites.user': req.userId }).select('name description color members invites').lean();
+  const inviterIds = groups.map((g) => g.invites.find((i) => String(i.user) === String(req.userId))?.by).filter(Boolean);
+  const names = new Map((await User.find({ _id: { $in: inviterIds } }).select('name avatar').lean()).map((u) => [String(u._id), u]));
+  res.json(groups.map((g) => {
+    const mine = g.invites.find((i) => String(i.user) === String(req.userId));
+    const by = names.get(String(mine?.by));
+    return { id: String(g._id), name: g.name, description: g.description, color: g.color, members: g.members.length, at: mine?.at,
+      from: by ? { id: String(mine.by), name: by.name, avatar: by.avatar || '' } : null };
+  }));
+}));
 
 // ---------- Groups ----------
 r.get('/', h(async (req, res) => {
@@ -144,11 +163,48 @@ r.post('/:id/members', h(async (req, res) => {
   const group = await memberOf(req);
   const user = await findUser(req.body?.email);
   if (group.members.some((m) => String(m.user) === String(user._id))) throw new HttpError(400, 'Already in this group');
-  if (group.members.length >= MAX_MEMBERS) throw new HttpError(400, `A group can have up to ${MAX_MEMBERS} members`);
-  if (await Group.countDocuments({ 'members.user': user._id }) >= MAX_GROUPS) throw new HttpError(400, 'They are already in too many groups');
-  group.members.push({ user: user._id, role: 'member' });
+  if ((group.invites || []).some((i) => String(i.user) === String(user._id))) throw new HttpError(400, 'Already invited. They have not answered yet.');
+  if (group.members.length + (group.invites || []).length >= MAX_MEMBERS) throw new HttpError(400, `A group can have up to ${MAX_MEMBERS} members`);
+  // An invitation, not a membership: they join only if they accept
+  group.invites.push({ user: user._id, by: req.userId });
   await group.save();
-  notifyGroupAdded({ toId: user._id, fromId: req.userId, group });   // email + push, in the background
+  notifyGroupInvited({ toId: user._id, fromId: req.userId, group });   // inbox, email and push, in the background
+  res.json(await view(group, req.userId));
+}));
+
+// ---------- Invitations ----------
+async function myInvite(req) {
+  if (!mongoose.isValidObjectId(req.params.id)) throw new HttpError(404, 'Invitation not found');
+  const group = await Group.findOne({ _id: req.params.id, 'invites.user': req.userId });
+  if (!group) throw new HttpError(404, 'This invitation is no longer open');
+  return group;
+}
+r.post('/:id/accept', h(async (req, res) => {
+  const group = await myInvite(req);
+  if (await Group.countDocuments({ 'members.user': req.userId }) >= MAX_GROUPS) throw new HttpError(400, `You can be in up to ${MAX_GROUPS} groups. Leave one first.`);
+  const invite = group.invites.find((i) => String(i.user) === String(req.userId));
+  group.invites = group.invites.filter((i) => String(i.user) !== String(req.userId));
+  if (!group.members.some((m) => String(m.user) === String(req.userId))) group.members.push({ user: req.userId, role: 'member' });
+  await group.save();
+  notifyInviteAnswered({ toId: invite?.by || group.owner, fromId: req.userId, group, accepted: true });
+  res.json(await view(group, req.userId));
+}));
+r.post('/:id/decline', h(async (req, res) => {
+  const group = await myInvite(req);
+  const invite = group.invites.find((i) => String(i.user) === String(req.userId));
+  group.invites = group.invites.filter((i) => String(i.user) !== String(req.userId));
+  await group.save();
+  notifyInviteAnswered({ toId: invite?.by || group.owner, fromId: req.userId, group, accepted: false });
+  res.json({ ok: true });
+}));
+// Cancel an invitation (the group owner, or whoever sent it)
+r.delete('/:id/invites/:userId', h(async (req, res) => {
+  const group = await memberOf(req);
+  const invite = (group.invites || []).find((i) => String(i.user) === req.params.userId);
+  if (!invite) throw new HttpError(404, 'Invitation not found');
+  if (!isOwner(group, req.userId) && String(invite.by) !== String(req.userId)) throw new HttpError(403, 'Only the group owner or the person who sent it can cancel an invitation');
+  group.invites = group.invites.filter((i) => i !== invite);
+  await group.save();
   res.json(await view(group, req.userId));
 }));
 

@@ -1055,3 +1055,16 @@ img.avatar,img.set-avatar{object-fit:cover;padding:0;background:var(--surface-2)
 .inbox-clear{all:unset;padding:9px;text-align:center;font-size:12.5px;color:var(--muted);border-top:1px solid var(--line);cursor:pointer}
 .inbox-clear:hover{color:var(--fg);background:var(--hover)}
 @media (max-width:760px){.inbox-overlay{padding:10px;justify-content:center}}
+
+/* ---------- Study group invitations ---------- */
+.ginvites{display:flex;flex-direction:column;gap:8px;margin-bottom:18px}
+.ginvite{display:flex;align-items:center;gap:12px;padding:14px 16px;border-left:4px solid var(--g,var(--accent));flex-wrap:wrap}
+.ginvite.on{box-shadow:0 0 0 3px var(--accent-soft)}
+.ginvite .group-badge{background:var(--g,var(--accent))}
+.ginvite-text{display:flex;flex-direction:column;gap:2px;flex:1;min-width:200px;font-size:.92rem}
+.ginvite-actions{display:flex;gap:8px}
+.share-row.invited{opacity:.85}
+.share-row.invited .role-chip{margin-left:auto}
+.inbox-row{display:flex;flex-direction:column}
+.inbox-actions{display:flex;gap:8px;padding:0 10px 10px 50px}
+.inbox-answer{margin:0;padding:0 10px 10px 50px;font-size:12.5px}

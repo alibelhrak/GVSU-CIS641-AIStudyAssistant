@@ -66,6 +66,25 @@ const T = {
     zh: '{from} 在 StudyPilot 上把你加入了一个学习小组。小组共享截止日期、共同编辑的笔记页面和小组聊天。',
     hi: '{from} ने आपको StudyPilot पर एक स्टडी ग्रुप में जोड़ा है। ग्रुप समय-सीमाएँ, साथ में संपादित नोट पेज और ग्रुप चैट साझा करता है।',
   },
+  inviteSubject: {
+    en: '{from} invited you to the study group "{title}"',
+    fr: '{from} vous invite dans le groupe d’étude « {title} »',
+    es: '{from} te invitó al grupo de estudio «{title}»',
+    ar: 'دعاك {from} إلى مجموعة الدراسة «{title}»',
+    zh: '{from} 邀请你加入学习小组“{title}”',
+    hi: '{from} ने आपको स्टडी ग्रुप "{title}" में आमंत्रित किया',
+  },
+  inviteBody: {
+    en: '{from} invited you to join a study group on StudyPilot. A group shares deadlines, note pages you edit together, and a group chat. You join only if you accept; you can also decline.',
+    fr: '{from} vous invite à rejoindre un groupe d’étude sur StudyPilot. Un groupe partage des échéances, des pages de notes modifiées ensemble et une discussion. Vous ne le rejoignez que si vous acceptez ; vous pouvez aussi refuser.',
+    es: '{from} te invitó a unirte a un grupo de estudio en StudyPilot. Un grupo comparte fechas límite, páginas de notas que editáis juntos y un chat. Solo te unes si aceptas; también puedes rechazarla.',
+    ar: 'دعاك {from} للانضمام إلى مجموعة دراسة على StudyPilot. تتشارك المجموعة المواعيد النهائية وصفحات ملاحظات تعدّلونها معًا ودردشة جماعية. لن تنضم إلا إذا قبلت، ويمكنك أيضًا الرفض.',
+    zh: '{from} 邀请你加入 StudyPilot 上的学习小组。小组共享截止日期、共同编辑的笔记页面和小组聊天。只有你接受后才会加入，你也可以拒绝。',
+    hi: '{from} ने आपको StudyPilot पर एक स्टडी ग्रुप में शामिल होने के लिए आमंत्रित किया है। ग्रुप समय-सीमाएँ, साथ में संपादित नोट पेज और ग्रुप चैट साझा करता है। आप तभी जुड़ेंगे जब आप स्वीकार करेंगे; आप मना भी कर सकते हैं।',
+  },
+  inviteButton: { en: 'Accept or decline', fr: 'Accepter ou refuser', es: 'Aceptar o rechazar', ar: 'قبول أو رفض', zh: '接受或拒绝', hi: 'स्वीकार या अस्वीकार करें' },
+  inviteAccepted: { en: '{from} joined "{title}"', fr: '{from} a rejoint « {title} »', es: '{from} se unió a «{title}»', ar: 'انضم {from} إلى «{title}»', zh: '{from} 加入了“{title}”', hi: '{from} "{title}" में शामिल हुए' },
+  inviteDeclined: { en: '{from} declined the invitation to "{title}"', fr: '{from} a refusé l’invitation à « {title} »', es: '{from} rechazó la invitación a «{title}»', ar: 'رفض {from} الدعوة إلى «{title}»', zh: '{from} 拒绝了加入“{title}”的邀请', hi: '{from} ने "{title}" का आमंत्रण अस्वीकार किया' },
   groupButton: { en: 'Open the group', fr: 'Ouvrir le groupe', es: 'Abrir el grupo', ar: 'فتح المجموعة', zh: '打开小组', hi: 'ग्रुप खोलें' },
   why: {
     en: 'You got this email because {from} invited your StudyPilot account. If you don\'t want to work with them, you can leave the page or group in the app.',
@@ -221,6 +240,44 @@ export async function notifyGroupAdded({ toId, fromId, group }) {
     await sendPush(to._id, { title: subject, body: group.description || group.name, url: path, tag: `group-${group._id}` });
   } catch (err) {
     console.warn('Group email failed:', err.message);
+  }
+}
+
+/** An invitation to a study group: in the app, by email and as a push notification. They join only if they accept. */
+export async function notifyGroupInvited({ toId, fromId, group }) {
+  try {
+    const { to, lang, fromName } = await people(toId, fromId);
+    if (!to?.email) return;
+    const name = (to.name || '').split(' ')[0] || to.email;
+    const path = `/groups?invite=${group._id}`;
+    const subject = tr('inviteSubject', lang, { from: fromName, title: group.name });
+    await inbox(to._id, { actor: fromId, kind: 'invite', title: subject, body: group.description || '', url: path });
+    await sendMail({
+      to: to.email, toName: to.name, subject,
+      ...layout({
+        lang, title: subject, path, quote: group.description ? `${group.name} · ${group.description}` : group.name, button: tr('inviteButton', lang),
+        lines: [tr('hi', lang, { name }), tr('inviteBody', lang, { from: fromName })],
+        note: tr('why', lang, { from: fromName }),
+      }),
+    }).catch((err) => console.warn('Email failed:', err.message));
+    await sendPush(to._id, { title: subject, body: group.description || group.name, url: path, tag: `invite-${group._id}` });
+  } catch (err) {
+    console.warn('Group invitation failed:', err.message);
+  }
+}
+
+/** Tell whoever sent an invitation that it was accepted or declined (in the app and as a push notification) */
+export async function notifyInviteAnswered({ toId, fromId, group, accepted }) {
+  try {
+    if (!toId || String(toId) === String(fromId)) return;
+    const { to, lang, fromName } = await people(toId, fromId);
+    if (!to) return;
+    const title = tr(accepted ? 'inviteAccepted' : 'inviteDeclined', lang, { from: fromName, title: group.name });
+    const path = `/groups/${group._id}`;
+    await inbox(to._id, { actor: fromId, kind: 'group', title, body: '', url: path });
+    await sendPush(to._id, { title, body: group.name, url: path, tag: `answer-${group._id}-${fromId}` });
+  } catch (err) {
+    console.warn('Invitation answer notice failed:', err.message);
   }
 }
 

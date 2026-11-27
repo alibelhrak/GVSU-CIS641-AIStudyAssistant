@@ -1339,5 +1339,22 @@
 "Databases: tables, boards and calendars of pages": "Bases de données : tableaux, colonnes et calendriers de pages",
 "CSV (Excel, Google Sheets)": "CSV (Excel, Google Sheets)",
 "Database": "Base de données",
-"A table, board or calendar of pages": "Un tableau, des colonnes ou un calendrier de pages"
+"A table, board or calendar of pages": "Un tableau, des colonnes ou un calendrier de pages",
+"Invitations": "Invitations",
+"{name} invited you to": "{name} vous invite dans",
+"You are invited to": "Vous êtes invité dans",
+"You join only if you accept.": "Vous ne rejoignez le groupe que si vous acceptez.",
+"Decline": "Refuser",
+"You joined {name}": "Vous avez rejoint {name}",
+"You joined this group": "Vous avez rejoint ce groupe",
+"Invitation declined": "Invitation refusée",
+"Invitation cancelled": "Invitation annulée",
+"Invitation sent to {email}. They join when they accept.": "Invitation envoyée à {email}. La personne rejoindra le groupe en acceptant.",
+"Invited": "Invité",
+"Waiting for them to accept": "En attente de leur réponse",
+"Cancel the invitation": "Annuler l’invitation",
+"Invite by email": "Inviter par e-mail",
+"Only people with a StudyPilot account can be invited. They get an email and a notification, and join only if they accept.": "Seules les personnes ayant un compte StudyPilot peuvent être invitées. Elles reçoivent un e-mail et une notification, et ne rejoignent le groupe que si elles acceptent.",
+"Work with classmates: shared deadlines, shared note pages you edit together live, and a group chat. Only people who already have an account can be invited, and they choose whether to join.": "Travaillez avec vos camarades : échéances partagées, pages de notes modifiées ensemble en direct et discussion de groupe. Seules les personnes ayant déjà un compte peuvent être invitées, et elles choisissent de rejoindre ou non.",
+"Make a group for a project team or a study circle. Invite classmates by their email, share deadlines and pages, and chat in one place.": "Créez un groupe pour une équipe de projet ou un cercle d’étude. Invitez vos camarades par e-mail, partagez échéances et pages, et discutez au même endroit."
 }
