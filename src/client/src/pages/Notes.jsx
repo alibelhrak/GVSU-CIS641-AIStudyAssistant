@@ -1,7 +1,8 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useParams } from 'react-router-dom';
-import { BlockNoteSchema, createCodeBlockSpec, defaultBlockSpecs, defaultInlineContentSpecs, filterSuggestionItems } from '@blocknote/core';
+import { BlockNoteEditor, BlockNoteSchema, createCodeBlockSpec, defaultBlockSpecs, defaultInlineContentSpecs, filterSuggestionItems } from '@blocknote/core';
+import { exportMarkdown, exportPdf, exportWord, importFile, IMPORT_TYPES } from './noteFiles.js';
 import { calloutSpec, mathSpec, inlineMathSpec, tocSpec, embedSpec, bookmarkSpec, columnsSpec, extraSlashItems, mentionSpec, mentionItems } from './blocks.jsx';
 import { SyntaxHighlightingExtension } from '@blocknote/core/extensions';
 import { withCollaboration } from '@blocknote/core/yjs';
@@ -233,6 +234,62 @@ function SlashMenu({ items, selectedIndex, onItemClick, loadingState, mention = 
 }
 
 const MentionMenu = (props) => <SlashMenu {...props} mention />;
+
+/** The "⋯" menu of a page: duplicate, move, export, history */
+function PageMenu({ owner, onDuplicate, onMove, onHistory, onExport }) {
+  const [open, setOpen] = useState(false);
+  const wrap = useRef(null);
+  useEffect(() => {
+    if (!open) return undefined;
+    const away = (e) => { if (!wrap.current?.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', away);
+    return () => document.removeEventListener('mousedown', away);
+  }, [open]);
+  const item = (icon, label, fn) => <button type="button" role="menuitem" onClick={() => { setOpen(false); fn(); }}><Icon name={icon} size={15} /> {label}</button>;
+  return (
+    <div className="pop-wrap" ref={wrap}>
+      <button className="icon-btn" type="button" onClick={() => setOpen((v) => !v)} aria-label="More" title="More: duplicate, move, export" aria-expanded={open}><Icon name="more" size={17} /></button>
+      {open && (
+        <div className="pop-menu page-menu" role="menu">
+          {item('copy', owner ? 'Duplicate' : 'Duplicate to my notes', onDuplicate)}
+          {owner && item('folder', 'Move to…', onMove)}
+          {onHistory && item('history', 'Page history', onHistory)}
+          <p className="code-menu-title">Export</p>
+          {item('file', 'PDF', () => onExport('pdf'))}
+          {item('file', 'Word (.docx)', () => onExport('docx'))}
+          {item('file', 'Markdown (.md)', () => onExport('md'))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** "Move to…": put the page inside another page, or at the top level */
+function MoveDialog({ note, notes, onClose, onMove }) {
+  const [q, setQ] = useState('');
+  const below = new Set([note.id]);
+  let grew = true;
+  while (grew) { grew = false; for (const n of notes) if (n.parent && below.has(n.parent) && !below.has(n.id)) { below.add(n.id); grew = true; } }
+  const list = notes.filter((n) => !below.has(n.id) && titleOf(n).toLowerCase().includes(q.trim().toLowerCase())).slice(0, 60);
+  useEffect(() => { const esc = (e) => { if (e.key === 'Escape') onClose(); }; document.addEventListener('keydown', esc); return () => document.removeEventListener('keydown', esc); }, [onClose]);
+  return createPortal(
+    <div className="install-overlay" onMouseDown={onClose} role="presentation">
+      <div className="rem-card move-card" role="dialog" aria-modal="true" aria-label="Move to" onMouseDown={(e) => e.stopPropagation()}>
+        <div className="move-search"><Icon name="search" size={15} /><input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('Move to a page…')} aria-label="Search pages" /></div>
+        <div className="move-list">
+          {note.parent && !q && <button type="button" onClick={() => onMove(null)}><Icon name="note" size={15} /> <b>{t('Top level')}</b> <span className="muted">{t('Not inside another page')}</span></button>}
+          {list.map((n) => (
+            <button key={n.id} type="button" onClick={() => onMove(n.id)} disabled={n.id === note.parent}>
+              <span>{n.icon || '📄'}</span> <span data-no-translate>{titleOf(n)}</span>{n.id === note.parent && <span className="muted"> · {t('current')}</span>}
+            </button>
+          ))}
+          {!list.length && <p className="muted move-empty">{t('No pages found.')}</p>}
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
 
 /** "Linked from 2 pages": pages that @mention or link to this one (like Notion's backlinks) */
 function Backlinks({ id, onOpen }) {
@@ -1013,6 +1070,7 @@ export default function Notes() {
   });
   const [pchatOpen, setPchatOpen] = useState(false);     // the chat on a shared page
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [moveOpen2, setMoveOpen2] = useState(false);   // the "Move to" window of the open page
   const [entering, setEntering] = useState(false);    // blocks fade in one after another when a page opens                 // the AI writer: { ctx, start, key }
 
   const editorRef = useRef(null);
@@ -1120,6 +1178,38 @@ export default function Notes() {
     } catch (err) {
       notify(err.message);
     }
+  };
+
+  // ---------- Duplicate, move, export, import ----------
+  const duplicate = async () => {
+    try {
+      const copy = await api.post(`/notes/${current.id}/duplicate`);
+      await loadList(); open(copy.id || copy._id);
+      notify(owner ? t('Page duplicated') : t('A copy is now in your notes'));
+    } catch (err) { notify(err.message); }
+  };
+  const movePage = async (parent) => {
+    setMoveOpen2(false);
+    try { await api.patch(`/notes/${current.id}`, { parent }); setCurrent((c) => ({ ...c, parent })); await loadList(); notify(t('Page moved')); } catch (err) { notify(err.message); }
+  };
+  const exportPage = async (kind) => {
+    const editor = editorRef.current;
+    if (!editor || !current) return;
+    try {
+      if (kind === 'md') exportMarkdown(editor, current);
+      else if (kind === 'docx') { notify(t('Making the Word file…')); await exportWord(editor, current); }
+      else exportPdf(current);
+    } catch (err) { notify(err.message); }
+  };
+  const importPage = async (file) => {
+    try {
+      notify(t('Importing {name}…', { name: file.name }));
+      const parser = editorRef.current || BlockNoteEditor.create({ schema: SCHEMA });
+      const { title, blocks } = await importFile(file, parser);
+      const n = await api.post('/notes', { title, content: blocks });
+      await loadList(); open(n.id || n._id);
+      notify(t('Imported as a new page'));
+    } catch (err) { notify(err.message); }
   };
 
   const remove = async (nid) => {
@@ -1394,7 +1484,13 @@ export default function Notes() {
             </>
           )}
         </div>
-        <button className="side-link notes-new" type="button" onClick={() => create()}><Icon name="plus" /><span>New page</span></button>
+        <div className="notes-foot-row">
+          <button className="side-link notes-new" type="button" onClick={() => create()}><Icon name="plus" /><span>New page</span></button>
+          <label className="side-link notes-import" title="Import a Word (.docx), Markdown (.md), text or HTML file as a new page">
+            <Icon name="upload" /><span>Import</span>
+            <input type="file" accept={IMPORT_TYPES} hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) importPage(f); }} />
+          </label>
+        </div>
       </aside>
       {panel && <div className="history-scrim" onClick={() => setPanel(false)} aria-hidden="true" />}
 
@@ -1464,6 +1560,8 @@ export default function Notes() {
                   <img src="/logo.png" alt="" width={16} height={16} /> Ask AI
                 </button>
               )}
+              <PageMenu owner={owner} onDuplicate={duplicate} onMove={() => setMoveOpen2(true)} onHistory={viewer ? null : () => setHistoryOpen(true)}
+                onExport={(kind) => exportPage(kind)} />
               {owner && <PageLook note={current} setMeta={setMeta} />}
               {owner && <div className="pop-wrap">
                 <button className="icon-btn" type="button" onClick={() => setDelOpen((v) => !v)} aria-label="Move page to Trash" title="Move to Trash"><Icon name="trash" size={16} /></button>
@@ -1564,6 +1662,7 @@ export default function Notes() {
         <NotesChat note={current} getEditor={() => editorRef.current} notify={notify} onClose={() => setChatOpen(false)} />
       )}
       {pchatOpen && current && isSharedPage && !chatOpen && <PageChat key={current.id} note={current} notify={notify} onClose={() => setPchatOpen(false)} />}
+      {moveOpen2 && current && <MoveDialog note={current} notes={notes || []} onClose={() => setMoveOpen2(false)} onMove={movePage} />}
       {historyOpen && current && <PageHistory note={current} dark={dark} getEditor={() => editorRef.current} notify={notify} onClose={() => setHistoryOpen(false)} />}
     </div>
   );

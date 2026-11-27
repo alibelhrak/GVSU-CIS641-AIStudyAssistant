@@ -367,6 +367,21 @@ r.patch('/:id', h(async (req, res) => {
   res.json({ ...meta, role });
 }));
 
+// ---------- Duplicate ----------
+// The owner gets a copy next to the original; someone the page is shared with gets a copy in their own notes
+r.post('/:id/duplicate', h(async (req, res) => {
+  const { note, role } = await noteAccess(req.params.id, req.userId);
+  if (!role) throw new HttpError(404, 'Note not found');
+  const own = role === 'owner';
+  const copy = await Note.create({
+    user: req.userId, title: `${note.title || 'Untitled'} (copy)`.slice(0, 200), icon: note.icon, cover: note.cover, coverY: note.coverY,
+    wide: note.wide, textSize: note.textSize, content: note.content, text: note.text, markdown: note.content?.length ? '' : note.markdown,
+    parent: own ? note.parent : null, folder: own ? note.folder : null, course: own ? note.course : null,
+  });
+  if (copy.content?.length) afterSave(copy._id, req.userId, copy.content, []).catch(() => {});
+  res.status(201).json(copy);
+}));
+
 // ---------- @mentions and backlinks ----------
 // People who can open the page (the owner, people it is shared with, members of its study groups): who can be @mentioned
 r.get('/:id/people', h(async (req, res) => {

@@ -120,6 +120,7 @@ All routes start with `/api`. Every route except `/auth/*` and `/health` needs t
 | `/notes/:id/messages` | The chat on a shared page (409 when the page is not shared): `GET ?after=`, `POST { text }`, `DELETE /:mid` (your own; the page owner can delete any) |
 | `/notes/:id/versions` | Page history (owner and editors): `GET` the list, `GET /:vid` one version, `POST` keep a copy now (the app calls it before restoring) |
 | `WS /collab/:noteId?token=` | Live co-editing (WebSocket, Yjs protocol); see below |
+| `POST /notes/:id/duplicate` | Copy a page: the owner's copy stays in the same place; someone it is shared with gets the copy in their own notes |
 | `GET /search?q=` | Quick Find: pages (titles, text; mine and shared with me, with a snippet and the parent page), courses, assignments, study groups. No `q`: recent pages |
 | `GET /notes/:id/people`, `GET /notes/:id/backlinks` | Who can be @mentioned on a page (everyone who can open it), and the pages that link to it |
 | `GET /links/preview?url=` | Title, description, picture and site name of a public web page, for Web bookmark blocks. Private, local and cloud-metadata addresses are refused (checked after every redirect); 6 s and 600 KB limits |
@@ -136,6 +137,7 @@ All routes start with `/api`. Every route except `/auth/*` and `/health` needs t
 - **Page history** (`server/src/services/versions.js`): before a save, the server keeps a `NoteVersion` of the page when the save removes 40 % or more of a page of 200+ characters, and at most every 15 minutes otherwise (40 per page, 60 days). Restoring goes through the editor (`replaceBlocks`), so it reaches live editors and Ctrl+Z works.
 - **Notes AI safety** (`routes/notesChat.js`): `replace_page` is refused when the model only saw part of the page, or when the new page is much shorter than the old one; changes cut off by the token limit are not applied; long tool arguments are summarized before the follow-up request.
 - **@mentions and backlinks** (`server/src/services/mentions.js`): on every save the server scans the page for `mention` inline content (a person, a page or a date) and links to `/notes/<id>`, stores them as `Note.links` / `Note.mentions`, and emails people who were newly mentioned (only if they can open the page).
+- **Export and import** (`client/src/pages/noteFiles.js`): Markdown with BlockNote's `blocksToMarkdownLossy`; Word with the `docx` library (headings, styles, lists, tables, images, code, callouts, links); PDF through the browser's print dialog with a print-only copy of the page. Import reads Word files with `mammoth` and Markdown / HTML with BlockNote's parsers. Both libraries load only when used.
 - **Hosting:** Render's free plan supports WebSockets. The rooms live in one server's memory, so running several server copies would need a shared Yjs backend (e.g. Redis); one copy is fine for this project.
 
 ## Zoom meetings
