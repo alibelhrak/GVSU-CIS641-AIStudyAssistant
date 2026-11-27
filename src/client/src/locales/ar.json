@@ -1413,5 +1413,11 @@
 "Omar suggested changes": "اقترح عمر تغييرات",
 "Review": "مراجعة",
 "Maya accepted your invitation": "قبلت مايا دعوتك",
-"Due": "الموعد"
+"Due": "الموعد",
+"React": "تفاعل",
+"Sent": "تم الإرسال",
+"Seen by {a}": "شاهده {a}",
+"Seen by {a} and {b}": "شاهده {a} و{b}",
+"Seen by {a}, {b} and {n} more": "شاهده {a} و{b} و{n} آخرون",
+"including you": "بما فيهم أنت"
 }

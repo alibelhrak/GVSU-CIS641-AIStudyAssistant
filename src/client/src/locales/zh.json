@@ -1412,5 +1412,11 @@
 "Omar suggested changes": "Omar 建议了修改",
 "Review": "查看",
 "Maya accepted your invitation": "Maya 接受了你的邀请",
-"Due": "截止"
+"Due": "截止",
+"React": "回应",
+"Sent": "已发送",
+"Seen by {a}": "{a} 已读",
+"Seen by {a} and {b}": "{a} 和 {b} 已读",
+"Seen by {a}, {b} and {n} more": "{a}、{b} 和另外 {n} 人已读",
+"including you": "包括你"
 }

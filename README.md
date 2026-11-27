@@ -78,6 +78,7 @@ Built for **CIS 641 (Software Engineering)** at Grand Valley State University.
 
 ## What's new
 
+- **Reactions and "Seen" in chats (November 2026):** in the study group chat and the chat on shared pages, react to any message with 👍 ❤️ 😂 😮 😢 🙏 🎉 ✅ (hover a message and click 🙂, or click a reaction to add yours). Under your latest message you see **Sent**, then **Seen by Sara** (or *Seen by Sara and Omar*) once they have opened the chat.
 - **Microsoft Store (November 2026):** StudyPilot is published in the [Microsoft Store](https://apps.microsoft.com/detail/9PJZX6KSS8TH). The Store app opens this same website, so every update reaches it as soon as it is deployed.
 - **Study group invitations (November 2026):** adding a classmate to a study group now sends an **invitation**. They see it in their 🔔 Inbox and by email and click **Accept** or **Decline**; until they accept, they see nothing of the group. Invited people show as *Invited* in the group, and the invitation can be cancelled.
 - **Databases (November 2026):** track assignments, readings or exam topics in a **database**: a page that holds a list of pages with properties (text, number, select, multi-select, status, date, checkbox, link, person). See the same rows as a **Table**, a **Board** (drag cards between statuses), a **Calendar** (drag rows to another day) or a **Gallery**, each view with its own filters, sorts and hidden columns. Every row opens as its own page. Templates: **Assignment tracker**, **Reading list**, **Exam prep**. Export to **CSV**. See [Track things in a database](#15-track-things-in-a-database).
@@ -304,7 +305,7 @@ Deleting never loses your work right away. When you delete a course, task, study
 
 **Lock a page.** When a page is finished (a final study guide, say), open **⋯** and choose **Lock page**. Nobody, you included, can change it until you click **Unlock**.
 
-**Inbox.** 🔔 **Inbox** in the sidebar collects everything that happened for you: pages shared with you, @mentions, comments, suggested edits, study groups and meetings. A blue dot marks what you have not opened yet; **Mark all read** clears the count. Group invitations have **Accept** and **Decline** right in the Inbox.
+**Inbox.** 🔔 **Inbox** in the sidebar collects everything that happened for you: pages shared with you, @mentions, comments, suggested edits, study groups and meetings. A blue dot marks what you have not opened yet; **Mark all read** clears the count. In the group chat and the page chat, hover a message and click 🙂 to react, and look under your latest message to see who has **seen** it. Group invitations have **Accept** and **Decline** right in the Inbox.
 
 <p align="center"><img src="docs/screenshots/inbox.png" alt="The Inbox with mentions, comments, a suggested edit and people joining a group" width="760" /></p>
 

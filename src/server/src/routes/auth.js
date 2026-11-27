@@ -4,7 +4,7 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { User, Course, Task, StudySession, StudyLog, Material, Recommendation, Conversation, Note, Folder, Feedback, PushSub, ReminderLog, Group, GroupMessage, Report, GroupMeeting, NoteVersion, NoteMessage, NoteComment, NoteSuggestion, Notification } from '../models/index.js';
+import { User, Course, Task, StudySession, StudyLog, Material, Recommendation, Conversation, Note, Folder, Feedback, PushSub, ReminderLog, Group, GroupMessage, Report, GroupMeeting, NoteVersion, NoteMessage, NoteComment, NoteSuggestion, Notification, ChatRead } from '../models/index.js';
 import { unlink as unlinkZoom } from '../services/zoom.js';
 import { deleteGroups } from './groups.js';
 import { deleteForever } from '../services/trash.js';
@@ -413,6 +413,8 @@ r.delete('/me', requireAuth, h(async (req, res) => {
   await NoteComment.updateMany({ 'messages.user': me }, { $pull: { messages: { user: me } } }).catch(() => {});   // their comments on other people's pages
   await NoteComment.deleteMany({ messages: { $size: 0 } }).catch(() => {});
   await Notification.deleteMany({ $or: [{ user: me }, { actor: me }] });
+  await ChatRead.deleteMany({ user: me });
+  for (const M of [GroupMessage, NoteMessage]) await M.updateMany({ 'reactions.user': me }, { $pull: { reactions: { user: me } } }).catch(() => {});
   await GroupMeeting.deleteMany({ createdBy: me });
   await unlinkZoom(me).catch(() => {});   // revoke StudyPilot's access to their Zoom account
   await Report.updateMany({ reporter: me }, { $set: { reporter: null } });   // reports stay for review, without the name of who sent them

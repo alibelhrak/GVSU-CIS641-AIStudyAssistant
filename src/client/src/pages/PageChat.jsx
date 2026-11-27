@@ -4,6 +4,7 @@ import { t } from '../lib/i18n.jsx';
 import { Icon } from '../icons.jsx';
 import { Face } from './NoteShare.jsx';
 import { ReportDialog } from './Report.jsx';
+import { useChatFeed, Reactions, ReactButton, SeenLine } from './chatKit.jsx';
 
 const seenKey = (id) => `sa-pchat-seen-${id}`;
 const readSeen = (id) => { try { return localStorage.getItem(seenKey(id)) || ''; } catch { return ''; } };
@@ -32,39 +33,24 @@ export function usePageChatUnread(noteId, enabled, open) {
 
 /** The chat on a shared page: everyone who can open the page talks here, next to it */
 export default function PageChat({ note, notify, onClose }) {
-  const [msgs, setMsgs] = useState(null);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [reporting, setReporting] = useState(null);
   const box = useRef(null);
-  const last = useRef(null);
   const stick = useRef(true);
   const input = useRef(null);
 
   const scroll = () => { const el = box.current; if (el && stick.current) el.scrollTop = el.scrollHeight; };
+  const feed = useChatFeed(`/notes/${note.id}/messages`, { onNew: () => requestAnimationFrame(scroll), onError: (err) => notify(err.message) });
+  const { msgs, reads } = feed;
+  // the unread badge on the Chat button counts from the newest message seen here
+  useEffect(() => { if (msgs) markSeen(note.id, msgs.at(-1)?.at || new Date().toISOString()); }, [msgs, note.id]);
+  useEffect(() => { stick.current = true; }, [note.id]);
   useEffect(() => {
-    let stop = false;
-    last.current = null; stick.current = true; setMsgs(null);
-    const first = async () => {
-      const list = await api.get(`/notes/${note.id}/messages`).catch((err) => { notify(err.message); return []; });
-      if (stop) return;
-      setMsgs(list); last.current = list.at(-1)?.at || null; markSeen(note.id, last.current || new Date().toISOString());
-      requestAnimationFrame(scroll);
-    };
-    const poll = async () => {
-      if (stop || document.visibilityState !== 'visible') return;
-      const more = await api.get(`/notes/${note.id}/messages${last.current ? `?after=${encodeURIComponent(last.current)}` : ''}`).catch(() => []);
-      if (stop || !more.length) return;
-      setMsgs((list) => { const have = new Set((list || []).map((m) => m.id)); return [...(list || []), ...more.filter((m) => !have.has(m.id))]; });
-      last.current = more.at(-1).at; markSeen(note.id, last.current);
-      requestAnimationFrame(scroll);
-    };
-    first();
-    const timer = setInterval(poll, 4000);
     const esc = (e) => { if (e.key === 'Escape' && !reporting) onClose(); };
     document.addEventListener('keydown', esc);
-    return () => { stop = true; clearInterval(timer); document.removeEventListener('keydown', esc); };
-  }, [note.id]); // eslint-disable-line react-hooks/exhaustive-deps
+    return () => document.removeEventListener('keydown', esc);
+  }, [reporting, onClose]);
 
   const send = async (e) => {
     e?.preventDefault();
@@ -73,12 +59,12 @@ export default function PageChat({ note, notify, onClose }) {
     setSending(true);
     try {
       const m = await api.post(`/notes/${note.id}/messages`, { text: body });
-      setMsgs((list) => [...(list || []), m]); setText(''); last.current = m.at; markSeen(note.id, m.at);
+      feed.add(m); setText('');
       stick.current = true; requestAnimationFrame(scroll);
     } catch (err) { notify(err.message); } finally { setSending(false); input.current?.focus(); }
   };
   const remove = async (m) => {
-    try { await api.del(`/notes/${note.id}/messages/${m.id}`); setMsgs((list) => list.filter((x) => x.id !== m.id)); } catch (err) { notify(err.message); }
+    try { await api.del(`/notes/${note.id}/messages/${m.id}`); feed.remove(m.id); } catch (err) { notify(err.message); }
   };
   const owner = note.role === 'owner' || !note.role;
 
@@ -111,10 +97,12 @@ export default function PageChat({ note, notify, onClose }) {
                   <div className="gchat-bubble-wrap">
                     {!m.me && !grouped && <span className="gchat-name" data-no-translate>{m.user.name}</span>}
                     <div className="gchat-bubble" data-no-translate>{m.text}</div>
-                    <span className="gchat-time">{timeOf(m.at)}
+                    <Reactions m={m} onReact={feed.react} />
+                    <span className="gchat-time">{timeOf(m.at)}<ReactButton m={m} onReact={feed.react} />
                       {m.me || owner ? <button type="button" onClick={() => remove(m)} aria-label="Delete message" title="Delete"><Icon name="trash" size={11} /></button> : null}
                       {!m.me && <button type="button" onClick={() => setReporting(m)} aria-label="Report this message" title="Report"><Icon name="flag" size={11} /></button>}
                     </span>
+                    <SeenLine msgs={msgs} reads={reads} m={m} />
                   </div>
                 </div>
               </div>

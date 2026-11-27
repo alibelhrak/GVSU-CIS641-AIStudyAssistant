@@ -6,6 +6,7 @@ import { t } from '../lib/i18n.jsx';
 import { daysUntil, relDay } from '../lib/dates.js';
 import { Icon } from '../icons.jsx';
 import { Face } from './NoteShare.jsx';
+import { useChatFeed, Reactions, ReactButton, SeenLine } from './chatKit.jsx';
 import { ReportDialog } from './Report.jsx';
 import GroupMeetings from './GroupMeetings.jsx';
 
@@ -231,34 +232,15 @@ function GroupView({ id }) {
 
 /** The group chat: new messages appear every few seconds */
 function GroupChat({ id }) {
-  const [msgs, setMsgs] = useState(null);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [reporting, setReporting] = useState(null);
   const box = useRef(null);
-  const last = useRef(null);
   const stick = useRef(true);
 
   const scroll = () => { const el = box.current; if (el && stick.current) el.scrollTop = el.scrollHeight; };
-  useEffect(() => {
-    let stop = false;
-    const first = async () => {
-      const list = await api.get(`/groups/${id}/messages`).catch(() => []);
-      if (stop) return;
-      setMsgs(list); last.current = list.at(-1)?.at || null; setTimeout(scroll, 0);
-    };
-    const poll = async () => {
-      if (document.visibilityState !== 'visible') return;
-      const q = last.current ? `?after=${encodeURIComponent(last.current)}` : '';
-      const more = await api.get(`/groups/${id}/messages${q}`).catch(() => null);
-      if (stop || !more?.length) return;
-      setMsgs((m) => { const have = new Set((m || []).map((x) => x.id)); return [...(m || []), ...more.filter((x) => !have.has(x.id))]; });
-      last.current = more.at(-1).at; setTimeout(scroll, 0);
-    };
-    first();
-    const timer = setInterval(poll, 4000);
-    return () => { stop = true; clearInterval(timer); };
-  }, [id]);
+  const feed = useChatFeed(`/groups/${id}/messages`, { onNew: () => setTimeout(scroll, 0) });
+  const { msgs, reads } = feed;
 
   const send = async (e) => {
     e?.preventDefault();
@@ -267,10 +249,10 @@ function GroupChat({ id }) {
     setSending(true);
     try {
       const m = await api.post(`/groups/${id}/messages`, { text: body });
-      setMsgs((list) => [...(list || []), m]); last.current = m.at; setText(''); stick.current = true; setTimeout(scroll, 0);
+      feed.add(m); setText(''); stick.current = true; setTimeout(scroll, 0);
     } catch { /* stays in the box to try again */ } finally { setSending(false); }
   };
-  const removeMsg = async (mid) => { try { await api.del(`/groups/${id}/messages/${mid}`); setMsgs((l) => l.filter((m) => m.id !== mid)); } catch { /* ignore */ } };
+  const removeMsg = async (mid) => { try { await api.del(`/groups/${id}/messages/${mid}`); feed.remove(mid); } catch { /* ignore */ } };
 
   let lastDay = '';
   return (
@@ -290,9 +272,11 @@ function GroupChat({ id }) {
                     <div className="gchat-bubble-wrap">
                       {!m.me && !grouped && <span className="gchat-name" data-no-translate>{m.user.name}</span>}
                       <div className="gchat-bubble" data-no-translate>{m.text}</div>
-                      <span className="gchat-time">{timeOf(m.at)}{m.me
+                      <Reactions m={m} onReact={feed.react} />
+                      <span className="gchat-time">{timeOf(m.at)}<ReactButton m={m} onReact={feed.react} />{m.me
                         ? <button type="button" onClick={() => removeMsg(m.id)} aria-label="Delete message" title="Delete"><Icon name="trash" size={11} /></button>
                         : <button type="button" onClick={() => setReporting(m)} aria-label="Report this message" title="Report"><Icon name="flag" size={11} /></button>}</span>
+                      <SeenLine msgs={msgs} reads={reads} m={m} />
                     </div>
                   </div>
                 </div>

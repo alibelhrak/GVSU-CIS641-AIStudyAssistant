@@ -5,7 +5,8 @@
  */
 import { Router } from 'express';
 import mongoose from 'mongoose';
-import { Group, GroupMeeting, GroupMessage, GroupTask, Note, User, TASK_TYPES } from '../models/index.js';
+import { Group, GroupMeeting, GroupMessage, GroupTask, Note, User, TASK_TYPES, ChatRead } from '../models/index.js';
+import { listMessages, messageView, toggleReaction } from '../services/chat.js';
 import { notifyGroupInvited, notifyInviteAnswered, notifyMeeting, notifyMeetingCancelled } from '../services/invites.js';
 import { calendarLinks, meetingIcs } from '../services/calendar.js';
 import { zoomApi } from '../services/zoom.js';
@@ -222,15 +223,13 @@ r.delete('/:id/members/:userId', h(async (req, res) => {
 // ---------- Chat ----------
 r.get('/:id/messages', h(async (req, res) => {
   const group = await memberOf(req);
-  const q = { group: group._id };
-  const after = req.query.after ? new Date(String(req.query.after)) : null;
-  if (after && !Number.isNaN(after.getTime())) q.createdAt = { $gt: after };
-  const list = await GroupMessage.find(q).sort({ createdAt: -1 }).limit(after ? 200 : 80).lean();
-  const people = new Map((await User.find({ _id: { $in: [...new Set(list.map((m) => String(m.user)))] } }).select('name avatar').lean()).map((u) => [String(u._id), u]));
-  res.json(list.reverse().map((m) => {
-    const u = people.get(String(m.user));
-    return { id: String(m._id), text: m.text, at: m.createdAt, user: { id: String(m.user), name: u?.name || 'Former member', avatar: u?.avatar || '' }, me: String(m.user) === String(req.userId) };
-  }));
+  res.json(await listMessages({ Model: GroupMessage, filter: { group: group._id }, kind: 'group', ref: group._id, userId: req.userId, query: req.query,
+    readers: new Set(group.members.map((m) => String(m.user))) }));
+}));
+// React to a message: { emoji } (the same emoji again takes it back)
+r.post('/:id/messages/:mid/react', h(async (req, res) => {
+  const group = await memberOf(req);
+  res.json(await toggleReaction({ Model: GroupMessage, filter: { group: group._id }, mid: req.params.mid, userId: req.userId, emoji: req.body?.emoji }));
 }));
 
 r.post('/:id/messages', h(async (req, res) => {
@@ -240,7 +239,8 @@ r.post('/:id/messages', h(async (req, res) => {
   const m = await GroupMessage.create({ group: group._id, user: req.userId, text });
   await Group.updateOne({ _id: group._id }, { $currentDate: { updatedAt: true } });
   const me = await User.findById(req.userId).select('name avatar').lean();
-  res.status(201).json({ id: String(m._id), text: m.text, at: m.createdAt, user: { id: String(req.userId), name: me.name, avatar: me.avatar || '' }, me: true });
+  await ChatRead.updateOne({ kind: 'group', ref: group._id, user: req.userId }, { $set: { at: new Date() } }, { upsert: true });   // you have seen your own message
+  res.status(201).json(messageView(m.toObject(), new Map([[String(req.userId), me]]), req.userId));
 }));
 
 r.delete('/:id/messages/:mid', h(async (req, res) => {

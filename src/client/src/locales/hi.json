@@ -1502,5 +1502,11 @@
 "Omar suggested changes": "ओमर ने बदलाव सुझाए",
 "Review": "देखें",
 "Maya accepted your invitation": "माया ने आपका आमंत्रण स्वीकार किया",
-"Due": "ड्यू"
+"Due": "ड्यू",
+"React": "प्रतिक्रिया दें",
+"Sent": "भेजा गया",
+"Seen by {a}": "{a} ने देखा",
+"Seen by {a} and {b}": "{a} और {b} ने देखा",
+"Seen by {a}, {b} and {n} more": "{a}, {b} और {n} अन्य ने देखा",
+"including you": "आप सहित"
 }

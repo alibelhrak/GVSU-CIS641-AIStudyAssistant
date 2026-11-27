@@ -253,7 +253,8 @@ export const GroupMessage = model('GroupMessage', new Schema({
   group: ref('Group'),
   user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   text: { type: String, required: true, trim: true, maxlength: 2000 },
-}, opts).index({ group: 1, createdAt: -1 }));
+  reactions: [{ _id: false, user: { type: Schema.Types.ObjectId, ref: 'User', required: true }, emoji: { type: String, required: true } }],
+}, opts).index({ group: 1, createdAt: -1 }).index({ group: 1, updatedAt: -1 }));
 
 /** A deadline the whole group works toward (each member can copy it into their own tasks) */
 export const GroupTask = model('GroupTask', new Schema({
@@ -324,7 +325,16 @@ export const NoteMessage = model('NoteMessage', new Schema({
   note: ref('Note'),
   user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   text: { type: String, required: true, trim: true, maxlength: 2000 },
-}, { timestamps: true }).index({ note: 1, createdAt: -1 }));
+  reactions: [{ _id: false, user: { type: Schema.Types.ObjectId, ref: 'User', required: true }, emoji: { type: String, required: true } }],
+}, { timestamps: true }).index({ note: 1, createdAt: -1 }).index({ note: 1, updatedAt: -1 }));
+
+/** When each person last looked at a chat (a study group's, or a shared page's): shows "Seen by …" */
+export const ChatRead = model('ChatRead', new Schema({
+  kind: { type: String, enum: ['group', 'note'], required: true },
+  ref: { type: Schema.Types.ObjectId, required: true },
+  user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  at: { type: Date, default: Date.now },
+}).index({ kind: 1, ref: 1, user: 1 }, { unique: true }));
 
 /** The notifications inbox (🔔): shares, group invites, @mentions, comments, meetings, suggestions */
 export const Notification = model('Notification', new Schema({

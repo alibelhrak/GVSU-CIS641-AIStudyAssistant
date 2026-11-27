@@ -9,9 +9,10 @@
 import { Router } from 'express';
 import mongoose from 'mongoose';
 import crypto from 'node:crypto';
-import { Note, Course, Feedback, Folder, User, Group, NoteVersion, NoteMessage, NoteComment, NoteSuggestion } from '../models/index.js';
+import { Note, Course, Feedback, Folder, User, Group, NoteVersion, NoteMessage, NoteComment, NoteSuggestion, ChatRead } from '../models/index.js';
 import { inbox } from '../services/notify.js';
 import { cleanSchema, cleanValues, DB_TEMPLATES, MAX_ROWS } from '../services/database.js';
+import { listMessages, messageView, toggleReaction } from '../services/chat.js';
 import { moveToTrash } from '../services/trash.js';
 import { sendPush } from '../services/reminders.js';
 import { snapshotBefore } from '../services/versions.js';
@@ -637,8 +638,7 @@ r.get('/:id/versions/:vid', h(async (req, res) => {
 }));
 
 // ---------- Page chat (only on shared pages; everyone who can open the page) ----------
-const chatMsg = (m, u, me) => ({ id: String(m._id), text: m.text, at: m.createdAt, me: String(m.user) === String(me),
-  user: { id: String(m.user), name: u?.name || 'Former member', avatar: u?.avatar || '' } });
+const chatMsg = (m, u, me) => messageView(m, new Map([[String(m.user), u]]), me);
 async function chatAccess(req) {
   const { note, role } = await noteAccess(req.params.id, req.userId, '_id');
   if (!role) throw new HttpError(404, 'Note not found');
@@ -647,12 +647,11 @@ async function chatAccess(req) {
 }
 r.get('/:id/messages', h(async (req, res) => {
   const { note } = await chatAccess(req);
-  const q = { note: note._id };
-  const after = req.query.after ? new Date(String(req.query.after)) : null;
-  if (after && !Number.isNaN(after.getTime())) q.createdAt = { $gt: after };
-  const list = (await NoteMessage.find(q).sort({ createdAt: -1 }).limit(after ? 200 : 100).lean()).reverse();
-  const people = new Map((await User.find({ _id: { $in: [...new Set(list.map((m) => String(m.user)))] } }).select('name avatar').lean()).map((u) => [String(u._id), u]));
-  res.json(list.map((m) => chatMsg(m, people.get(String(m.user)), req.userId)));
+  res.json(await listMessages({ Model: NoteMessage, filter: { note: note._id }, kind: 'note', ref: note._id, userId: req.userId, query: req.query, limit: 100 }));
+}));
+r.post('/:id/messages/:mid/react', h(async (req, res) => {
+  const { note } = await chatAccess(req);
+  res.json(await toggleReaction({ Model: NoteMessage, filter: { note: note._id }, mid: req.params.mid, userId: req.userId, emoji: req.body?.emoji }));
 }));
 r.post('/:id/messages', h(async (req, res) => {
   const { note } = await chatAccess(req);
@@ -660,6 +659,7 @@ r.post('/:id/messages', h(async (req, res) => {
   if (!text) throw new HttpError(400, 'Write a message');
   const m = await NoteMessage.create({ note: note._id, user: req.userId, text });
   const me = await User.findById(req.userId).select('name avatar').lean();
+  await ChatRead.updateOne({ kind: 'note', ref: note._id, user: req.userId }, { $set: { at: new Date() } }, { upsert: true });
   res.status(201).json(chatMsg(m, me, req.userId));
 }));
 r.delete('/:id/messages/:mid', h(async (req, res) => {

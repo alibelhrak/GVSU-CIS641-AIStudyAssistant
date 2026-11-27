@@ -1405,5 +1405,11 @@
 "Omar suggested changes": "Omar sugirió cambios",
 "Review": "Revisar",
 "Maya accepted your invitation": "Maya aceptó tu invitación",
-"Due": "Entrega"
+"Due": "Entrega",
+"React": "Reaccionar",
+"Sent": "Enviado",
+"Seen by {a}": "Visto por {a}",
+"Seen by {a} and {b}": "Visto por {a} y {b}",
+"Seen by {a}, {b} and {n} more": "Visto por {a}, {b} y {n} más",
+"including you": "incluido tú"
 }
