@@ -120,6 +120,8 @@ All routes start with `/api`. Every route except `/auth/*` and `/health` needs t
 | `/notes/:id/messages` | The chat on a shared page (409 when the page is not shared): `GET ?after=`, `POST { text }`, `DELETE /:mid` (your own; the page owner can delete any) |
 | `/notes/:id/versions` | Page history (owner and editors): `GET` the list, `GET /:vid` one version, `POST` keep a copy now (the app calls it before restoring) |
 | `WS /collab/:noteId?token=` | Live co-editing (WebSocket, Yjs protocol); see below |
+| `GET /search?q=` | Quick Find: pages (titles, text; mine and shared with me, with a snippet and the parent page), courses, assignments, study groups. No `q`: recent pages |
+| `GET /notes/:id/people`, `GET /notes/:id/backlinks` | Who can be @mentioned on a page (everyone who can open it), and the pages that link to it |
 | `GET /links/preview?url=` | Title, description, picture and site name of a public web page, for Web bookmark blocks. Private, local and cloud-metadata addresses are refused (checked after every redirect); 6 s and 600 KB limits |
 | `/conversations` | Chat history: list (`GET`), open (`GET /:id`), save (`POST`, `PATCH /:id`) and delete (`DELETE /:id`) |
 
@@ -133,6 +135,7 @@ All routes start with `/api`. Every route except `/auth/*` and `/health` needs t
 - **Reports** (`server/src/routes/reports.js`): the 🚩 button sends `POST /api/reports`. A page can be reported by anyone it is shared with (or anyone, from its public link); a chat message by the other members of the group. Each report is saved with a copy of the content and emailed to `REPORT_EMAIL` (or `MAIL_FROM`). The email's **Review and take it down** button opens a page signed with `JWT_SECRET`; confirming there unshares the page (its owner keeps it, its public link stops) or deletes the message. This covers Microsoft Store policy 11.12 and Google Play's user-generated content policy, together with the community guidelines page at `/guidelines`.
 - **Page history** (`server/src/services/versions.js`): before a save, the server keeps a `NoteVersion` of the page when the save removes 40 % or more of a page of 200+ characters, and at most every 15 minutes otherwise (40 per page, 60 days). Restoring goes through the editor (`replaceBlocks`), so it reaches live editors and Ctrl+Z works.
 - **Notes AI safety** (`routes/notesChat.js`): `replace_page` is refused when the model only saw part of the page, or when the new page is much shorter than the old one; changes cut off by the token limit are not applied; long tool arguments are summarized before the follow-up request.
+- **@mentions and backlinks** (`server/src/services/mentions.js`): on every save the server scans the page for `mention` inline content (a person, a page or a date) and links to `/notes/<id>`, stores them as `Note.links` / `Note.mentions`, and emails people who were newly mentioned (only if they can open the page).
 - **Hosting:** Render's free plan supports WebSockets. The rooms live in one server's memory, so running several server copies would need a shared Yjs backend (e.g. Redis); one copy is fine for this project.
 
 ## Zoom meetings
@@ -221,6 +224,8 @@ src/
     src/services/zoom.js   linking Zoom (encrypted tokens) and calling Zoom's API
     src/routes/zoom.js     link / unlink Zoom, the OAuth callback and Zoom's webhook
     src/routes/reports.js  reporting shared content, and the moderator's take-down link
+    src/services/mentions.js  @mentions and page links (backlinks, mention emails)
+    src/routes/search.js   Quick Find (Ctrl+K)
     src/services/versions.js  page history (copies before big removals and every 15 minutes)
     src/services/trash.js  moving to the Trash, restoring, and deleting for good after 30 days
     src/services/reminders.js  morning summary, deadline, session and weekly reminders (email and push)

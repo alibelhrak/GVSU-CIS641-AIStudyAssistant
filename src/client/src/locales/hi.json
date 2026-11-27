@@ -1260,5 +1260,21 @@
 "That is not a valid link": "यह लिंक सही नहीं है",
 "This link cannot be previewed": "इस लिंक का प्रीव्यू नहीं बन सकता",
 "That website could not be found": "वह वेबसाइट नहीं मिली",
-"That website did not answer": "उस वेबसाइट ने जवाब नहीं दिया"
+"That website did not answer": "उस वेबसाइट ने जवाब नहीं दिया",
+"Search": "खोजें",
+"Quick Find": "त्वरित खोज",
+"Search pages, assignments, courses, groups…": "पेज, असाइनमेंट, कोर्स, ग्रुप खोजें…",
+"Nothing found for “{q}”.": "“{q}” के लिए कुछ नहीं मिला।",
+"Type to search everything in StudyPilot.": "StudyPilot में सब कुछ खोजने के लिए टाइप करें।",
+"open": "खोलें",
+"anywhere": "कहीं से भी",
+"Go to": "यहाँ जाएँ",
+"Recent pages": "हाल के पेज",
+"People": "लोग",
+"Link to page": "पेज का लिंक",
+"Next week": "अगले हफ़्ते",
+"Mention a person, link a page, or add a date…": "किसी का ज़िक्र करें, पेज लिंक करें या तारीख जोड़ें…",
+"Linked from 1 page": "1 पेज से लिंक",
+"Linked from {n} pages": "{n} पेजों से लिंक",
+"Mention": "ज़िक्र"
 }

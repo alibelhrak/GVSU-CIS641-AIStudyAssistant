@@ -192,7 +192,9 @@ export const Note = model('Note', new Schema({
   shares: [{ _id: false, user: { type: Schema.Types.ObjectId, ref: 'User', required: true }, role: { type: String, enum: ['viewer', 'editor'], default: 'editor' }, at: { type: Date, default: Date.now } }],
   groups: { type: [{ type: Schema.Types.ObjectId, ref: 'Group' }], default: [] },
   publicId: { type: String, default: undefined },   // set when "Share to web" is on
-}, opts).index({ 'shares.user': 1 }).index({ groups: 1 }).index({ publicId: 1 }, { unique: true, sparse: true }));
+  links: { type: [{ type: Schema.Types.ObjectId, ref: 'Note' }], default: [] },      // pages this page links to (@page mentions and links), for backlinks
+  mentions: { type: [{ type: Schema.Types.ObjectId, ref: 'User' }], default: [] },  // people @mentioned on the page
+}, opts).index({ 'shares.user': 1 }).index({ groups: 1 }).index({ links: 1 }).index({ publicId: 1 }, { unique: true, sparse: true }));
 
 
 /** Thumbs up / down on an AI answer, so the team can see what works */

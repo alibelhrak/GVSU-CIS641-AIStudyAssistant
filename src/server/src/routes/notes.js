@@ -11,6 +11,7 @@ import mongoose from 'mongoose';
 import crypto from 'node:crypto';
 import { Note, Course, Feedback, Folder, User, Group, NoteVersion, NoteMessage } from '../models/index.js';
 import { snapshotBefore } from '../services/versions.js';
+import { afterSave } from '../services/mentions.js';
 import { noteAccess, canEdit, groupIdsOf, isShared } from '../services/access.js';
 import { claimSeed, seedDone, closeRoom } from '../services/collab.js';
 import { moveToTrash } from '../services/trash.js';
@@ -106,7 +107,7 @@ const mine = (req) => {
 /** Plain text of the editor blocks (headings, lists, tables...), for search and the AI */
 export function blocksToText(blocks, depth = 0) {
   if (!Array.isArray(blocks)) return '';
-  const inline = (c) => (typeof c === 'string' ? c : Array.isArray(c) ? c.map((x) => (x?.type === 'link' ? inline(x.content) : x?.type === 'inlineMath' ? `$${x.props?.latex || ''}$` : x?.text || '')).join('') : '');
+  const inline = (c) => (typeof c === 'string' ? c : Array.isArray(c) ? c.map((x) => (x?.type === 'link' ? inline(x.content) : x?.type === 'inlineMath' ? `$${x.props?.latex || ''}$` : x?.type === 'mention' ? `@${x.props?.label || ''}` : x?.text || '')).join('') : '');
   return blocks.map((b) => {
     const pad = '  '.repeat(depth);
     let line = '';
@@ -307,11 +308,12 @@ r.get('/search', h(async (req, res) => {
   const q = String(req.query.q || '').trim().slice(0, 100);
   if (!q) return res.json([]);
   const rx = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-  const found = await Note.find({ user: req.userId, $or: [{ title: rx }, { text: rx }] }).select(`${LIST_FIELDS} text`).limit(30);
+  const found = await Note.find({ user: req.userId, $or: [{ title: rx }, { text: rx }, { markdown: rx }] }).select(`${LIST_FIELDS} text markdown`).limit(30);
   res.json(found.map((n) => {
-    const at = n.text.search(rx);
-    const snippet = at < 0 ? '' : n.text.slice(Math.max(0, at - 40), at + 80).replace(/[#*_`>|~]+|\[ ?x?\]/g, ' ').replace(/\s+/g, ' ').trim();
-    const { text, ...rest } = n.toJSON();
+    const body = n.text || n.markdown || '';
+    const at = body.search(rx);
+    const snippet = at < 0 ? '' : body.slice(Math.max(0, at - 40), at + 80).replace(/[#*_`>|~]+|\[ ?x?\]/g, ' ').replace(/\s+/g, ' ').trim();
+    const { text, markdown, ...rest } = n.toJSON();
     return { ...rest, snippet };
   }));
 }));
@@ -357,10 +359,33 @@ r.patch('/:id', h(async (req, res) => {
   if (role === 'owner') await checkRefs(req.userId, data, req.params.id);
   else data = Object.fromEntries(Object.entries(data).filter(([k]) => EDITOR_FIELDS.includes(k)));
   if (data.content !== undefined) await snapshotBefore(found._id, req.userId, data.text);   // page history (before a big removal, and every 15 min)
+  const before = data.content !== undefined ? (await Note.findById(found._id).select('mentions').lean())?.mentions : null;
   const note = await Note.findByIdAndUpdate(found._id, data, { new: true, runValidators: true });
+  if (data.content !== undefined) afterSave(found._id, req.userId, data.content, before).catch((err) => console.warn('Mentions:', err.message));   // backlinks + @mention emails
   const { content, text, cover, ...meta } = note.toJSON();   // the editor already has these
   if (role !== 'owner') Object.assign(meta, { course: null, folder: null, parent: null, favorite: false, publicId: undefined, shares: undefined, groups: undefined });
   res.json({ ...meta, role });
+}));
+
+// ---------- @mentions and backlinks ----------
+// People who can open the page (the owner, people it is shared with, members of its study groups): who can be @mentioned
+r.get('/:id/people', h(async (req, res) => {
+  const { note, role } = await noteAccess(req.params.id, req.userId, '_id');
+  if (!role) throw new HttpError(404, 'Note not found');
+  const ids = new Set([String(note.user), ...(note.shares || []).map((s) => String(s.user))]);
+  if (note.groups?.length) (await Group.find({ _id: { $in: note.groups } }).select('members.user').lean()).forEach((g) => g.members.forEach((m) => ids.add(String(m.user))));
+  const users = await User.find({ _id: { $in: [...ids] } }).select('name email avatar').lean();
+  res.json(users.map((u) => ({ id: String(u._id), name: u.name, email: u.email, avatar: u.avatar || '', me: String(u._id) === String(req.userId) })));
+}));
+
+// Pages that link to this one ("Linked from"), among the pages this student can open
+r.get('/:id/backlinks', h(async (req, res) => {
+  const { note, role } = await noteAccess(req.params.id, req.userId, '_id');
+  if (!role) throw new HttpError(404, 'Note not found');
+  const groups = await groupIdsOf(req.userId);
+  const list = await Note.find({ links: note._id, $or: [{ user: req.userId }, { 'shares.user': req.userId }, { groups: { $in: groups } }] })
+    .select('title icon updatedAt').sort({ updatedAt: -1 }).limit(50).lean();
+  res.json(list.map((n) => ({ id: String(n._id), title: n.title, icon: n.icon })));
 }));
 
 // ---------- Page history ----------

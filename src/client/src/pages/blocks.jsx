@@ -4,6 +4,7 @@
  * Markdown export and the Notes AI keep their content.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { createReactBlockSpec, createReactInlineContentSpec } from '@blocknote/react';
 import { defaultProps, insertOrUpdateBlockForSlashMenu } from '@blocknote/core';
 import katex from 'katex';
@@ -291,3 +292,84 @@ export function extraSlashItems(editor) {
     { key: 'bookmark', title: 'Web bookmark', subtext: 'A link as a card with a preview', aliases: ['bookmark', 'link', 'url', 'preview', 'web'], group: 'Media', icon: <span className="slash-emoji">🔖</span>, onItemClick: insert({ type: 'bookmark' }) },
   ];
 }
+
+// ---------- @mentions: a page, a person, or a date ----------
+const DAY = 86400_000;
+export const dayKey = (d) => { const x = new Date(d); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`; };
+export function dateLabel(iso) {
+  const d = new Date(`${iso}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return iso;
+  const today = new Date(); today.setHours(12, 0, 0, 0);
+  const diff = Math.round((d - today) / DAY);
+  if (diff === 0) return t('Today');
+  if (diff === 1) return t('Tomorrow');
+  if (diff === -1) return t('Yesterday');
+  return d.toLocaleDateString(document.documentElement.lang || 'en', { weekday: Math.abs(diff) < 7 ? 'short' : undefined, month: 'short', day: 'numeric', year: d.getFullYear() === today.getFullYear() ? undefined : 'numeric' });
+}
+
+function Mention({ inlineContent }) {
+  const navigate = useNavigate();
+  const { kind, id, label } = inlineContent.props;
+  if (kind === 'page') {
+    return (
+      <a className="nb-mention page" href={`/notes/${id}`} contentEditable={false} onClick={(e) => { e.preventDefault(); navigate(`/notes/${id}`); }}>
+        {`↗\u00a0${(label || t('Untitled')).replace(/ /g, '\u00a0')}`}
+      </a>
+    );
+  }
+  if (kind === 'date') {
+    const past = id < dayKey(Date.now());
+    return <span className={`nb-mention date ${past ? 'past' : ''}`} contentEditable={false}>{`📅\u00a0${dateLabel(id)}`}</span>;
+  }
+  return <span className="nb-mention user" contentEditable={false}>@{label}</span>;
+}
+export const mentionSpec = createReactInlineContentSpec(
+  { type: 'mention', propSchema: { kind: { default: 'user' }, id: { default: '' }, label: { default: '' } }, content: 'none' },
+  {
+    render: Mention,
+    toExternalHTML: ({ inlineContent: { props } }) => (props.kind === 'page' ? <a href={`/notes/${props.id}`}>{props.label}</a>
+      : <span>{props.kind === 'date' ? props.id : `@${props.label}`}</span>),
+  },
+);
+
+/** Dates offered after "@": today, tomorrow, next Monday, and anything typed ("dec 5", "2026-12-05", "friday") */
+function dateChoices(query) {
+  const q = query.trim().toLowerCase();
+  const out = [];
+  const add = (d, title) => out.push({ kind: 'date', id: dayKey(d), title });
+  const now = new Date();
+  const plus = (n) => new Date(now.getTime() + n * DAY);
+  const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  if (!q || 'today'.startsWith(q)) add(now, t('Today'));
+  if (!q || 'tomorrow'.startsWith(q)) add(plus(1), t('Tomorrow'));
+  if (!q || 'next week'.startsWith(q)) { const d = plus(((8 - now.getDay()) % 7) || 7); add(d, `${t('Next week')} (${dateLabel(dayKey(d))})`); }
+  const wd = days.findIndex((d) => q.length >= 3 && d.startsWith(q));
+  if (wd >= 0) { const d = plus(((wd - now.getDay() + 7) % 7) || 7); add(d, dateLabel(dayKey(d))); }
+  const looksLikeDate = /\d/.test(q) || /^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/.test(q);
+  if (q.length >= 3 && wd < 0 && looksLikeDate) {
+    let d = new Date(/^\d{4}-\d{2}-\d{2}$/.test(q) ? `${q}T12:00:00` : `${q} ${now.getFullYear()} 12:00`);
+    if (Number.isNaN(d.getTime())) d = new Date(q);
+    if (!Number.isNaN(d.getTime()) && d.getFullYear() > 1990 && d.getFullYear() < 2200) add(d, dateLabel(dayKey(d)));
+  }
+  return out;
+}
+
+/** The "@" menu: people who can open the page, pages, and dates */
+export function mentionItems(editor, noteId) {
+  return async (query) => {
+    const q = query.trim().toLowerCase();
+    const insert = (props) => () => editor.insertInlineContent([{ type: 'mention', props }, ' ']);
+    const [people, found] = await Promise.all([
+      (mentionItems.cache[noteId] ||= api.get(`/notes/${noteId}/people`).catch(() => [])),
+      api.get(`/search?q=${encodeURIComponent(query.trim())}`).then((d) => d.notes).catch(() => []),
+    ]);
+    const persons = people.filter((p) => !q || p.name.toLowerCase().includes(q) || p.email.toLowerCase().startsWith(q)).slice(0, 5)
+      .map((p) => ({ key: `u${p.id}`, title: p.name + (p.me ? ` (${t('you')})` : ''), subtext: p.email, group: t('People'), icon: <span className="slash-emoji">👤</span>, onItemClick: insert({ kind: 'user', id: p.id, label: p.name }) }));
+    const pages = found.filter((n) => n.id !== noteId).slice(0, 6)
+      .map((n) => ({ key: `p${n.id}`, title: n.title || t('Untitled'), subtext: n.parent || (n.owner ? `${t('Shared by')} ${n.owner}` : ''), group: t('Link to page'), icon: <span className="slash-emoji">{n.icon || '📄'}</span>,
+        onItemClick: insert({ kind: 'page', id: n.id, label: `${n.icon ? `${n.icon} ` : ''}${n.title || t('Untitled')}` }) }));
+    const dates = dateChoices(query).slice(0, 4).map((d) => ({ key: `d${d.id}${d.title}`, title: d.title, subtext: d.id, group: t('Date'), icon: <span className="slash-emoji">📅</span>, onItemClick: insert({ kind: 'date', id: d.id, label: d.id }) }));
+    return [...persons, ...pages, ...dates];
+  };
+}
+mentionItems.cache = {};

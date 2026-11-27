@@ -1170,5 +1170,21 @@
 "That is not a valid link": "链接无效",
 "This link cannot be previewed": "无法预览此链接",
 "That website could not be found": "找不到该网站",
-"That website did not answer": "该网站没有响应"
+"That website did not answer": "该网站没有响应",
+"Search": "搜索",
+"Quick Find": "快速查找",
+"Search pages, assignments, courses, groups…": "搜索页面、作业、课程、小组…",
+"Nothing found for “{q}”.": "没有找到“{q}”。",
+"Type to search everything in StudyPilot.": "输入内容即可搜索 StudyPilot 中的一切。",
+"open": "打开",
+"anywhere": "随时可用",
+"Go to": "前往",
+"Recent pages": "最近的页面",
+"People": "人员",
+"Link to page": "链接到页面",
+"Next week": "下周",
+"Mention a person, link a page, or add a date…": "提及某人、链接页面或添加日期…",
+"Linked from 1 page": "有 1 个页面链接到此",
+"Linked from {n} pages": "有 {n} 个页面链接到此",
+"Mention": "提及"
 }

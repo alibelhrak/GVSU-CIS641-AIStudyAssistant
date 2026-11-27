@@ -74,6 +74,20 @@ const T = {
     zh: '你收到这封邮件是因为 {from} 邀请了你的 StudyPilot 账号。如果不想参与，可以在应用中退出该页面或小组。',
     hi: 'आपको यह ईमेल इसलिए मिला क्योंकि {from} ने आपके StudyPilot खाते को आमंत्रित किया। अगर आप साथ काम नहीं करना चाहते, तो ऐप में पेज या ग्रुप छोड़ सकते हैं।',
   },
+  mentionSubject: {
+    en: '{from} mentioned you in "{title}"', fr: '{from} vous a mentionné dans « {title} »', es: '{from} te mencionó en «{title}»',
+    ar: 'أشار إليك {from} في «{title}»', zh: '{from} 在“{title}”中提到了你', hi: '{from} ने "{title}" में आपका ज़िक्र किया',
+  },
+  mentionBody: {
+    en: '{from} mentioned you on a shared page in StudyPilot.', fr: '{from} vous a mentionné sur une page partagée dans StudyPilot.',
+    es: '{from} te mencionó en una página compartida de StudyPilot.', ar: 'أشار إليك {from} في صفحة مشتركة على StudyPilot.',
+    zh: '{from} 在 StudyPilot 的共享页面中提到了你。', hi: '{from} ने StudyPilot के एक साझा पेज पर आपका ज़िक्र किया।',
+  },
+  mentionWhy: {
+    en: 'You got this email because someone @mentioned you on a page you can open.', fr: 'Vous recevez cet e-mail car quelqu’un vous a @mentionné sur une page à laquelle vous avez accès.',
+    es: 'Recibes este correo porque alguien te @mencionó en una página a la que tienes acceso.', ar: 'وصلك هذا البريد لأن أحدهم أشار إليك (@) في صفحة يمكنك فتحها.',
+    zh: '你收到这封邮件是因为有人在你可以打开的页面中 @ 了你。', hi: 'आपको यह ईमेल इसलिए मिला क्योंकि किसी ने ऐसे पेज पर आपका @ज़िक्र किया जिसे आप खोल सकते हैं।',
+  },
   meetNowSubject: {
     en: '{from} started a meeting in "{group}"', fr: '{from} a lancé une réunion dans « {group} »', es: '{from} inició una reunión en «{group}»',
     ar: 'بدأ {from} اجتماعًا في «{group}»', zh: '{from} 在“{group}”中发起了会议', hi: '{from} ने "{group}" में मीटिंग शुरू की',
@@ -270,5 +284,24 @@ export async function notifyMeetingCancelled({ group, meeting, fromId, toIds }) 
     }
   } catch (err) {
     console.warn('Cancellation notices failed:', err.message);
+  }
+}
+
+/** Someone @mentioned a student on a page they can open */
+export async function notifyMentioned({ toId, fromId, note }) {
+  try {
+    const { to, lang, fromName } = await people(toId, fromId);
+    if (!to?.email) return;
+    const title = note.title?.trim() || tr('untitled', lang);
+    const path = `/notes/${note._id}`;
+    const subject = tr('mentionSubject', lang, { from: fromName, title });
+    await sendMail({
+      to: to.email, toName: to.name, subject,
+      ...layout({ lang, title: subject, path, quote: `${note.icon ? `${note.icon} ` : ''}${title}`, button: tr('pageButton', lang),
+        lines: [tr('hi', lang, { name: (to.name || '').split(' ')[0] || to.email }), tr('mentionBody', lang, { from: fromName })], note: tr('mentionWhy', lang) }),
+    });
+    await sendPush(to._id, { title: subject, body: title, url: path, tag: `mention-${note._id}` });
+  } catch (err) {
+    console.warn('Mention email failed:', err.message);
   }
 }

@@ -1171,5 +1171,21 @@
 "That is not a valid link": "هذا الرابط غير صالح",
 "This link cannot be previewed": "لا يمكن معاينة هذا الرابط",
 "That website could not be found": "تعذّر العثور على هذا الموقع",
-"That website did not answer": "لم يستجب هذا الموقع"
+"That website did not answer": "لم يستجب هذا الموقع",
+"Search": "بحث",
+"Quick Find": "بحث سريع",
+"Search pages, assignments, courses, groups…": "ابحث في الصفحات والواجبات والمقررات والمجموعات…",
+"Nothing found for “{q}”.": "لا توجد نتائج لـ «{q}».",
+"Type to search everything in StudyPilot.": "اكتب للبحث في كل StudyPilot.",
+"open": "فتح",
+"anywhere": "من أي مكان",
+"Go to": "انتقال إلى",
+"Recent pages": "الصفحات الأخيرة",
+"People": "الأشخاص",
+"Link to page": "رابط إلى صفحة",
+"Next week": "الأسبوع القادم",
+"Mention a person, link a page, or add a date…": "أشر إلى شخص أو اربط صفحة أو أضف تاريخًا…",
+"Linked from 1 page": "مرتبطة من صفحة واحدة",
+"Linked from {n} pages": "مرتبطة من {n} صفحات",
+"Mention": "إشارة"
 }

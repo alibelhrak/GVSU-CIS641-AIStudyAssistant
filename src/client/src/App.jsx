@@ -25,6 +25,7 @@ import Materials from './pages/Materials.jsx';
 import Chat from './pages/Chat.jsx';
 import { TrashPanel } from './lib/trash.jsx';
 import { Avatar } from './lib/avatar.jsx';
+import QuickFind from './pages/QuickFind.jsx';
 import { useResizable } from './lib/resize.jsx';
 
 // The notes editor is big, so it loads only when Notes is opened
@@ -59,9 +60,10 @@ const PAGES = [
 ];
 
 const SIDE_KEY = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘\\' : 'Ctrl+\\';
+const FIND_KEY = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘K' : 'Ctrl+K';
 const readHidden = () => { try { return localStorage.getItem('sa-sidebar') === 'hidden'; } catch { return false; } };
 
-function Sidebar({ onNavigate, onSettings, onTrash, onHide, onLeave }) {
+function Sidebar({ onNavigate, onSettings, onTrash, onHide, onLeave, onFind }) {
   const { user } = useAuth();
   const { courses, tasks, recs } = useData();
   const dueSoon = tasks.filter((t) => !t.done && daysUntil(t.dueDate) >= 0 && daysUntil(t.dueDate) <= 7).length;
@@ -79,6 +81,11 @@ function Sidebar({ onNavigate, onSettings, onTrash, onHide, onLeave }) {
       </div>
 
       <nav className="side-nav">
+        <button type="button" className="side-link side-find" onClick={() => { onNavigate(); onFind(); }} title="Quick Find">
+          <Icon name="search" />
+          <span>Search</span>
+          <kbd className="side-kbd">{FIND_KEY}</kbd>
+        </button>
         {PAGES.map((p) => (
           <NavLink key={p.to} to={p.to} end={p.to === '/'} onClick={onNavigate}
             className={({ isActive }) => `side-link ${isActive ? 'active' : ''}`}>
@@ -170,6 +177,7 @@ function Shell() {
   const [settings, setSettings] = useState(null);     // null, or the section to open
   const [reminders, setReminders] = useState(false);
   const [trash, setTrash] = useState(false);
+  const [find, setFind] = useState(false);   // Quick Find (Ctrl+K)
   // The sidebar's width can be dragged (remembered on this device)
   const side = useResizable('sa-side-w', { initial: 252, min: 200, max: 420 });
   // Desktop: the sidebar can be hidden (remembered on this device); while hidden it can "peek" on hover
@@ -198,6 +206,9 @@ function Shell() {
     const key = (e) => {
       if (!(e.ctrlKey || e.metaKey)) return;
       if (e.key === ',') { e.preventDefault(); setSettings((s) => (s ? null : 'account')); }
+      // Quick Find: Ctrl+K (Cmd+K), or Ctrl+P. Inside a note's text, Ctrl+K stays "add a link", like in Notion.
+      const k = e.key.toLowerCase();
+      if ((k === 'k' && !e.target.closest?.('[contenteditable="true"]')) || (k === 'p' && !e.shiftKey)) { e.preventDefault(); setFind((f) => !f); }
       // Ctrl+\ hides or shows the sidebar, like in Notion
       if (e.key === '\\') { e.preventDefault(); setHidden((h) => { try { localStorage.setItem('sa-sidebar', h ? 'shown' : 'hidden'); } catch { /* ignore */ } return !h; }); setPeek(false); }
     };
@@ -207,7 +218,7 @@ function Shell() {
 
   return (
     <div className={`app ${open ? 'menu-open' : ''} ${hidden ? 'side-hidden' : ''} ${hidden && peek ? 'peek' : ''}`} style={{ '--side-w': `${side.width}px` }}>
-      <Sidebar onNavigate={() => setOpen(false)} onSettings={setSettings} onTrash={() => setTrash(true)} onHide={() => hide(true)} onLeave={() => setPeek(false)} />
+      <Sidebar onNavigate={() => setOpen(false)} onSettings={setSettings} onTrash={() => setTrash(true)} onHide={() => hide(true)} onLeave={() => setPeek(false)} onFind={() => setFind(true)} />
       {!hidden && <div className={`side-resize ${side.dragging ? 'on' : ''}`} {...side.handleProps} aria-label="Resize the sidebar" />}
       {hidden && (
         <>
@@ -219,6 +230,7 @@ function Shell() {
       {settings && <SettingsPanel start={settings} onClose={() => setSettings(null)} onOpenReminders={() => { setSettings(null); setReminders(true); }} />}
       {reminders && <RemindersPanel onClose={() => setReminders(false)} />}
       {trash && <TrashPanel onClose={() => setTrash(false)} />}
+      {find && <QuickFind pages={PAGES} onClose={() => setFind(false)} />}
       <div className="scrim" onClick={() => setOpen(false)} aria-hidden="true" />
       <div className="content">
         <div className="topbar">

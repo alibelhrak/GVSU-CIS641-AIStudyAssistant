@@ -22,6 +22,7 @@ import publicRoutes from './routes/public.js';
 import reportRoutes from './routes/reports.js';
 import zoomRoutes, { publicZoom } from './routes/zoom.js';
 import linkRoutes from './routes/links.js';
+import searchRoutes from './routes/search.js';
 import reminderRoutes, { publicReminders } from './routes/reminders.js';
 
 export function createApp() {
@@ -51,7 +52,8 @@ export function createApp() {
   app.use('/api/trash', trashRoutes);
   app.use('/api/groups', groupRoutes);
   app.use('/api/zoom', zoomRoutes);
-  app.use('/api/links', linkRoutes);            // link previews for Web bookmark blocks
+  app.use('/api/links', linkRoutes);
+  app.use('/api/search', searchRoutes);          // Quick Find (Ctrl+K)            // link previews for Web bookmark blocks
   app.use('/api/reminders', reminderRoutes);
 
   // Online (Render): also serve the built React app from client/dist.

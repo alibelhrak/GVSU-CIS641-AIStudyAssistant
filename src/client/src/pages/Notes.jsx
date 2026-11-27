@@ -2,7 +2,7 @@ import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, use
 import { createPortal } from 'react-dom';
 import { useNavigate, useParams } from 'react-router-dom';
 import { BlockNoteSchema, createCodeBlockSpec, defaultBlockSpecs, defaultInlineContentSpecs, filterSuggestionItems } from '@blocknote/core';
-import { calloutSpec, mathSpec, inlineMathSpec, tocSpec, embedSpec, bookmarkSpec, columnsSpec, extraSlashItems } from './blocks.jsx';
+import { calloutSpec, mathSpec, inlineMathSpec, tocSpec, embedSpec, bookmarkSpec, columnsSpec, extraSlashItems, mentionSpec, mentionItems } from './blocks.jsx';
 import { SyntaxHighlightingExtension } from '@blocknote/core/extensions';
 import { withCollaboration } from '@blocknote/core/yjs';
 import { codeBlockOptions } from '@blocknote/code-block';
@@ -165,6 +165,7 @@ const RENAME = { paragraph: 'Text', bullet_list: 'Bulleted list', numbered_list:
   code_block: 'Code', divider: 'Divider', toggle_heading: 'Toggle heading 1', toggle_heading_2: 'Toggle heading 2', toggle_heading_3: 'Toggle heading 3' };
 
 const slashQuery = { text: '' };                     // what was typed after "/", shown at the top of the menu
+const mentionQuery = { text: '' };                   // ... and after "@"
 
 function slashItems(editor, onAi) {
   const blocks = [...getDefaultReactSlashMenuItems(editor)
@@ -185,7 +186,7 @@ function slashItems(editor, onAi) {
   ];
 }
 
-function SlashMenu({ items, selectedIndex, onItemClick, loadingState }) {
+function SlashMenu({ items, selectedIndex, onItemClick, loadingState, mention = false }) {
   const listRef = useRef(null);
   const [hover, setHover] = useState(null);
   const [mark, setMark] = useState(null);           // where the sliding highlight sits
@@ -200,10 +201,11 @@ function SlashMenu({ items, selectedIndex, onItemClick, loadingState }) {
 
   let group = null;
   return (
-    <div className="slash-menu" role="listbox" aria-label="Insert a block" onMouseDown={(e) => e.preventDefault()}>
+    <div className={`slash-menu ${mention ? 'mention-menu' : ''}`} role="listbox" aria-label={mention ? 'Mention' : 'Insert a block'} onMouseDown={(e) => e.preventDefault()}>
       <div className="slash-search">
-        <Icon name="search" size={14} />
-        {slashQuery.text ? <span>Results for <b>{slashQuery.text}</b></span> : <span>Type to search blocks and AI…</span>}
+        <Icon name={mention ? 'users' : 'search'} size={14} />
+        {mention ? (mentionQuery.text ? <span>Results for <b>{mentionQuery.text}</b></span> : <span>Mention a person, link a page, or add a date…</span>)
+          : slashQuery.text ? <span>Results for <b>{slashQuery.text}</b></span> : <span>Type to search blocks and AI…</span>}
       </div>
       <div className="slash-list" ref={listRef} onMouseLeave={() => setHover(null)}>
         {mark && <span className="slash-mark" style={{ transform: `translateY(${mark.top}px)`, height: mark.height }} />}
@@ -212,7 +214,7 @@ function SlashMenu({ items, selectedIndex, onItemClick, loadingState }) {
           const head = it.group !== group;
           group = it.group;
           return (
-            <Fragment key={`${it.group}-${it.title}`}>
+            <Fragment key={it.key || `${it.group}-${it.title}`}>
               {head && <p className="slash-group">{it.group === 'AI' ? <>✦ AI</> : it.group}</p>}
               <button type="button" data-i={i} role="option" aria-selected={i === selectedIndex}
                 className={`slash-item ${i === shown ? 'active' : ''} ${it.ai ? 'ai' : ''}`}
@@ -226,6 +228,27 @@ function SlashMenu({ items, selectedIndex, onItemClick, loadingState }) {
         })}
       </div>
       <div className="slash-foot"><span><kbd>↑</kbd><kbd>↓</kbd> move</span><span><kbd>↵</kbd> insert</span><span><kbd>esc</kbd> close</span></div>
+    </div>
+  );
+}
+
+const MentionMenu = (props) => <SlashMenu {...props} mention />;
+
+/** "Linked from 2 pages": pages that @mention or link to this one (like Notion's backlinks) */
+function Backlinks({ id, onOpen }) {
+  const [list, setList] = useState([]);
+  const [open, setOpen] = useState(false);
+  useEffect(() => { setOpen(false); api.get(`/notes/${id}/backlinks`).then(setList).catch(() => setList([])); }, [id]);
+  if (!list.length) return null;
+  return (
+    <div className="backlinks">
+      <button type="button" className="backlinks-toggle" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
+        <Icon name="link" size={13} /> {list.length === 1 ? t('Linked from 1 page') : t('Linked from {n} pages', { n: list.length })}
+        <span className={`backlinks-chev ${open ? 'open' : ''}`}><Icon name="chevron" size={12} /></span>
+      </button>
+      {open && <div className="backlinks-list">{list.map((n) => (
+        <button key={n.id} type="button" onClick={() => onOpen(n.id)}><span>{n.icon || '📄'}</span><span data-no-translate>{n.title || t('Untitled')}</span></button>
+      ))}</div>}
     </div>
   );
 }
@@ -268,7 +291,7 @@ codeSpec.implementation.render = function render(...args) {
 };
 const SCHEMA = BlockNoteSchema.create({
   blockSpecs: { ...defaultBlockSpecs, codeBlock: codeSpec, callout: calloutSpec(), math: mathSpec(), toc: tocSpec(), embed: embedSpec(), bookmark: bookmarkSpec(), columns: columnsSpec() },
-  inlineContentSpecs: { ...defaultInlineContentSpecs, inlineMath: inlineMathSpec },
+  inlineContentSpecs: { ...defaultInlineContentSpecs, inlineMath: inlineMathSpec, mention: mentionSpec },
 });
 
 /** The color-theme menu of code blocks (one choice for all code, saved in Settings) */
@@ -594,6 +617,8 @@ function NoteEditor({ note, dark, onChange, onReady, onAi, liveOn = false, readO
     }
   }, [editor]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const findMentions = useMemo(() => mentionItems(editor, note.id), [editor, note.id]);
+  const getMentions = async (query) => { mentionQuery.text = query; return findMentions(query); };
   const getItems = async (query) => {
     slashQuery.text = query;
     const q = query.trim().toLowerCase();
@@ -631,6 +656,7 @@ function NoteEditor({ note, dark, onChange, onReady, onAi, liveOn = false, readO
       slashMenu={false} formattingToolbar={false} linkToolbar={false}>
       <LinkToolbarController linkToolbar={NoteLinkToolbar} floatingUIOptions={LINK_TOOLBAR_POSITION} />
       <SuggestionMenuController triggerCharacter="/" getItems={getItems} suggestionMenuComponent={SlashMenu} />
+      {!readOnly && <SuggestionMenuController triggerCharacter="@" getItems={getMentions} suggestionMenuComponent={MentionMenu} />}
       <FormattingToolbarController formattingToolbar={() => (
         <FormattingToolbar>
           <AiToolbarButton key="ai" onAi={() => onAi({ selection: true })} />
@@ -1493,6 +1519,7 @@ export default function Notes() {
               <textarea ref={titleRef} className="note-title" rows={1} value={current.title} placeholder="Untitled" maxLength={200} readOnly={viewer}
                 onChange={(e) => setMeta({ title: e.target.value.replace(/\n/g, '') })}
                 onKeyDown={(e) => { if (e.key === 'Enter' || (e.key === 'ArrowDown')) { e.preventDefault(); editorRef.current?.focus(); } }} />
+              <Backlinks id={current.id} onOpen={open} />
               <NoteEditor key={liveOn ? 'live' : 'solo'} note={current} dark={dark} onAi={openAi}
                 liveOn={liveOn} readOnly={viewer} onPeople={setPeople} liveApi={liveApi}
                 onRemoteMeta={(fields) => setCurrent((c) => ({ ...c, ...fields }))}

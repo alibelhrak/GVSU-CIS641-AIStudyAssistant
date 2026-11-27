@@ -1163,5 +1163,21 @@
 "That is not a valid link": "Ese enlace no es válido",
 "This link cannot be previewed": "No se puede previsualizar este enlace",
 "That website could not be found": "No se encontró ese sitio web",
-"That website did not answer": "Ese sitio web no respondió"
+"That website did not answer": "Ese sitio web no respondió",
+"Search": "Buscar",
+"Quick Find": "Búsqueda rápida",
+"Search pages, assignments, courses, groups…": "Busca páginas, tareas, cursos, grupos…",
+"Nothing found for “{q}”.": "No hay resultados para «{q}».",
+"Type to search everything in StudyPilot.": "Escribe para buscar en todo StudyPilot.",
+"open": "abrir",
+"anywhere": "en cualquier lugar",
+"Go to": "Ir a",
+"Recent pages": "Páginas recientes",
+"People": "Personas",
+"Link to page": "Enlace a una página",
+"Next week": "La próxima semana",
+"Mention a person, link a page, or add a date…": "Menciona a una persona, enlaza una página o añade una fecha…",
+"Linked from 1 page": "Enlazada desde 1 página",
+"Linked from {n} pages": "Enlazada desde {n} páginas",
+"Mention": "Mención"
 }
