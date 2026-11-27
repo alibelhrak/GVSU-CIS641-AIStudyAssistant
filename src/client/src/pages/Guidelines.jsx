@@ -50,7 +50,7 @@ export default function Guidelines() {
         <p>Content that breaks these rules is removed: a page stops being shared (its owner keeps it) and a message is deleted. Repeated or serious violations can lead to the account being closed. Content that seems illegal may be reported to the authorities.</p>
 
         <h2>Questions</h2>
-        <p>See the <Link to="/privacy">privacy policy</Link> for what the app stores, or open an issue on the project's <a href={`${REPO}/issues`} target="_blank" rel="noopener noreferrer">GitHub page</a>.</p>
+        <p>These guidelines are part of the <Link to="/terms">Terms of Service</Link>. See the <Link to="/privacy">privacy policy</Link> for what the app stores, or open an issue on the project's <a href={`${REPO}/issues`} target="_blank" rel="noopener noreferrer">GitHub page</a>.</p>
       </article>
     </div>
   );

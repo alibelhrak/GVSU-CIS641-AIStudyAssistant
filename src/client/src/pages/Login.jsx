@@ -12,7 +12,7 @@ export default function Login() {
   const { pathname, state } = useLocation();
   const navigate = useNavigate();
   const mode = pathname === '/signup' ? 'register' : 'login';   // /signup shows "Create account"
-  const [form, setForm] = useState({ name: '', email: state?.email || '', password: '' });
+  const [form, setForm] = useState({ name: '', email: state?.email || '', password: '', acceptTerms: false });
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
@@ -61,6 +61,17 @@ export default function Login() {
           <label>Email<input type="email" value={form.email} onChange={set('email')} required autoComplete="email" placeholder="you@school.edu" /></label>
           <label>Password<input type="password" value={form.password} onChange={set('password')} required minLength={8}
             placeholder="At least 8 characters" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} /></label>
+          {mode === 'register' && (
+            <div className="login-terms">
+              <label className="login-check">
+                <input type="checkbox" checked={form.acceptTerms} onChange={(e) => setForm({ ...form, acceptTerms: e.target.checked })} required />
+                <span>I am 13 or older, and I agree to the Terms of Service, the community guidelines and the privacy policy.</span>
+              </label>
+              <p className="login-terms-links">
+                <Link to="/terms" target="_blank">Terms of Service</Link> · <Link to="/guidelines" target="_blank">Community guidelines</Link> · <Link to="/privacy" target="_blank">Privacy policy</Link>
+              </p>
+            </div>
+          )}
         </div>
 
         {mode === 'login' && <Link className="linklike" to="/forgot-password" style={{ justifySelf: 'end', fontSize: '.85rem', marginTop: -6 }}>Forgot password?</Link>}

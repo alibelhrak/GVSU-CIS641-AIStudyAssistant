@@ -100,6 +100,9 @@ export default function Privacy() {
         <h2>Children</h2>
         <p>The app is meant for students aged 13 and over. It is not directed at children under 13.</p>
 
+        <h2>Terms</h2>
+        <p>Using the app also means agreeing to the <Link to="/terms">Terms of Service</Link> and the <Link to="/guidelines">community guidelines</Link>.</p>
+
         <h2>Changes and contact</h2>
         <p>If this policy changes, the date at the top changes too. For questions or requests, open an issue on the project's <a href={`${REPO}/issues`} target="_blank" rel="noopener noreferrer">GitHub page</a>.</p>
       </article>

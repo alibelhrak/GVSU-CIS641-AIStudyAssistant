@@ -354,6 +354,9 @@ function DataPrivacy({ onClose }) {
       <Row title="Privacy policy" desc="What the app stores, who handles it, and how to delete it.">
         <Link className="btn" to="/privacy" onClick={onClose}>Read</Link>
       </Row>
+      <Row title="Terms of Service" desc="The agreement for using StudyPilot: your content, the rules, AI answers and what happens when they are broken.">
+        <Link className="btn" to="/terms" onClick={onClose}>Read</Link>
+      </Row>
       <Row title="Community guidelines" desc="The rules for shared pages, public links and study group chats, and how to report something.">
         <Link className="btn" to="/guidelines" onClick={onClose}>Read</Link>
       </Row>

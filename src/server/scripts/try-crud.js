@@ -13,8 +13,8 @@ async function call(method, path, body) {
 }
 
 // Two students
-const a = await call('POST', '/auth/register', { name: 'Ali', email: `a${Date.now()}@example.com`, password: 'password123' });
-const b = await call('POST', '/auth/register', { name: 'Sam', email: `b${Date.now()}@example.com`, password: 'password123' });
+const a = await call('POST', '/auth/register', { name: 'Ali', email: `a${Date.now()}@example.com`, password: 'password123', acceptTerms: true });
+const b = await call('POST', '/auth/register', { name: 'Sam', email: `b${Date.now()}@example.com`, password: 'password123', acceptTerms: true });
 
 token = a.token;
 const course = await call('POST', '/courses', { code: 'CIS 641', name: 'System Analysis and Design', weeklyGoalHours: 6 });

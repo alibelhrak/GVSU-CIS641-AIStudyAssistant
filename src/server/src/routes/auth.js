@@ -88,6 +88,7 @@ r.post('/register', h(async (req, res) => {
   const email = cleanEmail(req.body?.email);
   if (typeof password !== 'string' || password.length < 8) throw new HttpError(400, 'Password must be at least 8 characters');
   if (!/^\S+@\S+\.\S+$/.test(email)) throw new HttpError(400, 'Enter a valid email address');
+  if (req.body?.acceptTerms !== true) throw new HttpError(400, 'Confirm that you are 13 or older and agree to the Terms of Service');
   let user = await User.findOne({ email });
   if (user && isVerified(user)) throw new HttpError(409, 'An account with that email already exists');
   const passwordHash = await bcrypt.hash(password, 10);
@@ -97,8 +98,9 @@ r.post('/register', h(async (req, res) => {
     user.name = name;
     user.passwordHash = passwordHash;
     user.language = langOf(req);
+    user.termsAcceptedAt = new Date();
   } else {
-    user = new User({ name, email, passwordHash, language: langOf(req), emailVerified: false });
+    user = new User({ name, email, passwordHash, language: langOf(req), emailVerified: false, termsAcceptedAt: new Date() });
   }
   const ticket = newTicket(user);
   // A new sign-up gets a new code, so a code sent to an earlier attempt stops working

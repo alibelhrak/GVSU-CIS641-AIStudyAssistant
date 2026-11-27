@@ -958,3 +958,11 @@ img.avatar,img.set-avatar{object-fit:cover;padding:0;background:var(--surface-2)
 @media (max-width:520px){.report-reasons{grid-template-columns:1fr}.public-report span{display:none}}
 @media (hover:none){.gchat-time button{opacity:.75}}
 .gchat-time button:focus-visible{opacity:1}
+
+/* Sign-up: age and terms */
+.login-terms{display:grid;gap:4px;margin-top:2px}
+.login-check{display:flex;align-items:flex-start;gap:9px;font-size:.84rem;font-weight:500;line-height:1.45;color:var(--muted);cursor:pointer}
+.login-check input{margin-top:1px}
+.login-terms-links{margin:0 0 0 27px;font-size:.78rem;color:var(--faint)}
+.login-terms-links a{color:var(--accent);text-decoration:none}
+.login-terms-links a:hover{text-decoration:underline}

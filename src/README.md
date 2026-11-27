@@ -72,7 +72,7 @@ All routes start with `/api`. Every route except `/auth/*` and `/health` needs t
 
 | Route | What it does |
 |---|---|
-| `POST /auth/register` | Create an account. It stays locked until the email is confirmed: returns `{ needsVerification, email, ticket }` and emails a 6-digit code |
+| `POST /auth/register` | Create an account (`{ name, email, password, acceptTerms: true }`: the sign-up checkbox "13 or older and I agree to the Terms"; the date is saved as `termsAcceptedAt`). It stays locked until the email is confirmed: returns `{ needsVerification, email, ticket }` and emails a 6-digit code |
 | `POST /auth/verify` | `{ email, ticket, code }`: confirms the email, returns a token and the user. 5 wrong codes and the code stops working; codes last 15 minutes |
 | `POST /auth/resend-code` | `{ email, ticket }`: a new code (at most one a minute, five an hour) |
 | `POST /auth/login` | Sign in; returns a token and the user, or `403 { needsVerification, ticket }` if the email was never confirmed |

@@ -47,6 +47,8 @@ export const User = model('User', new Schema({
   // Email check at sign-up: false until the 6-digit code is entered.
   // Accounts made before this existed have no value and count as verified.
   emailVerified: Boolean,
+  // When the student confirmed being 13 or older and agreed to the Terms of Service (at sign-up)
+  termsAcceptedAt: Date,
   verifyCodeHash: String,          // fingerprint of the emailed code, never the code itself
   verifyTicketHash: String,        // fingerprint of the private ticket held by the device that signed up
   verifyExpires: Date,
