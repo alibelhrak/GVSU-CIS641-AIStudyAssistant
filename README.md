@@ -206,7 +206,7 @@ Click **Settings** at the bottom of the sidebar (or press `Ctrl+,`). **Account**
 
 <p align="center"><img src="docs/screenshots/settings.png" alt="Settings › Account with a profile picture" width="900" /></p>
 
-<p align="center"><img src="docs/screenshots/themes.png" alt="Dark theme with the Appearance menu open" width="900" /></p>
+<p align="center"><img src="docs/screenshots/themes.png" alt="Dark theme with Settings › Appearance open" width="900" /></p>
 
 ### 11. Choose your language
 
