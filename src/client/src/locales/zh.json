@@ -1094,5 +1094,8 @@
 "Choose a time within the next year": "请选择一年内的时间",
 "Only the person who made the meeting, or the group owner, can cancel it": "只有会议创建者或小组所有者可以取消",
 "Zoom is not set up on this server yet. Paste a meeting link instead.": "此服务器尚未设置 Zoom，请改为粘贴会议链接。",
-"Zoom is not set up on this server yet": "此服务器尚未设置 Zoom"
+"Zoom is not set up on this server yet": "此服务器尚未设置 Zoom",
+"Add to calendar": "添加到日历",
+"Outlook (school or work)": "Outlook（学校或工作）",
+"Apple Calendar / other (.ics)": "Apple 日历 / 其他 (.ics)"
 }

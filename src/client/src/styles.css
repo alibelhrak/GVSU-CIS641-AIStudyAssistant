@@ -1000,3 +1000,7 @@ img.avatar,img.set-avatar{object-fit:cover;padding:0;background:var(--surface-2)
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
 @media (max-width:520px){.meet-when{grid-template-columns:1fr 1fr}.meet-when select{grid-column:1/-1}.meet-how{grid-template-columns:1fr}.meet-top-actions{width:100%}.meet-top-actions .btn{flex:1;justify-content:center}}
 @media (prefers-reduced-motion:reduce){.meet-live::before{animation:none}}
+.pop-menu > a{display:block;padding:8px 10px;border-radius:8px;font-size:.88rem;color:var(--fg);text-decoration:none}
+.pop-menu > a:hover{background:var(--hover)}
+.meet-cal{position:relative;display:inline-flex}
+.meet-cal-menu{min-width:250px}

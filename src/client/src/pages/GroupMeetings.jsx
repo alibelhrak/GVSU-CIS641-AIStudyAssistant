@@ -38,6 +38,7 @@ export default function GroupMeetings({ g, notify }) {
   const [form, setForm] = useState(null);          // the schedule form
   const [busy, setBusy] = useState(false);
   const [askLink, setAskLink] = useState(false);   // "link your Zoom account" prompt
+  const [calFor, setCalFor] = useState(null);       // meeting whose "Add to calendar" menu is open
 
   const load = useCallback(() => api.get(`/groups/${g.id}/meetings`).then(setMeetings).catch(() => setMeetings([])), [g.id]);
   useEffect(() => {
@@ -91,6 +92,16 @@ export default function GroupMeetings({ g, notify }) {
   };
   const copy = async (m) => {
     try { await navigator.clipboard.writeText(m.joinUrl); notify(t('Link copied')); } catch { /* the Join button still works */ }
+  };
+  useEffect(() => {
+    if (!calFor) return undefined;
+    const close = (e) => { if (!e.target.closest?.('.meet-cal')) setCalFor(null); };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [calFor]);
+  const downloadIcs = async (m) => {
+    setCalFor(null);
+    try { await api.download(`/groups/${g.id}/meetings/${m.id}/ics`, `${m.topic.replace(/[^\w -]+/g, '').trim() || 'meeting'}.ics`); } catch (err) { notify(err.message); }
   };
   const cancel = async (m) => {
     try { await api.del(`/groups/${g.id}/meetings/${m.id}`); setMeetings((list) => list.filter((x) => x.id !== m.id)); } catch (err) { notify(err.message); }
@@ -176,6 +187,20 @@ export default function GroupMeetings({ g, notify }) {
                   <button className={`btn sm ${m.status === 'live' ? 'primary' : ''}`} type="button" onClick={() => join(m)}>
                     {m.mine && m.provider === 'zoom' ? t('Start') : t('Join')}
                   </button>
+                )}
+                {m.status !== 'ended' && m.calendar && (
+                  <span className="pop-wrap meet-cal">
+                    <button className="icon-btn" type="button" onClick={() => setCalFor(calFor === m.id ? null : m.id)} title="Add to calendar" aria-label="Add to calendar" aria-expanded={calFor === m.id}><Icon name="calendar" size={14} /></button>
+                    {calFor === m.id && (
+                      <div className="pop-menu meet-cal-menu">
+                        <p className="code-menu-title">Add to calendar</p>
+                        <a href={m.calendar.google} target="_blank" rel="noopener noreferrer" onClick={() => setCalFor(null)}>Google Calendar</a>
+                        <a href={m.calendar.outlook} target="_blank" rel="noopener noreferrer" onClick={() => setCalFor(null)}>Outlook (school or work)</a>
+                        <a href={m.calendar.outlookLive} target="_blank" rel="noopener noreferrer" onClick={() => setCalFor(null)}>Outlook.com</a>
+                        <button type="button" onClick={() => downloadIcs(m)}>Apple Calendar / other (.ics)</button>
+                      </div>
+                    )}
+                  </span>
                 )}
                 <button className="icon-btn" type="button" onClick={() => copy(m)} title="Copy link" aria-label="Copy link"><Icon name="copy" size={14} /></button>
                 {(m.mine || g.mine) && <button className="icon-btn" type="button" onClick={() => cancel(m)} title="Cancel meeting" aria-label="Cancel meeting"><Icon name="trash" size={14} /></button>}

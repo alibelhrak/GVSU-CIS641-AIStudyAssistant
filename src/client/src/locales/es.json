@@ -1087,5 +1087,8 @@
 "Choose a time within the next year": "Elige una hora dentro del próximo año",
 "Only the person who made the meeting, or the group owner, can cancel it": "Solo quien creó la reunión o el dueño del grupo puede cancelarla",
 "Zoom is not set up on this server yet. Paste a meeting link instead.": "Zoom aún no está configurado en este servidor. Pega un enlace de reunión.",
-"Zoom is not set up on this server yet": "Zoom aún no está configurado en este servidor"
+"Zoom is not set up on this server yet": "Zoom aún no está configurado en este servidor",
+"Add to calendar": "Añadir al calendario",
+"Outlook (school or work)": "Outlook (escuela o trabajo)",
+"Apple Calendar / other (.ics)": "Calendario de Apple / otro (.ics)"
 }

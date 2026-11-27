@@ -1187,5 +1187,8 @@
 "Choose a time within the next year": "अगले एक साल के भीतर का समय चुनें",
 "Only the person who made the meeting, or the group owner, can cancel it": "सिर्फ़ मीटिंग बनाने वाला या ग्रुप का मालिक इसे रद्द कर सकता है",
 "Zoom is not set up on this server yet. Paste a meeting link instead.": "इस सर्वर पर अभी Zoom सेट नहीं है। इसके बजाय मीटिंग लिंक चिपकाएँ।",
-"Zoom is not set up on this server yet": "इस सर्वर पर अभी Zoom सेट नहीं है"
+"Zoom is not set up on this server yet": "इस सर्वर पर अभी Zoom सेट नहीं है",
+"Add to calendar": "कैलेंडर में जोड़ें",
+"Outlook (school or work)": "Outlook (स्कूल या कार्यालय)",
+"Apple Calendar / other (.ics)": "Apple Calendar / अन्य (.ics)"
 }

@@ -9,6 +9,7 @@ import { User } from '../models/index.js';
 import { sendMail } from './mailer.js';
 import { sendPush } from './reminders.js';
 import { dirOf, LOCALES } from '../i18n.js';
+import { calendarLinks, meetingIcs } from './calendar.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const fill = (s, v) => Object.entries(v).reduce((out, [k, x]) => out.replaceAll(`{${k}}`, String(x)), s);
@@ -93,6 +94,34 @@ const T = {
   },
   meetWhen: { en: 'When: {when} ({minutes} min)', fr: 'Quand : {when} ({minutes} min)', es: 'Cuándo: {when} ({minutes} min)', ar: 'الموعد: {when} ({minutes} دقيقة)', zh: '时间：{when}（{minutes} 分钟）', hi: 'कब: {when} ({minutes} मिनट)' },
   meetPass: { en: 'Passcode: {code}', fr: 'Code secret : {code}', es: 'Código de acceso: {code}', ar: 'رمز المرور: {code}', zh: '密码：{code}', hi: 'पासकोड: {code}' },
+  meetYouBody: {
+    en: 'You scheduled a video meeting for your study group. The group was told by email.', fr: 'Vous avez programmé une réunion vidéo pour votre groupe d’étude. Le groupe a été prévenu par e-mail.',
+    es: 'Programaste una videollamada para tu grupo de estudio. El grupo recibió un correo.', ar: 'حدّدت اجتماع فيديو لمجموعة الدراسة. تم إبلاغ المجموعة بالبريد.',
+    zh: '你为学习小组安排了视频会议，已通过邮件通知小组。', hi: 'आपने अपने स्टडी ग्रुप के लिए वीडियो मीटिंग तय की है। ग्रुप को ईमेल से बताया गया।',
+  },
+  meetCal: {
+    en: 'Add to your calendar:', fr: 'Ajouter à votre agenda :', es: 'Añadir a tu calendario:', ar: 'أضِف إلى تقويمك:', zh: '添加到日历：', hi: 'अपने कैलेंडर में जोड़ें:',
+  },
+  meetCalFile: {
+    en: 'The invitation (invite.ics) is attached: open it to add the meeting to Outlook, Apple Calendar or any calendar app.',
+    fr: 'L’invitation (invite.ics) est jointe : ouvrez-la pour ajouter la réunion à Outlook, Calendrier Apple ou toute autre application d’agenda.',
+    es: 'La invitación (invite.ics) va adjunta: ábrela para añadir la reunión a Outlook, Calendario de Apple o cualquier app de calendario.',
+    ar: 'الدعوة (invite.ics) مرفقة: افتحها لإضافة الاجتماع إلى Outlook أو تقويم Apple أو أي تطبيق تقويم.',
+    zh: '已附上邀请（invite.ics）：打开即可将会议添加到 Outlook、Apple 日历或其他日历应用。',
+    hi: 'निमंत्रण (invite.ics) संलग्न है: मीटिंग को Outlook, Apple Calendar या किसी भी कैलेंडर ऐप में जोड़ने के लिए इसे खोलें।',
+  },
+  meetCancelSubject: {
+    en: 'Cancelled: {topic} ({group}), {when}', fr: 'Annulée : {topic} ({group}), {when}', es: 'Cancelada: {topic} ({group}), {when}',
+    ar: 'أُلغي: {topic} ({group})، {when}', zh: '已取消：{topic}（{group}），{when}', hi: 'रद्द: {topic} ({group}), {when}',
+  },
+  meetCancelBody: {
+    en: '{from} cancelled this study group meeting. If it is in your calendar, it is removed (or you can delete it).',
+    fr: '{from} a annulé cette réunion du groupe d’étude. Si elle est dans votre agenda, elle en est retirée (ou vous pouvez la supprimer).',
+    es: '{from} canceló esta reunión del grupo de estudio. Si está en tu calendario, se quita (o puedes borrarla).',
+    ar: 'ألغى {from} اجتماع مجموعة الدراسة هذا. إن كان في تقويمك فستتم إزالته (أو يمكنك حذفه).',
+    zh: '{from} 取消了这次学习小组会议。如果它在你的日历中，会被移除（你也可以手动删除）。',
+    hi: '{from} ने स्टडी ग्रुप की यह मीटिंग रद्द कर दी। अगर यह आपके कैलेंडर में है, तो हटा दी जाएगी (या आप इसे हटा सकते हैं)।',
+  },
   meetButton: { en: 'Join the meeting', fr: 'Rejoindre la réunion', es: 'Unirse a la reunión', ar: 'الانضمام إلى الاجتماع', zh: '加入会议', hi: 'मीटिंग से जुड़ें' },
   meetWhy: {
     en: 'You got this email because you are a member of the study group "{group}" on StudyPilot. Leave the group to stop these emails.',
@@ -106,7 +135,7 @@ const T = {
 };
 const tr = (key, lang, v = {}) => fill(T[key][lang] || T[key].en, v);
 
-function layout({ lang, title, lines, quote, button, path, href, note }) {
+function layout({ lang, title, lines, quote, button, path, href, note, after = '' }) {
   const url = href || `${config.appUrl}${path}`;
   const html = `<!doctype html><html lang="${lang}" dir="${dirOf(lang)}"><body style="margin:0;background:#f7f7f5;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif">
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center" style="padding:28px 12px">
@@ -115,11 +144,12 @@ function layout({ lang, title, lines, quote, button, path, href, note }) {
     <h2 style="margin:16px 0 12px;font-size:20px;line-height:1.3;color:#37352f">${esc(title)}</h2>
     ${lines.map((l) => `<p style="margin:0 0 10px;color:#37352f;font-size:14px;line-height:1.55">${esc(l)}</p>`).join('')}
     ${quote ? `<p style="margin:14px 0 0;padding:12px 14px;border:1px solid #e9e9e7;border-radius:10px;background:#fbfbfa;font-size:15px;font-weight:600;color:#37352f">${esc(quote)}</p>` : ''}
-    <p style="margin:22px 0 4px"><a href="${url}" style="display:inline-block;background:#2383e2;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:11px 18px;border-radius:9px">${esc(button)}</a></p>
+    ${button ? `<p style="margin:22px 0 4px"><a href="${url}" style="display:inline-block;background:#2383e2;color:#fff;text-decoration:none;font-weight:600;font-size:14px;padding:11px 18px;border-radius:9px">${esc(button)}</a></p>` : ''}
+    ${after}
   </td></tr></table>
   <p style="max-width:560px;margin:14px auto 0;color:#9b9a97;font-size:12px;line-height:1.5">${esc(note)}</p>
   </td></tr></table></body></html>`;
-  const text = [...lines, ...(quote ? ['', quote] : []), '', `${button}: ${url}`, '', note].join('\n');
+  const text = [...lines, ...(quote ? ['', quote] : []), ...(button ? ['', `${button}: ${url}`] : []), '', note].join('\n');
   return { html, text };
 }
 
@@ -183,8 +213,45 @@ function whenText(date, lang, timezone) {
   return new Intl.DateTimeFormat(LOCALES[lang] || 'en-US', { timeZone: tz, weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }).format(date);
 }
 
-/** A study group meeting was started (now) or scheduled: tell the other members */
+function calendarHtml(meeting, group, lang) {
+  const l = calendarLinks(meeting, group.name);
+  const a = (href, label) => `<a href="${href}" style="color:#2383e2;text-decoration:none;font-weight:600">${label}</a>`;
+  return `<p style="margin:16px 0 4px;color:#37352f;font-size:13px">${esc(tr('meetCal', lang))} ${a(l.google, 'Google Calendar')} · ${a(l.outlook, 'Outlook')} · ${a(l.outlookLive, 'Outlook.com')}</p>
+    <p style="margin:0;color:#787774;font-size:12px;line-height:1.5">${esc(tr('meetCalFile', lang))}</p>`;
+}
+
+/**
+ * A study group meeting was started (now) or scheduled.
+ * Now: the other members are told. Scheduled: everyone, the maker too, gets a calendar invitation (invite.ics).
+ */
 export async function notifyMeeting({ group, meeting, fromId, toIds, now }) {
+  try {
+    const from = await User.findById(fromId).select('name email').lean();
+    const fromName = from?.name || from?.email || 'A classmate';
+    const people = await User.find({ _id: { $in: now ? toIds : [...toIds, fromId] } }).select('name email language reminders.timezone').lean();
+    for (const to of people) {
+      const lang = to.language || 'en';
+      const me = String(to._id) === String(fromId);
+      const when = whenText(meeting.start, lang, to.reminders?.timezone);
+      const subject = tr(now ? 'meetNowSubject' : 'meetLaterSubject', lang, { from: fromName, group: group.name, topic: meeting.topic, when });
+      const lines = [tr('hi', lang, { name: (to.name || '').split(' ')[0] || to.email }), me ? tr('meetYouBody', lang) : tr(now ? 'meetNowBody' : 'meetLaterBody', lang, { from: fromName }),
+        tr('meetWhen', lang, { when, minutes: meeting.duration }), ...(meeting.passcode ? [tr('meetPass', lang, { code: meeting.passcode })] : [])];
+      try {
+        await sendMail({
+          to: to.email, toName: to.name, subject,
+          ...layout({ lang, title: subject, lines, quote: meeting.topic, button: tr('meetButton', lang), href: meeting.joinUrl, note: tr('meetWhy', lang, { group: group.name }), after: now ? '' : calendarHtml(meeting, group, lang) }),
+          attachments: now ? [] : [{ name: 'invite.ics', content: meetingIcs(meeting, group.name, { method: 'REQUEST', attendee: to }) }],
+        });
+      } catch (err) { console.warn('Meeting email failed:', err.message); }
+      if (!me) await sendPush(to._id, { title: subject, body: now ? meeting.topic : when, url: `/groups/${group._id}`, tag: `meet-${meeting._id}` }).catch(() => {});
+    }
+  } catch (err) {
+    console.warn('Meeting notices failed:', err.message);
+  }
+}
+
+/** A scheduled meeting was cancelled: everyone gets a cancellation that removes it from their calendar */
+export async function notifyMeetingCancelled({ group, meeting, fromId, toIds }) {
   try {
     const from = await User.findById(fromId).select('name email').lean();
     const fromName = from?.name || from?.email || 'A classmate';
@@ -192,18 +259,16 @@ export async function notifyMeeting({ group, meeting, fromId, toIds, now }) {
     for (const to of people) {
       const lang = to.language || 'en';
       const when = whenText(meeting.start, lang, to.reminders?.timezone);
-      const subject = tr(now ? 'meetNowSubject' : 'meetLaterSubject', lang, { from: fromName, group: group.name, topic: meeting.topic, when });
-      const lines = [tr('hi', lang, { name: (to.name || '').split(' ')[0] || to.email }), tr(now ? 'meetNowBody' : 'meetLaterBody', lang, { from: fromName }),
-        tr('meetWhen', lang, { when, minutes: meeting.duration }), ...(meeting.passcode ? [tr('meetPass', lang, { code: meeting.passcode })] : [])];
+      const subject = tr('meetCancelSubject', lang, { topic: meeting.topic, group: group.name, when });
       try {
         await sendMail({
           to: to.email, toName: to.name, subject,
-          ...layout({ lang, title: subject, lines, quote: meeting.topic, button: tr('meetButton', lang), href: meeting.joinUrl, note: tr('meetWhy', lang, { group: group.name }) }),
+          ...layout({ lang, title: subject, lines: [tr('hi', lang, { name: (to.name || '').split(' ')[0] || to.email }), tr('meetCancelBody', lang, { from: fromName })], quote: `${meeting.topic} · ${when}`, button: '', note: tr('meetWhy', lang, { group: group.name }) }),
+          attachments: [{ name: 'cancel.ics', content: meetingIcs(meeting, group.name, { method: 'CANCEL', attendee: to }) }],
         });
-      } catch (err) { console.warn('Meeting email failed:', err.message); }
-      await sendPush(to._id, { title: subject, body: now ? meeting.topic : when, url: `/groups/${group._id}`, tag: `meet-${meeting._id}` }).catch(() => {});
+      } catch (err) { console.warn('Cancellation email failed:', err.message); }
     }
   } catch (err) {
-    console.warn('Meeting notices failed:', err.message);
+    console.warn('Cancellation notices failed:', err.message);
   }
 }

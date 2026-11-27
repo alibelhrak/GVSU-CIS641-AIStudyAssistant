@@ -116,7 +116,7 @@ All routes start with `/api`. Every route except `/auth/*` and `/health` needs t
 | `GET`/`POST /reports/:id/moderate?sig=` | **No login**, signed link from the report email: shows the report, and takes the content down on confirm |
 | `GET /zoom/status`, `POST`/`DELETE /zoom/link` | Is Zoom set up and linked; start linking (returns Zoom's address); unlink (revokes the token) |
 | `GET /zoom/callback`, `POST /zoom/webhook` | **No login**: where Zoom sends the student back after linking (signed `state`), and Zoom's events (signed with `ZOOM_WEBHOOK_SECRET`: endpoint check and "app deauthorized") |
-| `/groups/:id/meetings` | `GET` upcoming and live meetings; `POST { topic, start?, duration, link? }` (no `start` = now; no `link` = a new Zoom meeting from my account); `GET /:mid/start` (the host link, only for whoever made it); `DELETE /:mid` (its maker or the group owner; also cancels it on Zoom) |
+| `/groups/:id/meetings` | `GET` upcoming and live meetings; `POST { topic, start?, duration, link? }` (no `start` = now; no `link` = a new Zoom meeting from my account); `GET /:mid/start` (the host link, only for whoever made it); `DELETE /:mid` (its maker or the group owner; also cancels it on Zoom, and emails a calendar cancellation); `GET /:mid/ics` (the meeting as a `.ics` file) |
 | `WS /collab/:noteId?token=` | Live co-editing (WebSocket, Yjs protocol); see below |
 | `/conversations` | Chat history: list (`GET`), open (`GET /:id`), save (`POST`, `PATCH /:id`) and delete (`DELETE /:id`) |
 
@@ -132,7 +132,7 @@ All routes start with `/api`. Every route except `/auth/*` and `/health` needs t
 
 ## Zoom meetings
 
-Study groups can start or schedule Zoom meetings. Only the student who **starts** a meeting needs their Zoom account linked; everyone else joins with the link. `server/src/services/zoom.js` does the OAuth linking (tokens encrypted with AES-256-GCM, refreshed automatically, revoked on unlink or account deletion), and `routes/groups.js` creates, starts and cancels meetings through Zoom's API (`POST /users/me/meetings`, `GET`/`DELETE /meetings/:id`). Members are emailed in their own language and time zone (`services/invites.js`).
+Study groups can start or schedule Zoom meetings. Only the student who **starts** a meeting needs their Zoom account linked; everyone else joins with the link. `server/src/services/zoom.js` does the OAuth linking (tokens encrypted with AES-256-GCM, refreshed automatically, revoked on unlink or account deletion), and `routes/groups.js` creates, starts and cancels meetings through Zoom's API (`POST /users/me/meetings`, `GET`/`DELETE /meetings/:id`). Members are emailed in their own language and time zone (`services/invites.js`). Scheduled meetings attach a calendar invitation (`services/calendar.js`, iCalendar `METHOD:REQUEST`, sent through Brevo as `invite.ics`); cancelling sends `METHOD:CANCEL` with the same `UID`, so calendars remove it.
 
 ### Set it up (once, about 15 minutes)
 
@@ -212,6 +212,7 @@ src/
     src/services/access.js who may open or edit a note page
     src/services/collab.js live co-editing over WebSocket (Yjs)
     src/services/invites.js invite emails for shared pages and study groups
+    src/services/calendar.js  calendar invitations (.ics) and Add-to-calendar links
     src/services/zoom.js   linking Zoom (encrypted tokens) and calling Zoom's API
     src/routes/zoom.js     link / unlink Zoom, the OAuth callback and Zoom's webhook
     src/routes/reports.js  reporting shared content, and the moderator's take-down link

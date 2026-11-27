@@ -6,7 +6,8 @@
 import { Router } from 'express';
 import mongoose from 'mongoose';
 import { Group, GroupMeeting, GroupMessage, GroupTask, Note, User, TASK_TYPES } from '../models/index.js';
-import { notifyGroupAdded, notifyMeeting } from '../services/invites.js';
+import { notifyGroupAdded, notifyMeeting, notifyMeetingCancelled } from '../services/invites.js';
+import { calendarLinks, meetingIcs } from '../services/calendar.js';
 import { zoomApi } from '../services/zoom.js';
 import { zoomEnabled } from '../config.js';
 import { h, HttpError } from '../middleware/error.js';
@@ -235,7 +236,7 @@ r.delete('/:id/tasks/:tid', h(async (req, res) => {
 
 // ---------- Video meetings (Zoom, or a pasted Zoom / Teams / Meet link) ----------
 const MAX_MEETINGS = 30;
-const meetingView = (m, names, userId) => {
+const meetingView = (m, names, userId, groupName = '') => {
   const end = m.start.getTime() + m.duration * 60_000;
   const now = Date.now();
   return {
@@ -243,6 +244,7 @@ const meetingView = (m, names, userId) => {
     joinUrl: m.joinUrl, passcode: m.passcode,
     by: names.get(String(m.createdBy)) || '', mine: String(m.createdBy) === String(userId),
     status: now > end ? 'ended' : now >= m.start.getTime() - 10 * 60_000 ? 'live' : 'upcoming',
+    calendar: calendarLinks(m, groupName),
   };
 };
 
@@ -251,7 +253,7 @@ r.get('/:id/meetings', h(async (req, res) => {
   const list = await GroupMeeting.find({ group: group._id, start: { $gt: new Date(Date.now() - 12 * 3600_000) } }).sort({ start: 1 }).limit(50).lean();
   const live = list.filter((m) => m.start.getTime() + m.duration * 60_000 > Date.now() - 30 * 60_000);
   const names = new Map((await User.find({ _id: { $in: live.map((m) => m.createdBy) } }).select('name').lean()).map((u) => [String(u._id), u.name]));
-  res.json(live.map((m) => meetingView(m, names, req.userId)));
+  res.json(live.map((m) => meetingView(m, names, req.userId, group.name)));
 }));
 
 r.post('/:id/meetings', h(async (req, res) => {
@@ -285,7 +287,7 @@ r.post('/:id/meetings', h(async (req, res) => {
   await Group.updateOne({ _id: group._id }, { $currentDate: { updatedAt: true } });
   notifyMeeting({ group, meeting: m, fromId: req.userId, toIds: group.members.map((x) => x.user).filter((u) => String(u) !== String(req.userId)), now });
   const me = await User.findById(req.userId).select('name').lean();
-  res.status(201).json(meetingView(m, new Map([[String(req.userId), me?.name || '']]), req.userId));
+  res.status(201).json(meetingView(m, new Map([[String(req.userId), me?.name || '']]), req.userId, group.name));
 }));
 
 // The host link for a Zoom meeting (only for the person who made it; Zoom's start links expire, so it is fetched each time)
@@ -299,6 +301,17 @@ r.get('/:id/meetings/:mid/start', h(async (req, res) => {
   res.json({ url: z?.start_url || m.joinUrl });
 }));
 
+// "Download .ics": the meeting as a calendar file (Apple Calendar, the Outlook app, any calendar)
+r.get('/:id/meetings/:mid/ics', h(async (req, res) => {
+  const group = await memberOf(req);
+  if (!mongoose.isValidObjectId(req.params.mid)) throw new HttpError(404, 'Meeting not found');
+  const m = await GroupMeeting.findOne({ _id: req.params.mid, group: group._id }).lean();
+  if (!m) throw new HttpError(404, 'Meeting not found');
+  res.set('Content-Type', 'text/calendar; charset=utf-8');
+  res.set('Content-Disposition', 'attachment; filename="meeting.ics"');
+  res.send(meetingIcs(m, group.name));
+}));
+
 r.delete('/:id/meetings/:mid', h(async (req, res) => {
   const group = await memberOf(req);
   if (!mongoose.isValidObjectId(req.params.mid)) throw new HttpError(404, 'Meeting not found');
@@ -308,6 +321,8 @@ r.delete('/:id/meetings/:mid', h(async (req, res) => {
   if (!mine && !isOwner(group, req.userId)) throw new HttpError(403, 'Only the person who made the meeting, or the group owner, can cancel it');
   if (mine && m.provider === 'zoom' && m.zoomId) await zoomApi(req.userId, 'DELETE', `/meetings/${encodeURIComponent(m.zoomId)}`).catch(() => {});
   await m.deleteOne();
+  // A meeting that has not happened yet: take it out of everyone's calendar
+  if (m.start.getTime() > Date.now()) notifyMeetingCancelled({ group, meeting: m, fromId: req.userId, toIds: group.members.map((x) => x.user) });
   res.json({ ok: true });
 }));
 

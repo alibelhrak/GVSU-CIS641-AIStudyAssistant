@@ -1095,5 +1095,8 @@
 "Choose a time within the next year": "اختر وقتًا خلال السنة القادمة",
 "Only the person who made the meeting, or the group owner, can cancel it": "يمكن إلغاء الاجتماع لمن أنشأه أو لمالك المجموعة فقط",
 "Zoom is not set up on this server yet. Paste a meeting link instead.": "لم يُعدّ Zoom على هذا الخادم بعد. الصق رابط اجتماع بدلًا من ذلك.",
-"Zoom is not set up on this server yet": "لم يُعدّ Zoom على هذا الخادم بعد"
+"Zoom is not set up on this server yet": "لم يُعدّ Zoom على هذا الخادم بعد",
+"Add to calendar": "إضافة إلى التقويم",
+"Outlook (school or work)": "Outlook (المدرسة أو العمل)",
+"Apple Calendar / other (.ics)": "تقويم Apple / غيره (.ics)"
 }
