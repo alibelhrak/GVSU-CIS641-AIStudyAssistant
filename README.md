@@ -2,15 +2,21 @@
   <img src="src/client/public/logo.png" alt="AI Study Assistant logo" width="96" height="96" />
 </p>
 
-<h1 align="center">AI Study Assistant</h1>
+<h1 align="center">StudyPilot · AI Study Assistant</h1>
 
 <p align="center">
   A study planner for university students: courses, deadlines, study hours and an AI study coach, all in one place.<br />
   <a href="https://gvsu-cis641-aistudyassistant.onrender.com"><b>Open the live app</b></a>
   ·
+  <a href="https://apps.microsoft.com/detail/9PJZX6KSS8TH"><b>Get it from the Microsoft Store</b></a>
+  ·
   <a href="#how-to-use-the-app">How to use it</a>
   ·
   <a href="#7-write-your-notes">Notes</a>
+  ·
+  <a href="#14-work-with-classmates">Work with classmates</a>
+  ·
+  <a href="#15-track-things-in-a-database">Databases</a>
   ·
   <a href="src/README.md">Developer guide</a>
   ·
@@ -23,7 +29,7 @@
 
 ---
 
-The AI Study Assistant is a web application that helps students organize their school work in one place. Students manage their courses, assignments, exams, study schedule and course materials, write Notion-style notes, and track how many hours they study for each course. The app works out where the student is behind, recommends what to study next with a concrete plan of study sessions, and includes an AI chat coach that knows the student's own deadlines, hours and notes and can add things to the planner for them. The same AI also works inside the notes, where it writes, explains, summarizes and quizzes.
+StudyPilot (the AI Study Assistant) is a web application, also available as a Windows app in the [Microsoft Store](https://apps.microsoft.com/detail/9PJZX6KSS8TH), that helps students organize their school work in one place. Students manage their courses, assignments, exams, study schedule and course materials, write Notion-style notes and databases (alone or together with classmates), and track how many hours they study for each course. The app works out where the student is behind, recommends what to study next with a concrete plan of study sessions, and includes an AI chat coach that knows the student's own deadlines, hours and notes and can add things to the planner for them. The same AI also works inside the notes, where it writes, explains, summarizes and quizzes.
 
 Built for **CIS 641 (Software Engineering)** at Grand Valley State University.
 
@@ -72,7 +78,12 @@ Built for **CIS 641 (Software Engineering)** at Grand Valley State University.
 
 ## What's new
 
-- **Team collaboration (November 2026):** click **Share** on any note page to invite classmates by email (**Can view** or **Can edit**), share it with a **study group**, or turn on **Share to web** for a read-only link anyone can open. People who can edit work on the page **at the same time** and see each other's typing and cursors live. The new **Study groups** page (sidebar) holds each group's members, chat, shared deadlines and shared pages. Only people who already have an account can be invited; they are told by email. Shared content follows the new [community guidelines](https://gvsu-cis641-aistudyassistant.onrender.com/guidelines), and anything that breaks them can be reported with the 🚩 button on a shared page, a public page or a chat message.
+- **Microsoft Store (November 2026):** StudyPilot is published in the [Microsoft Store](https://apps.microsoft.com/detail/9PJZX6KSS8TH). The Store app opens this same website, so every update reaches it as soon as it is deployed.
+- **Study group invitations (November 2026):** adding a classmate to a study group now sends an **invitation**. They see it in their 🔔 Inbox and by email and click **Accept** or **Decline**; until they accept, they see nothing of the group. Invited people show as *Invited* in the group, and the invitation can be cancelled.
+- **Databases (November 2026):** track assignments, readings or exam topics in a **database**: a page that holds a list of pages with properties (text, number, select, multi-select, status, date, checkbox, link, person). See the same rows as a **Table**, a **Board** (drag cards between statuses), a **Calendar** (drag rows to another day) or a **Gallery**, each view with its own filters, sorts and hidden columns. Every row opens as its own page. Templates: **Assignment tracker**, **Reading list**, **Exam prep**. Export to **CSV**. See [Track things in a database](#15-track-things-in-a-database).
+- **Working together on notes (November 2026):** **comments** on any words of a page, with reply threads; **suggested edits** from people who can only view a page, which the owner accepts or rejects line by line; **Lock page**; a **🔔 Inbox** in the sidebar for mentions, comments, suggestions, shared pages and invitations; a **Chat** on every shared page; and **Page history** to bring back an earlier version.
+- **More in Notes (November 2026):** new blocks (**equations** with LaTeX, **callouts**, **columns**, **table of contents**, **embeds** for YouTube, Google Docs, Figma and more, **web bookmarks**), **@mentions** of classmates, pages and dates, **Linked from** backlinks, **Quick Find** (`Ctrl+K`) over everything, a Notion-style emoji picker, and the **⋯** menu to **duplicate**, **move**, and **export** a page as **PDF**, **Word** or **Markdown** (or **Import** a Word, Markdown or HTML file).
+- **Team collaboration (November 2026):** click **Share** on any note page to invite classmates by email (**Can view** or **Can edit**), share it with a **study group**, or turn on **Share to web** for a read-only link anyone can open. People who can edit work on the page **at the same time** and see each other's typing and cursors live. The new **Study groups** page (sidebar) holds each group's members, chat, shared deadlines and shared pages. Only people who already have an account can be invited; they get an email and accept or decline the invitation. Shared content follows the new [community guidelines](https://gvsu-cis641-aistudyassistant.onrender.com/guidelines), and anything that breaks them can be reported with the 🚩 button on a shared page, a public page or a chat message.
 - **Trash, folders, profile picture (November 2026):** deleting a course, task, study session, file, page or Ask AI chat moves it to the **Trash** (bottom of the sidebar) with an **Undo** button; restore it any time in the next 30 days, after which it is deleted for good. A course goes to the Trash together with its tasks, sessions and files. In Notes, the list groups pages **by course** and into **your own folders** (drag a page onto a folder, or use its folder button). Each page has a **text size** (small, default, large) and **full width** option (the *T* button). Drag the edge of the **sidebar**, the **notes list**, the **Notes AI panel** or the **Ask AI chat list** to make it wider or narrower (double-click resets). Add a **profile picture** in Settings › Account. A course's **weekly study goal is now optional**: leave it empty or choose *None*. **Edit course** on a course card changes its code, name, goal and color.
 - **Run code in Notes (November 2026):** code blocks in **Python, JavaScript, SQL and HTML** get a **Run** button (or press `Ctrl+Enter` / `⌘+Enter`). What the program prints appears in an *Output* block right below; running again replaces it. Everything runs in your own browser, not on the server: Python is real CPython (Pyodide, downloaded once on the first run, about 10 MB, and `numpy`, `pandas` ... load when you import them), SQL is SQLite (each run starts with an empty database, so create your tables in the same block), and HTML opens in a safe preview window. A run is stopped after 10–20 seconds, so an endless loop can't freeze the page. Java, C++ and other compiled languages can't run in the browser yet.
 - **Code like in VS Code (November 2026):** code blocks in Notes get VS Code shortcuts (Tab / Shift+Tab, `Ctrl+/` comment, `Alt+↑/↓` move lines, `Shift+Alt+↑/↓` copy lines, `Ctrl+Shift+K` delete line, auto-indent, auto-closing brackets) and **AI suggestions** in grey while you type: `Tab` accepts, `Ctrl+→` takes one word, `Esc` hides. Turn suggestions off in Settings › Appearance. The full list is in Settings › About.
@@ -151,7 +162,10 @@ Go to **Notes** and pick a template (Lecture notes, Study guide, Assignment plan
 - Type **/** to add a heading, a list, a to-do, a toggle, a quote, a table, code, a divider or a picture. Markdown shortcuts work too: `# ` for a heading, `- ` for a list, `[] ` for a to-do.
 - Hover the title to **Add icon** or **Add cover**. A cover can be one of 12 gradients or **your own picture** from your computer or phone (you can also drop a picture on the cover). Use **Reposition** to choose which part of the picture shows.
 - Click **+** next to a page in the list, or **Add a sub-page** at the bottom, to put pages inside pages.
-- Use the ⭐ to add a page to **Favorites**, the course menu to tag it with a course, and **Search notes** to find any word.
+- Use the ⭐ to add a page to **Favorites**, the course menu to tag it with a course, and **Search notes** to find any word. **Quick Find** (`Ctrl+K`, or **Search** in the sidebar) searches every page, assignment, course and study group at once.
+- The **/** menu also has **Equation** and **Inline equation** (LaTeX), **Callout** 💡, **2 / 3 columns**, **Table of contents**, **Embed** (YouTube, Google Docs, Slides, Figma, Loom, Desmos, PDF), **Web bookmark** and **Database**.
+- Type **@** to mention a classmate (they get a notification), link to another page, or add a date. A page that other pages link to shows **Linked from** under its title.
+- The **⋯** menu at the top of a page can **Duplicate** it, **Move** it inside another page, show its **Page history**, **Lock** it, and **Export** it as **PDF**, **Word (.docx)** or **Markdown**. **Import** (next to *New page*) turns a Word, Markdown, text or HTML file into a page.
 
 **Organize your pages.** The list on the left groups your pages **by course** (from each page's course tag). Make your own **folders** with the folder button next to *Folders*, then drag a page onto a folder, or hover a page and click its folder icon. Click a group to open or close it. Drag the edge of the list to make it wider. The **T** button at the top of a page sets its **text size** and **full width**.
 
@@ -249,7 +263,7 @@ The installed app fills the whole screen on phones, follows your theme, and upda
 
 <p align="center"><img src="docs/screenshots/phone.png" alt="The app on a phone: dashboard, Ask AI and the menu" width="760" /></p>
 
-**App stores:** the Windows app passed **Microsoft Store** certification in November 2026 ([Store page](https://apps.microsoft.com/detail/9PJZX6KSS8TH)). An Android (Google Play) package has been built too. Both are made with [PWABuilder](https://www.pwabuilder.com) from this same web app, so they update whenever the website does. An iPhone App Store version needs a Mac to build.
+**App stores:** the Windows app is in the **Microsoft Store**: [get StudyPilot](https://apps.microsoft.com/detail/9PJZX6KSS8TH) (published November 2026). An Android (Google Play) package has been built too. Both are made with [PWABuilder](https://www.pwabuilder.com) from this same web app, so they update whenever the website does. An iPhone App Store version needs a Mac to build.
 
 ### 13. Undo a mistake with the Trash
 
@@ -268,6 +282,9 @@ Deleting never loses your work right away. When you delete a course, task, study
 - a **group chat**,
 - **deadlines** for the whole team; **Add to my assignments** copies one into your own Assignments under the course you choose,
 - **shared pages**: in a page's Share window, tick the group, and every member can edit it.
+- **meetings** (see *Meet on Zoom* below).
+
+<p align="center"><img src="docs/screenshots/study-group.png" alt="A study group with its chat, a scheduled meeting, shared deadlines and members" width="900" /></p>
 
 **A public link.** In the Share window, turn on **Share to web** and click **Copy link**. Anyone with the link can read the page, without an account, but nobody can change it. Turn it off and the link stops working.
 
@@ -277,17 +294,33 @@ Deleting never loses your work right away. When you delete a course, task, study
 
 **Get a page back.** Click 🕘 (**Page history**) at the top of a page. StudyPilot keeps a copy before a big part of a page is removed (by you, a classmate or the AI) and every 15 minutes while it is edited, for 60 days. Pick a time, look at it, and click **Restore this version**; Ctrl+Z undoes it.
 
-**Track things in a database.** On the Notes start screen, pick **Assignment tracker** (or Reading list, Exam prep, Empty database), or type `/database` in any page. Click a cell to change it; click a column name to rename it, change its type, edit its options or sort by it; **+** at the end of the header adds a property. **+ New** adds a row. The tabs above the table are views: **By status** is a board where you drag cards from *Not started* to *Done*, **Calendar** puts each row on its due date. Click a tab's name again for its settings, or **+** for a new view. **Filter** and **Sort** apply to the view you are on, so one view can show only this week's exams. Click a card, or **Open** next to a name, to write notes inside that row.
-
 **Comment on a page.** Select some words and click **Comment** in the toolbar that appears, write your comment and press Enter. The words are highlighted in yellow; click them (or the 💬 button at the top of the page) to see the thread. Reply, **Resolve** (✓) when it is sorted out, or open the **Resolved** tab to see old threads.
+
+<p align="center"><img src="docs/screenshots/notes-collab.png" alt="A shared study guide with a classmate on the page and a comment thread on highlighted words" width="900" /></p>
 
 **Suggest edits to a page you can only view.** Click **Suggest edits** at the top of the page. A green bar shows that you are changing your own copy; change what you want, add a note and click **Send suggestion**. The owner gets a notification, opens **1 suggestion**, sees exactly what you changed and accepts or rejects it. Until then you can withdraw it under **Your suggestions**.
 
+<p align="center"><img src="docs/screenshots/suggested-edits.png" alt="Reviewing a suggested edit: the removed line in red, the new line in green, with Accept and Reject" width="900" /></p>
+
 **Lock a page.** When a page is finished (a final study guide, say), open **⋯** and choose **Lock page**. Nobody, you included, can change it until you click **Unlock**.
 
-**Inbox.** 🔔 **Inbox** in the sidebar collects everything that happened for you: pages shared with you, @mentions, comments, suggested edits, study groups and meetings. A blue dot marks what you have not opened yet; **Mark all read** clears the count.
+**Inbox.** 🔔 **Inbox** in the sidebar collects everything that happened for you: pages shared with you, @mentions, comments, suggested edits, study groups and meetings. A blue dot marks what you have not opened yet; **Mark all read** clears the count. Group invitations have **Accept** and **Decline** right in the Inbox.
+
+<p align="center"><img src="docs/screenshots/inbox.png" alt="The Inbox with mentions, comments, a suggested edit and people joining a group" width="760" /></p>
 
 **Report something.** If a shared page, a public page or a chat message breaks the [community guidelines](https://gvsu-cis641-aistudyassistant.onrender.com/guidelines), click the 🚩 flag (next to the owner's name on a page, **Report** at the top of a public page, or next to the time of a message), choose a reason and click **Send report**. The person is not told who reported them.
+
+### 15. Track things in a database
+
+On the Notes start screen, pick **Assignment tracker** (or Reading list, Exam prep, Empty database), or type `/database` in any page. Click a cell to change it; click a column name to rename it, change its type, edit its options or sort by it; **+** at the end of the header adds a property. **+ New** adds a row. The tabs above the table are views: **By status** is a board where you drag cards from *Not started* to *Done*, **Calendar** puts each row on its due date. Click a tab's name again for its settings, or **+** for a new view. **Filter** and **Sort** apply to the view you are on, so one view can show only this week's exams. Click a card, or **Open** next to a name, to write notes inside that row.
+
+<p align="center"><img src="docs/screenshots/database-table.png" alt="The Assignment tracker database as a table with status, due date and course" width="900" /></p>
+
+<p align="center"><img src="docs/screenshots/database-board.png" alt="The same database as a board, grouped by status" width="900" /></p>
+
+<p align="center"><img src="docs/screenshots/database-calendar.png" alt="The same database as a calendar of due dates" width="900" /></p>
+
+Change a property's type or options from its column menu: **Select** and **Status** have colored options (type a new one to create it), **Person** picks someone who can open the database, **Number** can show percents or currency. **Properties** (⚙) chooses which columns a view shows. Share a database like any page; everyone it is shared with sees and edits the same rows. **⋯ › Export › CSV** downloads the rows for Excel or Google Sheets.
 
 ## How the AI works
 
