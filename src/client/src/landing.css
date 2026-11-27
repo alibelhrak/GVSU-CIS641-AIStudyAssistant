@@ -40,7 +40,16 @@
   .lang-btn .lang-name{display:none}
   .lang-btn{padding:0 8px;gap:4px}
 }
-@media (max-width:420px){ .lp-brand{font-size:0;gap:0} }
+/* Phones: just the logo, so every button fits (big phones like the iPhone Pro Max are 430-440 px wide) */
+@media (max-width:540px){ .lp-brand{font-size:0;gap:0} }
+@media (max-width:370px){
+  .lp-cta{gap:4px}
+  .lp-cta .btn.primary{padding:0 11px;font-size:.85rem}
+  .lp-cta .icon-btn,.lp-cta .install-btn{width:34px;height:34px;min-height:34px}
+}
+@media (max-width:340px){
+  .lp-cta .install-btn{display:none}
+}
 .btn.lg{padding:12px 20px;font-size:1rem;border-radius:10px;min-height:46px}
 .btn.lg svg{transition:transform .2s var(--ease)}
 .btn.lg:hover svg{transform:translateX(3px)}
