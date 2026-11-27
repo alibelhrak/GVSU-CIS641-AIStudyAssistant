@@ -1,9 +1,11 @@
+import mongoose from 'mongoose';
 import crypto from 'node:crypto';
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { User, Course, Task, StudySession, StudyLog, Material, Recommendation, Conversation, Note, Folder, Feedback, PushSub, ReminderLog } from '../models/index.js';
+import { User, Course, Task, StudySession, StudyLog, Material, Recommendation, Conversation, Note, Folder, Feedback, PushSub, ReminderLog, Group, GroupMessage } from '../models/index.js';
+import { deleteGroups } from './groups.js';
 import { deleteForever } from '../services/trash.js';
 import { config } from '../config.js';
 import { h, HttpError } from '../middleware/error.js';
@@ -393,6 +395,12 @@ r.delete('/me', requireAuth, h(async (req, res) => {
   await Promise.all(files.map((m) => fs.rm(path.join(config.uploadDir, m.storedName), { force: true })));
   const mine = { user: user._id };
   await deleteForever(mine);   // the Trash and its files
+  // Collaboration: groups they own go away; they leave the others and every page shared with them
+  await deleteGroups((await Group.find({ owner: req.userId }).select('_id').lean()).map((g) => g._id));
+  const me = new mongoose.Types.ObjectId(String(req.userId));
+  await Group.updateMany({ 'members.user': me }, { $pull: { members: { user: me } } });
+  await GroupMessage.deleteMany({ user: me });
+  await Note.updateMany({ 'shares.user': me }, { $pull: { shares: { user: me } } });
   await Promise.all([Course, Task, StudySession, StudyLog, Material, Recommendation, Conversation, Note, Folder, Feedback, PushSub, ReminderLog]
     .map((M) => M.deleteMany(mine)));
   await User.deleteOne({ _id: user._id });

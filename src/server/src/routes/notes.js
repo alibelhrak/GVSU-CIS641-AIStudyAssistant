@@ -8,7 +8,10 @@
  */
 import { Router } from 'express';
 import mongoose from 'mongoose';
-import { Note, Course, Feedback, Folder } from '../models/index.js';
+import crypto from 'node:crypto';
+import { Note, Course, Feedback, Folder, User, Group } from '../models/index.js';
+import { noteAccess, canEdit, groupIdsOf } from '../services/access.js';
+import { claimSeed, seedDone } from '../services/collab.js';
 import { moveToTrash } from '../services/trash.js';
 import { h, HttpError } from '../middleware/error.js';
 import { config, chatEnabled } from '../config.js';
@@ -89,7 +92,9 @@ ${before}<CURSOR>${after}`;
   res.json({ text });   // (no garble check: code is full of symbols)
 }));
 const MAX_CONTENT = 3_000_000;          // characters of editor data per note (pictures included)
-const LIST_FIELDS = 'title icon parent course folder favorite updatedAt createdAt';
+const LIST_FIELDS = 'title icon parent course folder favorite updatedAt createdAt shares groups publicId';
+// What someone a page is shared with may change (the owner keeps course, folder, place and layout)
+const EDITOR_FIELDS = ['title', 'icon', 'cover', 'coverY', 'content', 'text', 'markdown'];
 
 const mine = (req) => {
   if (!mongoose.isValidObjectId(req.params.id)) throw new HttpError(404, 'Note not found');
@@ -303,10 +308,30 @@ r.get('/search', h(async (req, res) => {
   }));
 }));
 
+// Pages other people shared with this student (by email or through a study group)
+r.get('/shared', h(async (req, res) => {
+  const groups = await groupIdsOf(req.userId);
+  const notes = await Note.find({ user: { $ne: req.userId }, $or: [{ 'shares.user': req.userId }, { groups: { $in: groups } }] })
+    .select('title icon updatedAt user shares groups').sort({ updatedAt: -1 }).limit(200).lean();
+  const owners = new Map((await User.find({ _id: { $in: [...new Set(notes.map((n) => String(n.user)))] } }).select('name').lean()).map((u) => [String(u._id), u.name]));
+  const mineIds = new Set(groups.map(String));
+  res.json(notes.map((n) => {
+    const share = n.shares?.find((x) => String(x.user) === String(req.userId));
+    const viaGroup = (n.groups || []).some((g) => mineIds.has(String(g)));
+    return { id: String(n._id), title: n.title, icon: n.icon, updatedAt: n.updatedAt, owner: owners.get(String(n.user)) || '', role: viaGroup ? 'editor' : share?.role || 'viewer' };
+  }));
+}));
+
 r.get('/:id', h(async (req, res) => {
-  const note = await Note.findOne(mine(req));
-  if (!note) throw new HttpError(404, 'Note not found');
-  res.json(note);
+  const { note, role } = await noteAccess(req.params.id, req.userId);
+  if (!role) throw new HttpError(404, 'Note not found');
+  const out = { ...note.toJSON(), role, shared: Boolean(note.shares.length || note.groups.length) };
+  if (role !== 'owner') {
+    // other people's organisation of the page is not theirs to see
+    Object.assign(out, { course: null, folder: null, parent: null, favorite: false, publicId: undefined, shares: undefined, groups: undefined });
+    out.owner = (await User.findById(note.user).select('name').lean())?.name || '';
+  }
+  res.json(out);
 }));
 
 r.post('/', h(async (req, res) => {
@@ -317,12 +342,114 @@ r.post('/', h(async (req, res) => {
 }));
 
 r.patch('/:id', h(async (req, res) => {
-  const data = pick(req.body);
-  await checkRefs(req.userId, data, req.params.id);
-  const note = await Note.findOneAndUpdate(mine(req), data, { new: true, runValidators: true });
-  if (!note) throw new HttpError(404, 'Note not found');
+  const { note: found, role } = await noteAccess(req.params.id, req.userId, '_id');
+  if (!role) throw new HttpError(404, 'Note not found');
+  if (!canEdit(role)) throw new HttpError(403, 'You can only view this page');
+  let data = pick(req.body);
+  if (role === 'owner') await checkRefs(req.userId, data, req.params.id);
+  else data = Object.fromEntries(Object.entries(data).filter(([k]) => EDITOR_FIELDS.includes(k)));
+  const note = await Note.findByIdAndUpdate(found._id, data, { new: true, runValidators: true });
   const { content, text, cover, ...meta } = note.toJSON();   // the editor already has these
-  res.json(meta);
+  if (role !== 'owner') Object.assign(meta, { course: null, folder: null, parent: null, favorite: false, publicId: undefined, shares: undefined, groups: undefined });
+  res.json({ ...meta, role });
+}));
+
+// ---------- Sharing (the owner decides; people shared with can leave) ----------
+const MAX_SHARES = 50;
+const ownNote = async (req) => {
+  const note = await Note.findOne(mine(req));
+  if (!note) throw new HttpError(404, 'Note not found');
+  return note;
+};
+async function sharingOf(note, userId) {
+  const people = await User.find({ _id: { $in: note.shares.map((s) => s.user) } }).select('name email avatar').lean();
+  const byId = new Map(people.map((u) => [String(u._id), u]));
+  const myGroups = await Group.find({ 'members.user': userId }).select('name color members').lean();
+  return {
+    shares: note.shares.filter((s) => byId.has(String(s.user))).map((s) => {
+      const u = byId.get(String(s.user));
+      return { id: String(u._id), name: u.name, email: u.email, avatar: u.avatar || '', role: s.role };
+    }),
+    groups: note.groups.map(String),
+    myGroups: myGroups.map((g) => ({ id: String(g._id), name: g.name, color: g.color, members: g.members.length })),
+    publicId: note.publicId || null,
+  };
+}
+
+r.get('/:id/sharing', h(async (req, res) => {
+  res.json(await sharingOf(await ownNote(req), req.userId));
+}));
+
+// Invite someone who already has an account, by email
+r.post('/:id/share', h(async (req, res) => {
+  const note = await ownNote(req);
+  const email = String(req.body?.email || '').trim().toLowerCase();
+  const role = req.body?.role === 'viewer' ? 'viewer' : 'editor';
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new HttpError(400, 'Enter an email address');
+  const user = await User.findOne({ email }).select('_id emailVerified').lean();
+  if (!user || user.emailVerified === false) throw new HttpError(404, 'No account uses this email yet. Ask them to sign up first, then invite them.');
+  if (String(user._id) === String(req.userId)) throw new HttpError(400, 'This is your own page');
+  const old = note.shares.find((s) => String(s.user) === String(user._id));
+  if (old) old.role = role;
+  else {
+    if (note.shares.length >= MAX_SHARES) throw new HttpError(400, `A page can be shared with up to ${MAX_SHARES} people`);
+    note.shares.push({ user: user._id, role });
+  }
+  await note.save();
+  res.json(await sharingOf(note, req.userId));
+}));
+
+r.patch('/:id/share/:userId', h(async (req, res) => {
+  const note = await ownNote(req);
+  const s = note.shares.find((x) => String(x.user) === req.params.userId);
+  if (!s) throw new HttpError(404, 'Not shared with this person');
+  s.role = req.body?.role === 'viewer' ? 'viewer' : 'editor';
+  await note.save();
+  res.json(await sharingOf(note, req.userId));
+}));
+
+// The owner removes someone, or someone leaves a page shared with them
+r.delete('/:id/share/:userId', h(async (req, res) => {
+  if (!mongoose.isValidObjectId(req.params.id)) throw new HttpError(404, 'Note not found');
+  const leaving = req.params.userId === 'me' || req.params.userId === String(req.userId);
+  if (leaving) {
+    const note = await Note.findOne({ _id: req.params.id, 'shares.user': req.userId });
+    if (note) {
+      note.shares = note.shares.filter((x) => String(x.user) !== String(req.userId));
+      await note.save();
+    }
+    return res.json({ ok: true });
+  }
+  const note = await ownNote(req);
+  note.shares = note.shares.filter((x) => String(x.user) !== req.params.userId);
+  await note.save();
+  res.json(await sharingOf(note, req.userId));
+}));
+
+// Share with study groups the owner belongs to (members can edit)
+r.put('/:id/groups', h(async (req, res) => {
+  const note = await ownNote(req);
+  const ids = (Array.isArray(req.body?.groups) ? req.body.groups : []).filter((g) => mongoose.isValidObjectId(g)).slice(0, 20);
+  const mineOnly = await Group.find({ _id: { $in: ids }, 'members.user': req.userId }).select('_id').lean();
+  note.groups = mineOnly.map((g) => g._id);
+  await note.save();
+  res.json(await sharingOf(note, req.userId));
+}));
+
+// "Share to web": a link anyone can open to read the page (no account needed)
+r.post('/:id/public', h(async (req, res) => {
+  const note = await ownNote(req);
+  note.publicId = req.body?.on ? (note.publicId || crypto.randomBytes(15).toString('base64url')) : undefined;
+  await note.save();
+  res.json(await sharingOf(note, req.userId));
+}));
+
+// Live editing: the first person to open an empty shared page fills it from the saved version
+r.post('/:id/collab/seed', h(async (req, res) => {
+  const { note, role } = await noteAccess(req.params.id, req.userId, '_id');
+  if (!canEdit(role)) return res.json({ seed: false });
+  if (req.body?.done) { seedDone(String(note._id)); return res.json({ ok: true }); }
+  res.json({ seed: claimSeed(String(note._id), req.userId) });
 }));
 
 // Deleting a page also deletes its sub-pages

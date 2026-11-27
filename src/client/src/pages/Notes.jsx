@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useNavigate, useParams } from 'react-router-dom';
 import { BlockNoteSchema, createCodeBlockSpec, defaultBlockSpecs, filterSuggestionItems } from '@blocknote/core';
 import { SyntaxHighlightingExtension } from '@blocknote/core/extensions';
+import { withCollaboration } from '@blocknote/core/yjs';
 import { codeBlockOptions } from '@blocknote/code-block';
 import { CODE_THEMES, codeThemeInfo, highlighterFor } from '../lib/shiki.js';
 import { en, fr, es, ar, zh } from '@blocknote/core/locales';
@@ -19,6 +20,9 @@ import { codeGhostExtension, handleCodeKey, hideGhost, showGhost, suggestionRequ
 import { useData } from '../lib/store.jsx';
 import { useTheme } from '../lib/theme.jsx';
 import { useResizable } from '../lib/resize.jsx';
+import { useLive, colorFor } from '../lib/live.js';
+import { useAuth } from '../lib/auth.jsx';
+import { ShareDialog, Presence } from './NoteShare.jsx';
 import { Icon } from '../icons.jsx';
 import { NoteAI, WRITE_ACTIONS, aiContext } from './NoteAI.jsx';
 import { NotesChat } from './NotesChat.jsx';
@@ -409,19 +413,68 @@ function useCodeTheme(theme) {
   }
 }
 
-function NoteEditor({ note, dark, onChange, onReady, onAi }) {
+const isBlank = (doc) => doc.length === 0 || (doc.length === 1 && doc[0].type === 'paragraph' && !doc[0].content?.length && !doc[0].children?.length);
+
+function NoteEditor({ note, dark, onChange, onReady, onAi, liveOn = false, readOnly = false, onPeople, onRemoteMeta, liveApi, onLiveFail }) {
   const wrap = useRef(null);
   const { prefs: { codeTheme, codeAI } } = useTheme();
+  const { user } = useAuth();
   const latest = useRef(null);   // the page as last typed, so switching code theme keeps everything
   useCodeTheme(codeTheme);
+
+  // ---- Live co-editing (shared pages): the page comes from the shared room instead ----
+  const { live, status: liveStatus, people } = useLive(note.id, liveOn);
+  const me = useMemo(() => ({ name: user?.name || 'Someone', color: colorFor(user?.id || user?.email) }), [user]);
+  const ready = useRef(!liveOn);   // live pages are saved only once the shared copy has arrived
+  useEffect(() => { onPeople?.(people); }, [people]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (liveOn && liveStatus === 'failed') onLiveFail?.(); }, [liveOn, liveStatus]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // A new code theme needs a new highlighter, so the editor is rebuilt (with the same content)
-  const editor = useCreateBlockNote({
+  const base = {
     schema: SCHEMA,
     extensions: [SyntaxHighlightingExtension({ createHighlighter: () => highlighterFor(codeTheme) }), codeGhostExtension],
-    initialContent: latest.current?.length ? latest.current : note.content?.length ? note.content : undefined,
     uploadFile,
     dictionary: DICTIONARY,
-  }, [codeTheme]);
+  };
+  const editor = useCreateBlockNote(live
+    // shared page: the content comes from the live room (undo/redo then follow only your own changes)
+    ? withCollaboration({ ...base, collaboration: { provider: live.provider, fragment: live.doc.getXmlFragment('document-store'), user: me, showCursorLabels: 'activity' } })
+    : { ...base, initialContent: liveOn ? undefined : latest.current?.length ? latest.current : note.content?.length ? note.content : undefined },
+  [codeTheme, live]);
+
+  // The first editor in an empty room fills it from the saved page; the others receive it
+  useEffect(() => {
+    if (!live || liveStatus !== 'synced') return undefined;
+    let stop = false;
+    ready.current = false;
+    (async () => {
+      if (!isBlank(editor.document)) { ready.current = true; return; }
+      const { seed } = readOnly ? { seed: false } : await api.post(`/notes/${note.id}/collab/seed`).catch(() => ({ seed: false }));
+      if (stop) return;
+      if (seed) {
+        let blocks = note.content?.length ? note.content : [];
+        if (note.markdown) { const md = editor.tryParseMarkdownToBlocks(note.markdown); blocks = blocks.length ? [...blocks, ...md] : md; }
+        if (blocks.length && isBlank(editor.document)) editor.replaceBlocks(editor.document, blocks);
+        ready.current = true;
+        api.post(`/notes/${note.id}/collab/seed`, { done: true }).catch(() => {});
+        if (note.markdown) onChange(editor.document, { markdown: '' });
+      } else {
+        setTimeout(() => { ready.current = true; }, 2500);   // still blank after this: the page really is empty
+      }
+    })();
+    return () => { stop = true; };
+  }, [live, liveStatus, editor]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Title, icon and cover travel with the page too
+  useEffect(() => {
+    if (!live) { if (liveApi) liveApi.current = null; return undefined; }
+    const meta = live.doc.getMap('meta');
+    const watch = (ev, tr) => { if (!tr.local) onRemoteMeta?.(Object.fromEntries([...ev.keysChanged].map((k) => [k, meta.get(k)]))); };
+    meta.observe(watch);
+    if (liveApi) liveApi.current = { set: (patch) => live.doc.transact(() => { for (const k of ['title', 'icon', 'cover', 'coverY']) if (patch[k] !== undefined) meta.set(k, patch[k]); }) };
+    return () => { meta.unobserve(watch); if (liveApi) liveApi.current = null; };
+  }, [live]); // eslint-disable-line react-hooks/exhaustive-deps
+  const waiting = liveOn && (!live || liveStatus !== 'synced');
   const theme = codeThemeInfo(codeTheme);
 
   // ---- AI code suggestions (grey ghost text after a short pause, like VS Code) ----
@@ -522,7 +575,7 @@ function NoteEditor({ note, dark, onChange, onReady, onAi }) {
     onReady(editor);
     // Markdown written by Ask AI in the chat: turn it into real blocks once.
     // A new note gets it as its content; an existing note gets it at the end.
-    if (note.markdown) {
+    if (note.markdown && !liveOn && !readOnly) {
       const blocks = editor.tryParseMarkdownToBlocks(note.markdown);
       if (blocks.length) {
         if (!note.content?.length) editor.replaceBlocks(editor.document, blocks);
@@ -550,8 +603,14 @@ function NoteEditor({ note, dark, onChange, onReady, onAi }) {
       </div>,
       document.body,   // outside the notes pane, so it is centered on the screen
     )}
-    <BlockNoteView editor={editor} theme={dark ? { dark: EDITOR_THEME, light: EDITOR_THEME } : EDITOR_THEME}
-      data-color-scheme={dark ? 'dark' : 'light'} onChange={() => { latest.current = editor.document; onChange(editor.document); scheduleAI(); }}
+    {waiting && <div className="live-wait"><span className="thinking"><i /><i /><i /></span> Joining the shared page…</div>}
+    <BlockNoteView editor={editor} theme={dark ? { dark: EDITOR_THEME, light: EDITOR_THEME } : EDITOR_THEME} editable={!readOnly} className={waiting ? 'live-hidden' : ''}
+      data-color-scheme={dark ? 'dark' : 'light'} onChange={() => {
+        latest.current = editor.document;
+        if (readOnly) return;
+        if (liveOn && !ready.current) { if (!isBlank(editor.document) && liveStatus === 'synced') ready.current = true; else return; }
+        onChange(editor.document); scheduleAI();
+      }}
       slashMenu={false} formattingToolbar={false}>
       <SuggestionMenuController triggerCharacter="/" getItems={getItems} suggestionMenuComponent={SlashMenu} />
       <FormattingToolbarController formattingToolbar={() => (
@@ -702,6 +761,7 @@ function MoveMenu({ note, folders, onMove, onNewFolder, close }) {
 }
 
 function TreeItem({ note, depth, byParent, currentId, expanded, toggle, onOpen, onAdd, confirmDel, setConfirmDel, onDelete, courseColor, moveOpen, setMoveOpen, folders, onMove, onNewFolder }) {
+  const shared = Boolean(note.shares?.length || note.groups?.length || note.publicId);
   const kids = byParent.get(note.id) || [];
   const open = expanded.has(note.id);
   return (
@@ -724,6 +784,7 @@ function TreeItem({ note, depth, byParent, currentId, expanded, toggle, onOpen, 
               onDragEnd={() => document.documentElement.classList.remove('dragging-note')}>
               <span className="tree-icon">{note.icon || <Icon name="file" size={15} />}</span>
               <span className="ellipsis">{titleOf(note)}</span>
+              {shared && <Icon name="users" size={13} className="tree-shared" title="Shared" />}
               {note.course && courseColor(note.course) && <span className="dot" style={{ background: courseColor(note.course) }} />}
             </button>
             <span className="tree-actions">
@@ -834,6 +895,39 @@ function PageLook({ note, setMeta }) {
   );
 }
 
+/** A page shown read-only (pages shared to the web) */
+export function ReadOnlyPage({ note, dark }) {
+  const { prefs: { codeTheme } } = useTheme();
+  useCodeTheme(codeTheme);
+  const editor = useCreateBlockNote({
+    schema: SCHEMA,
+    extensions: [SyntaxHighlightingExtension({ createHighlighter: () => highlighterFor(codeTheme) })],
+    initialContent: note.content?.length ? note.content : undefined,
+    dictionary: DICTIONARY,
+  }, [codeTheme]);
+  // a page written by Ask AI that nobody opened yet is still markdown
+  useEffect(() => {
+    if (!note.content?.length && note.markdown) {
+      const blocks = editor.tryParseMarkdownToBlocks(note.markdown);
+      if (blocks.length) editor.replaceBlocks(editor.document, blocks);
+    }
+  }, [editor]); // eslint-disable-line react-hooks/exhaustive-deps
+  const theme = codeThemeInfo(codeTheme);
+  return (
+    <>
+      {coverStyle(note) && <div className="note-cover" style={{ ...coverStyle(note), backgroundPositionY: `${note.coverY ?? 50}%` }} />}
+      <article className={`note-page read-only ${coverStyle(note) ? 'has-cover' : ''}`}>
+        {note.icon && <div className="note-icon-row"><span className="note-icon">{note.icon}</span></div>}
+        <h1 className="note-title public-title" data-no-translate>{note.title || t('Untitled')}</h1>
+        <div className="note-editor-wrap" data-code-theme={codeTheme} style={{ '--code-bg': theme.bg, '--code-fg': theme.fg }} data-no-translate>
+          <BlockNoteView editor={editor} editable={false} theme={dark ? { dark: EDITOR_THEME, light: EDITOR_THEME } : EDITOR_THEME}
+            data-color-scheme={dark ? 'dark' : 'light'} slashMenu={false} formattingToolbar={false} sideMenu={false} linkToolbar={false} />
+        </div>
+      </article>
+    </>
+  );
+}
+
 export default function Notes() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -847,6 +941,11 @@ export default function Notes() {
   const [renaming, setRenaming] = useState(null);     // folder id
   const [folderDel, setFolderDel] = useState(null);   // folder id waiting for "Delete?"
   const [moveOpen, setMoveOpen] = useState(null);     // page whose "Move to" menu is open
+  const [sharedNotes, setSharedNotes] = useState([]); // pages other people shared with me
+  const [shareOpen, setShareOpen] = useState(false);
+  const [people, setPeople] = useState([]);           // who else has this (shared) page open
+  const [liveOff, setLiveOff] = useState(() => new Set());   // pages where live editing could not connect
+  const liveApi = useRef(null);
   const [closed, toggleGroup] = useCollapsed();
   const listW = useResizable('sa-notes-w', { initial: 260, min: 200, max: 480 });
   const [current, setCurrent] = useState(null);       // the open note, with content
@@ -907,6 +1006,7 @@ export default function Notes() {
   const loadList = useCallback(() => Promise.all([
     api.get('/notes').then(setNotes).catch((err) => { setNotes((n) => n || []); notify(err.message); }),
     api.get('/folders').then(setFolders).catch(() => {}),
+    api.get('/notes/shared').then(setSharedNotes).catch(() => {}),
   ]), [notify]);
   useEffect(() => { loadList(); }, [loadList]);
   // a page restored from the Trash comes back in the list
@@ -917,7 +1017,7 @@ export default function Notes() {
 
   useEffect(() => {
     flush();
-    setEmojiOpen(false); setDelOpen(false); setStatus(''); setAi(null); setCoverOpen(false);
+    setEmojiOpen(false); setDelOpen(false); setStatus(''); setAi(null); setCoverOpen(false); setShareOpen(false); setPeople([]);
     editorRef.current = null;
     if (!id) { setCurrent(null); return; }
     setLoadingNote(true);
@@ -1037,6 +1137,8 @@ export default function Notes() {
   };
 
   const setMeta = (patch, now = false) => {
+    if (current?.role === 'viewer') return;
+    liveApi.current?.set(patch);   // shared pages: others see the new title, icon or cover at once
     setCurrent((c) => ({ ...c, ...patch }));
     setNotes((ns) => ns.map((n) => (n.id === current.id ? { ...n, ...patch } : n)));
     queue(current.id, patch, now);
@@ -1046,7 +1148,7 @@ export default function Notes() {
   /** Opens the AI writer. selection: use the selected text; start: run an action straight away */
   const openAi = ({ selection = false, start = null, end = false } = {}) => {
     const editor = editorRef.current;
-    if (!editor) return;
+    if (!editor || current?.role === 'viewer') return;
 
     const ctx = end ? { blocks: [], selection: '', anchor: null } : aiContext(editor, { useSelection: selection || !start });
     setAi({ ctx, start, key: Date.now() });
@@ -1102,6 +1204,16 @@ export default function Notes() {
   const courseGroups = courses.map((c) => ({ c, list: inCourse(c.id) })).filter((g) => g.list.length);
   const grouped = folders.length > 0 || courseGroups.length > 0;
   const sorted = (list) => [...list].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+  // ---------- Sharing ----------
+  const owner = !current?.role || current.role === 'owner';
+  const viewer = current?.role === 'viewer';
+  const liveOn = Boolean(current?.shared) && !liveOff.has(current?.id);
+  const sharingChanged = (d) => {
+    const on = d.shares.length > 0 || d.groups.length > 0;
+    setCurrent((c) => (c ? { ...c, shared: on, publicId: d.publicId } : c));
+    setNotes((ns) => ns && ns.map((n) => (n.id === current.id ? { ...n, shares: d.shares, groups: d.groups, publicId: d.publicId } : n)));
+  };
+  const isSharedNote = (n) => Boolean(n.shares?.length || n.groups?.length || n.publicId);
 
   return (
     <div className={`notes ${panel ? 'panel-open' : ''}`} style={{ '--notes-side-w': `${listW.width}px` }}>
@@ -1144,6 +1256,26 @@ export default function Notes() {
                     </div>
                   ))}
                 </>
+              )}
+              {sharedNotes.length > 0 && (
+                <div className="note-group">
+                  <GroupHead label="Shared with me" count={sharedNotes.length} collapsed={closed.has('shared')} onToggle={() => toggleGroup('shared')}
+                    lead={<Icon name="users" size={15} className="group-icon" />} />
+                  {!closed.has('shared') && (
+                    <div className="group-body">
+                      {sharedNotes.map((n) => (
+                        <div key={n.id} className={`tree-item ${n.id === id ? 'active' : ''}`} style={{ paddingLeft: 6 }}>
+                          <span className="tree-caret empty" />
+                          <button type="button" className="tree-open" onClick={() => open(n.id)} title={`${titleOf(n)} · ${n.owner}`}>
+                            <span className="tree-icon">{n.icon || <Icon name="file" size={15} />}</span>
+                            <span className="ellipsis">{titleOf(n)}</span>
+                            <span className="tree-owner" data-no-translate>{n.owner.split(' ')[0]}</span>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
               <div className="history-group group-label">
                 <span>Folders</span>
@@ -1238,20 +1370,37 @@ export default function Notes() {
                 {status === 'saving' ? <><i className="save-dot" />Saving…</> : status === 'saved' ? <><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path className="save-check" d="M2.5 6.5l2.2 2.2L9.5 3.8" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>Saved</>
                   : status === 'error' ? 'Not saved' : `Edited ${ago(current.updatedAt)}`}
               </span>
-              <select className="course-tag" value={current.course || ''} onChange={(e) => setMeta({ course: e.target.value || null }, true)} aria-label="Course">
-                <option value="">No course</option>
-                {courses.map((c) => <option key={c.id} value={c.id}>{c.code}</option>)}
-              </select>
-              <button className={`icon-btn ${current.favorite ? 'fav' : ''}`} key={current.favorite ? 'on' : 'off'} type="button" onClick={() => setMeta({ favorite: !current.favorite }, true)}
-                aria-label={current.favorite ? 'Remove from favorites' : 'Add to favorites'} title={current.favorite ? 'Remove from favorites' : 'Add to favorites'}>
-                <Icon name="star" size={17} />
-              </button>
-              <button className={`btn sm ai-btn ${chatOpen ? 'on' : ''}`} type="button" onClick={() => setChatOpen((v) => !v)} aria-pressed={chatOpen}
-                title="Chat with AI about this page. It can edit the page for you.">
-                <img src="/logo.png" alt="" width={16} height={16} /> Ask AI
-              </button>
-              <PageLook note={current} setMeta={setMeta} />
-              <div className="pop-wrap">
+              {liveOn && <Presence people={people} />}
+              {owner ? (
+                <button className={`btn sm share-btn ${current.shared || current.publicId ? 'on' : ''}`} type="button" onClick={() => setShareOpen(true)} title="Share with classmates, a study group or the web">
+                  <Icon name="users" size={15} /> Share
+                </button>
+              ) : (
+                <button className="btn sm share-btn guest" type="button" onClick={() => setShareOpen(true)} title={`${current.owner} · ${viewer ? t('Can view') : t('Can edit')}`}>
+                  <Icon name="users" size={15} /> <span data-no-translate>{current.owner.split(' ')[0]}</span>
+                  <span className={`role-chip ${viewer ? 'view' : ''}`}>{viewer ? 'View only' : 'Can edit'}</span>
+                </button>
+              )}
+              {owner && (
+                <>
+                  <select className="course-tag" value={current.course || ''} onChange={(e) => setMeta({ course: e.target.value || null }, true)} aria-label="Course">
+                    <option value="">No course</option>
+                    {courses.map((c) => <option key={c.id} value={c.id}>{c.code}</option>)}
+                  </select>
+                  <button className={`icon-btn ${current.favorite ? 'fav' : ''}`} key={current.favorite ? 'on' : 'off'} type="button" onClick={() => setMeta({ favorite: !current.favorite }, true)}
+                    aria-label={current.favorite ? 'Remove from favorites' : 'Add to favorites'} title={current.favorite ? 'Remove from favorites' : 'Add to favorites'}>
+                    <Icon name="star" size={17} />
+                  </button>
+                </>
+              )}
+              {!viewer && (
+                <button className={`btn sm ai-btn ${chatOpen ? 'on' : ''}`} type="button" onClick={() => setChatOpen((v) => !v)} aria-pressed={chatOpen}
+                  title="Chat with AI about this page. It can edit the page for you.">
+                  <img src="/logo.png" alt="" width={16} height={16} /> Ask AI
+                </button>
+              )}
+              {owner && <PageLook note={current} setMeta={setMeta} />}
+              {owner && <div className="pop-wrap">
                 <button className="icon-btn" type="button" onClick={() => setDelOpen((v) => !v)} aria-label="Move page to Trash" title="Move to Trash"><Icon name="trash" size={16} /></button>
                 {delOpen && (
                   <div className="pop-menu confirm" role="dialog">
@@ -1260,8 +1409,12 @@ export default function Notes() {
                       <button className="btn sm" type="button" onClick={() => setDelOpen(false)}>Cancel</button></div>
                   </div>
                 )}
-              </div>
+              </div>}
             </div>
+          )}
+          {shareOpen && current && (
+            <ShareDialog note={current} notify={notify} onClose={() => setShareOpen(false)} onChanged={sharingChanged}
+              onLeft={() => { setShareOpen(false); setSharedNotes((l) => l.filter((n) => n.id !== current.id)); notify(t('You left the page')); navigate('/notes', { replace: true }); }} />
           )}
         </div>
 
@@ -1273,7 +1426,7 @@ export default function Notes() {
             {coverStyle(current) && (
               <Cover note={current} setMeta={setMeta} open={coverOpen} setOpen={setCoverOpen} notify={notify} />
             )}
-            <article className={`note-page ${coverStyle(current) ? 'has-cover' : ''} ${entering ? 'entering' : ''} ${current.wide ? 'wide' : ''} text-${current.textSize || 'm'}`}>
+            <article className={`note-page ${coverStyle(current) ? 'has-cover' : ''} ${entering ? 'entering' : ''} ${current.wide ? 'wide' : ''} text-${current.textSize || 'm'} ${viewer ? 'read-only' : ''}`}>
               {current.icon && (
                 <div className="note-icon-row">
                   <div className="pop-wrap">
@@ -1305,10 +1458,13 @@ export default function Notes() {
                   </div>
                 )}
               </div>
-              <textarea ref={titleRef} className="note-title" rows={1} value={current.title} placeholder="Untitled" maxLength={200}
+              <textarea ref={titleRef} className="note-title" rows={1} value={current.title} placeholder="Untitled" maxLength={200} readOnly={viewer}
                 onChange={(e) => setMeta({ title: e.target.value.replace(/\n/g, '') })}
                 onKeyDown={(e) => { if (e.key === 'Enter' || (e.key === 'ArrowDown')) { e.preventDefault(); editorRef.current?.focus(); } }} />
-              <NoteEditor note={current} dark={dark} onAi={openAi}
+              <NoteEditor key={liveOn ? 'live' : 'solo'} note={current} dark={dark} onAi={openAi}
+                liveOn={liveOn} readOnly={viewer} onPeople={setPeople} liveApi={liveApi}
+                onRemoteMeta={(fields) => setCurrent((c) => ({ ...c, ...fields }))}
+                onLiveFail={() => { setLiveOff((set) => new Set(set).add(current.id)); notify(t('Live editing could not connect. Your changes still save, but others see them after a reload.')); }}
                 onReady={(ed) => { editorRef.current = ed; }}
                 onChange={(content, extra = {}) => queue(current.id, { content, ...extra })} />
               {children.length > 0 && (
@@ -1345,7 +1501,7 @@ export default function Notes() {
           )}
         </div>
       </div>
-      {chatOpen && current && (
+      {chatOpen && current && !viewer && (
         <NotesChat note={current} getEditor={() => editorRef.current} notify={notify} onClose={() => setChatOpen(false)} />
       )}
     </div>

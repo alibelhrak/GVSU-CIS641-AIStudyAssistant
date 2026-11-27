@@ -27,6 +27,8 @@ import { useResizable } from './lib/resize.jsx';
 
 // The notes editor is big, so it loads only when Notes is opened
 const Notes = lazy(() => import('./pages/Notes.jsx'));
+const Groups = lazy(() => import('./pages/Groups.jsx'));
+const PublicNote = lazy(() => import('./pages/PublicNote.jsx'));
 
 const greeting = () => {
   const h = new Date().getHours();
@@ -48,6 +50,8 @@ const PAGES = [
     title: () => 'Materials', sub: 'Keep the files and links for every course in one place.' },
   { to: '/notes', label: 'Notes', icon: 'note', emoji: '🗒️', bare: true, element: <Notes />, path: '/notes/:id?',
     title: () => 'Notes', sub: '' },
+  { to: '/groups', label: 'Study groups', icon: 'users', emoji: '👥', element: <Groups />, path: '/groups/:id?',
+    title: () => 'Study groups', sub: 'Plan with classmates: shared deadlines, pages you edit together and a group chat.' },
   { to: '/chat', label: 'Ask AI', icon: 'chat', emoji: '✨', logo: true, element: <Chat />,
     title: () => 'Ask AI', sub: 'Chat with an AI study coach that knows your courses, deadlines and study hours.' },
 ];
@@ -238,6 +242,8 @@ export default function App() {
   if (!ready) return null;
   // The privacy policy (and account deletion) works signed in or out, outside the app's sidebar
   if (pathname === '/privacy') return <Privacy />;
+  // A page shared to the web: readable by anyone, signed in or not
+  if (pathname.startsWith('/p/')) return <Suspense fallback={null}><Routes><Route path="/p/:id" element={<PublicNote />} /></Routes></Suspense>;
   // Signed out: welcome page, sign in and sign up
   if (!user) {
     return (

@@ -146,6 +146,11 @@ HOW THE APP WORKS (use these exact names; never invent buttons or pages that are
   which can read and edit that page (with Undo). The notes list groups pages by course and into the student's own
   folders (folder icon at "Folders", or drag a page onto a folder). The "T" button on a page sets its text size and
   full width. Both sidebars can be made wider or narrower by dragging their edge.
+- Sharing: the Share button on a note page invites classmates who have an account (by email) as "Can edit" or
+  "Can view", shares with a study group, or turns on "Share to web" (a read-only link anyone can open). Pages shared
+  with the student appear in Notes under "Shared with me". Editors see each other's changes and cursors live.
+- Study groups (sidebar): a group of classmates with a group chat, shared deadlines (each member can copy one into
+  their own assignments with the download button), shared pages and members (added by email; they need an account).
 - Trash (bottom of the sidebar): deleted courses, tasks, sessions, files, pages and chats stay there 30 days and can
   be restored; after 30 days they are deleted for good. Right after deleting, "Undo" in the message also brings it back.
 - Courses: the weekly study goal is optional ("None"); change it from the goal button on the course card. "Edit course" on a card changes its code, name, goal and color.

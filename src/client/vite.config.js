@@ -4,5 +4,6 @@ import react from '@vitejs/plugin-react';
 // While developing, /api calls are forwarded to the Express server on :5000.
 export default defineConfig({
   plugins: [react()],
-  server: { port: 5173, proxy: { '/api': 'http://localhost:5000' } },
+  // ws: true also forwards the live-editing WebSocket (/api/collab)
+  server: { port: 5173, proxy: { '/api': { target: 'http://localhost:5000', ws: true } } },
 });

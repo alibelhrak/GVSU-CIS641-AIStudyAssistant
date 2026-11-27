@@ -46,6 +46,9 @@ Built for **CIS 641 (Software Engineering)** at Grand Valley State University.
 | **Ask AI** | Chat with an AI study coach that sees the student's courses, deadlines, hours and notes. It explains, plans and quizzes, and it can **add courses, exams, assignments and study sessions**, and **search, read and write notes**, each change with an **Undo** button |
 | **Files, pictures and voice** | Attach PDFs, notes, code or screenshots to a question; dictate with the microphone; or use **Voice mode** to talk and hear the answers |
 | **Chat history** | Every conversation is saved; go back to any of them or delete them |
+| **Share pages** | **Share** a note page with classmates by email as **Can view** or **Can edit**, with a study group, or on the web with a public **read-only link** (no account needed to read it). Pages shared with you appear under **Shared with me** |
+| **Live co-editing** | Everyone who can edit a shared page sees the changes **as they are typed**, with each person's colored cursor and name, and their faces at the top of the page |
+| **Study groups** | Make a group for a project team or a study circle: members, a **group chat**, **shared deadlines** (each member can copy one into their own assignments) and the **pages the group edits together** |
 | **Trash** | Anything you delete (courses, tasks, sessions, files, pages, chats) waits in the Trash for 30 days. **Undo** right after deleting, or **Restore** it later |
 | **Reminders** | Turn on a morning summary of your top priorities, deadline alerts, study-session alerts and a Sunday progress email, sent by **email** and as **push notifications** on your phone or computer |
 | **Accounts** | Sign up with a 6-digit code sent to your email (so nobody can use someone else's address), sign in, reset a forgotten password through an emailed link (valid for 30 minutes, works once), and delete the account with all its data from the [privacy page](https://gvsu-cis641-aistudyassistant.onrender.com/privacy) |
@@ -56,6 +59,7 @@ Built for **CIS 641 (Software Engineering)** at Grand Valley State University.
 
 ## What's new
 
+- **Team collaboration (November 2026):** click **Share** on any note page to invite classmates by email (**Can view** or **Can edit**), share it with a **study group**, or turn on **Share to web** for a read-only link anyone can open. People who can edit work on the page **at the same time** and see each other's typing and cursors live. The new **Study groups** page (sidebar) holds each group's members, chat, shared deadlines and shared pages. Only people who already have an account can be invited.
 - **Trash, folders, profile picture (November 2026):** deleting a course, task, study session, file, page or Ask AI chat moves it to the **Trash** (bottom of the sidebar) with an **Undo** button; restore it any time in the next 30 days, after which it is deleted for good. A course goes to the Trash together with its tasks, sessions and files. In Notes, the list groups pages **by course** and into **your own folders** (drag a page onto a folder, or use its folder button). Each page has a **text size** (small, default, large) and **full width** option (the *T* button). Drag the edge of the **sidebar**, the **notes list**, the **Notes AI panel** or the **Ask AI chat list** to make it wider or narrower (double-click resets). Add a **profile picture** in Settings › Account. A course's **weekly study goal is now optional**: leave it empty or choose *None*. **Edit course** on a course card changes its code, name, goal and color.
 - **Run code in Notes (November 2026):** code blocks in **Python, JavaScript, SQL and HTML** get a **Run** button (or press `Ctrl+Enter` / `⌘+Enter`). What the program prints appears in an *Output* block right below; running again replaces it. Everything runs in your own browser, not on the server: Python is real CPython (Pyodide, downloaded once on the first run, about 10 MB, and `numpy`, `pandas` ... load when you import them), SQL is SQLite (each run starts with an empty database, so create your tables in the same block), and HTML opens in a safe preview window. A run is stopped after 10–20 seconds, so an endless loop can't freeze the page. Java, C++ and other compiled languages can't run in the browser yet.
 - **Code like in VS Code (November 2026):** code blocks in Notes get VS Code shortcuts (Tab / Shift+Tab, `Ctrl+/` comment, `Alt+↑/↓` move lines, `Shift+Alt+↑/↓` copy lines, `Ctrl+Shift+K` delete line, auto-indent, auto-closing brackets) and **AI suggestions** in grey while you type: `Tab` accepts, `Ctrl+→` takes one word, `Esc` hides. Turn suggestions off in Settings › Appearance. The full list is in Settings › About.
@@ -239,6 +243,20 @@ The installed app fills the whole screen on phones, follows your theme, and upda
 Deleting never loses your work right away. When you delete a course, task, study session, file, page or chat, a message says **Moved to Trash** with an **Undo** button. Later, click **Trash** at the bottom of the sidebar to search what you deleted and **Restore** it, or **Delete for good**. A deleted course comes back with its tasks, sessions and files. Things in the Trash are deleted for good after 30 days.
 
 <p align="center"><img src="docs/screenshots/trash.png" alt="The Trash window with restore buttons" width="900" /></p>
+
+### 14. Work with classmates
+
+**Share a page.** Open a page in **Notes** and click **Share** at the top. Type a classmate's email, choose **Can edit** or **Can view**, and click **Invite**. They need an account with that email; the page appears in their notes under **Shared with me**. Change someone's access or remove them from the same window. Classmates you share with can edit the text, title, icon and cover, but only you can delete, move or re-share the page.
+
+**Edit together, live.** When a page is shared, everyone who has it open sees the others' changes as they are typed, each with a colored cursor and name. The faces of the people on the page show next to the Share button.
+
+**Study groups.** Click **Study groups** in the sidebar, then **New group**. Add members by email. Each group has:
+
+- a **group chat**,
+- **deadlines** for the whole team; **Add to my assignments** copies one into your own Assignments under the course you choose,
+- **shared pages**: in a page's Share window, tick the group, and every member can edit it.
+
+**A public link.** In the Share window, turn on **Share to web** and click **Copy link**. Anyone with the link can read the page, without an account, but nobody can change it. Turn it off and the link stops working.
 
 ## How the AI works
 

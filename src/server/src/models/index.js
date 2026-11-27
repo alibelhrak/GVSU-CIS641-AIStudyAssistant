@@ -186,7 +186,11 @@ export const Note = model('Note', new Schema({
   content: { type: [Schema.Types.Mixed], default: [] },
   text: { type: String, default: '' },   // plain text of the content, for search and for the AI
   markdown: { type: String, default: '' },   // a note written by Ask AI; the editor turns it into blocks when first opened
-}, opts));
+  // Sharing: people invited by email (viewer or editor), study groups (members can edit), and a public read-only link
+  shares: [{ _id: false, user: { type: Schema.Types.ObjectId, ref: 'User', required: true }, role: { type: String, enum: ['viewer', 'editor'], default: 'editor' }, at: { type: Date, default: Date.now } }],
+  groups: { type: [{ type: Schema.Types.ObjectId, ref: 'Group' }], default: [] },
+  publicId: { type: String, default: undefined },   // set when "Share to web" is on
+}, opts).index({ 'shares.user': 1 }).index({ groups: 1 }).index({ publicId: 1 }, { unique: true, sparse: true }));
 
 
 /** Thumbs up / down on an AI answer, so the team can see what works */
@@ -222,3 +226,28 @@ export const TrashItem = model('TrashItem', new Schema({
   files: { type: [String], default: [] },
   notes: { type: [Schema.Types.ObjectId], default: [] },   // notes that lost this course's tag (given back on restore)
 }, opts).index({ user: 1, createdAt: -1 }));
+
+/** A study group: members share deadlines, pages and a chat */
+export const Group = model('Group', new Schema({
+  name: { type: String, required: [true, 'Name the group'], trim: true, maxlength: 60 },
+  description: { type: String, default: '', trim: true, maxlength: 300 },
+  color: { type: String, default: '#2383e2', maxlength: 20 },
+  owner: ref('User'),
+  members: [{ _id: false, user: { type: Schema.Types.ObjectId, ref: 'User', required: true }, role: { type: String, enum: ['owner', 'member'], default: 'member' }, at: { type: Date, default: Date.now } }],
+}, opts).index({ 'members.user': 1 }));
+
+export const GroupMessage = model('GroupMessage', new Schema({
+  group: ref('Group'),
+  user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  text: { type: String, required: true, trim: true, maxlength: 2000 },
+}, opts).index({ group: 1, createdAt: -1 }));
+
+/** A deadline the whole group works toward (each member can copy it into their own tasks) */
+export const GroupTask = model('GroupTask', new Schema({
+  group: ref('Group'),
+  createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  title: { type: String, required: [true, 'Title is required'], trim: true, maxlength: 200 },
+  type: { type: String, enum: TASK_TYPES, default: 'Assignment' },
+  dueDate: isoDate,
+  done: { type: Boolean, default: false },
+}, opts).index({ group: 1, dueDate: 1 }));

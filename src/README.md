@@ -101,7 +101,24 @@ All routes start with `/api`. Every route except `/auth/*` and `/health` needs t
 | `POST /reminders/test` | Sends a test summary email and push now |
 | `POST /reminders/run` | **No login**, needs the header `x-cron-secret`. Sends every reminder that is due (called every 15 minutes by `.github/workflows/reminders.yml`) |
 | `GET /reminders/unsubscribe` | **No login**: the signed link in reminder emails that turns them off |
+| `GET /notes/shared` | Pages other students shared with me (directly or through a study group), with the owner and my role |
+| `GET /notes/:id/sharing` | Owner only: who has the page (`shares`), its study groups, my groups and the `publicId` |
+| `POST /notes/:id/share` | Owner only: `{ email, role: 'viewer' \| 'editor' }`. Only existing, verified accounts (404 otherwise); at most 50 people |
+| `PATCH`/`DELETE /notes/:id/share/:userId` | Change someone's role, or remove them. `DELETE /notes/:id/share/me` lets a guest leave the page |
+| `PUT /notes/:id/groups` | Owner only: `{ groups: [ids] }` of the owner's own study groups |
+| `POST /notes/:id/public` | Owner only: `{ on }` turns the public read-only link on (a random id) or off |
+| `GET /public/notes/:publicId` | **No login**: a page shared to the web, read only |
+| `/groups` | Study groups: list, create `{ name, description, color }`, open (`GET /:id`: members, deadlines, shared pages), rename / delete (owner). Members: `POST /:id/members { email }`, `DELETE /:id/members/:userId` (or `me` to leave). Chat: `GET /:id/messages?after=`, `POST`, `DELETE /:id/messages/:mid`. Deadlines: `/:id/tasks` CRUD |
+| `WS /collab/:noteId?token=` | Live co-editing (WebSocket, Yjs protocol); see below |
 | `/conversations` | Chat history: list (`GET`), open (`GET /:id`), save (`POST`, `PATCH /:id`) and delete (`DELETE /:id`) |
+
+## Sharing and live co-editing
+
+- **Who can open a page** (`server/src/services/access.js`): the owner; people in `note.shares` as `viewer` (read only) or `editor`; and members of a study group in `note.groups` (they edit). Guests can only change `title, icon, cover, coverY, content, text, markdown`; moving, deleting, the course tag and sharing stay with the owner. Guests never see the owner's folders or course.
+- **Live editing** (`server/src/services/collab.js`): a WebSocket at `/api/collab/:noteId?token=` speaks the [y-websocket](https://github.com/yjs/y-websocket) protocol. The server checks the token and the role (401 / 403), keeps one Yjs document per open page in memory, relays changes and cursors, and ignores changes sent by viewers. A room is dropped 30 seconds after the last person leaves. Only shared pages use it (409 otherwise); private pages keep the normal save.
+- **First load:** when a room starts empty, the first editor to ask `POST /notes/:id/collab/seed` fills it from the saved page; the others wait for it. Editors keep saving the page through `PATCH /notes/:id` as before, so the database always has the latest copy and the AI features, search and the public link keep working.
+- **Browser** (`client/src/lib/live.js`): `y-websocket`'s `WebsocketProvider` and BlockNote's `withCollaboration()` (cursors and names). The title, icon and cover go through a shared Yjs map. If the socket can't connect in 9 seconds, the page falls back to normal saving and says so.
+- **Hosting:** Render's free plan supports WebSockets. The rooms live in one server's memory, so running several server copies would need a shared Yjs backend (e.g. Redis); one copy is fine for this project.
 
 ## Reminders (email and push)
 
@@ -153,12 +170,14 @@ src/
     src/index.js           start-up: connects to MongoDB, starts the server
     src/app.js             routes; also serves the built app online
     src/config.js          reads the settings above
-    src/models/            Mongoose models: User, Course, Task, StudySession, StudyLog, Material, Recommendation, Conversation, Note, Folder, TrashItem, Feedback, PushSub, ReminderLog
-    src/routes/            auth, courses, tasks, sessions, logs, materials, recommendations, chat, conversations, notes (and the notes AI), notesChat (the Notes AI panel)
+    src/models/            Mongoose models: User, Course, Task, StudySession, StudyLog, Material, Recommendation, Conversation, Note, Folder, Group, GroupMessage, GroupTask, TrashItem, Feedback, PushSub, ReminderLog
+    src/routes/            auth, courses, tasks, sessions, logs, materials, recommendations, chat, conversations, notes (and the notes AI), notesChat (the Notes AI panel), groups (study groups), public (pages shared to the web)
     src/services/recommendationEngine.js   rules: study gap, ranking, session plan
     src/services/llm.js    recommendation text from the model, with rule-based fallback
     src/services/chatTools.js  the actions Ask AI can take (checked and limited to the student's own data)
     src/services/mailer.js password reset and reminder emails (Brevo)
+    src/services/access.js who may open or edit a note page
+    src/services/collab.js live co-editing over WebSocket (Yjs)
     src/services/trash.js  moving to the Trash, restoring, and deleting for good after 30 days
     src/services/reminders.js  morning summary, deadline, session and weekly reminders (email and push)
     test/engine.test.js    unit tests for the rules
@@ -166,8 +185,8 @@ src/
     public/                logo, app icons, manifest.webmanifest, sw.js (installable app)
     public/.well-known/assetlinks.json   proves to Android that the Google Play app and this website belong together
     src/App.jsx            sidebar, pages and routes
-    src/pages/             Landing, Login, ForgotPassword, Dashboard, Courses, Tasks, Schedule, Materials, Notes, NoteAI (AI inside notes), NotesChat (the Notes AI panel), Chat (Ask AI)
-    src/lib/               api helper, login state, data store, themes, dates, install.jsx (Download app button), runCode.js (Run in code blocks), trash.jsx (Trash window), avatar.jsx (profile picture), resize.jsx (drag to resize)
+    src/pages/             Landing, Login, ForgotPassword, Dashboard, Courses, Tasks, Schedule, Materials, Notes, NoteAI (AI inside notes), NotesChat (the Notes AI panel), NoteShare (Share window, faces), Groups (study groups), PublicNote (read-only public page), Chat (Ask AI)
+    src/lib/               api helper, login state, data store, themes, dates, install.jsx (Download app button), runCode.js (Run in code blocks), trash.jsx (Trash window), avatar.jsx (profile picture), resize.jsx (drag to resize), live.js (live co-editing)
     src/run/               the Python (Pyodide) and SQL (SQLite) workers
     src/styles.css         design, the four themes and the scrollbars
     src/notes.css          the notes page, the / menu, covers and their animations

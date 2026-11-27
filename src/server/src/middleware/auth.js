@@ -23,6 +23,17 @@ async function versionOf(id) {
 /** Call after changing an account's version (or deleting it) */
 export const forgetSessions = (id) => versions.delete(String(id));
 
+/** The account id in a token, or null when the token is not valid or no longer current (used by the live-editing socket) */
+export async function userFromToken(token) {
+  try {
+    const payload = jwt.verify(token, config.jwtSecret);
+    const v = await versionOf(payload.sub);
+    return v !== null && (payload.v || 0) === v ? payload.sub : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Blocks the request unless it has a valid, current token. Sets req.userId. */
 export async function requireAuth(req, _res, next) {
   const header = req.headers.authorization || '';

@@ -17,6 +17,8 @@ import conversationRoutes from './routes/conversations.js';
 import noteRoutes from './routes/notes.js';
 import folderRoutes from './routes/folders.js';
 import trashRoutes from './routes/trash.js';
+import groupRoutes from './routes/groups.js';
+import publicRoutes from './routes/public.js';
 import reminderRoutes, { publicReminders } from './routes/reminders.js';
 
 export function createApp() {
@@ -27,6 +29,7 @@ export function createApp() {
   app.get('/api/health', (_req, res) => res.json({ ok: true, llm: llmEnabled(), chat: chatEnabled() }));
   app.use('/api/auth', authRoutes);
   app.use('/api/reminders', publicReminders);   // the scheduler and the email unsubscribe link (no login)
+  app.use('/api/public', publicRoutes);         // pages shared to the web (no login)
 
   // Everything below under /api needs a valid login token
   app.use('/api', requireAuth);
@@ -41,6 +44,7 @@ export function createApp() {
   app.use('/api/notes', noteRoutes);
   app.use('/api/folders', folderRoutes);
   app.use('/api/trash', trashRoutes);
+  app.use('/api/groups', groupRoutes);
   app.use('/api/reminders', reminderRoutes);
 
   // Online (Render): also serve the built React app from client/dist.
