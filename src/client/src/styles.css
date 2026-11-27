@@ -859,7 +859,9 @@ img.avatar,img.set-avatar{object-fit:cover;padding:0;background:var(--surface-2)
 .card-title-row .card-title{margin:0}
 .card-title-row .btn{display:inline-flex;align-items:center;gap:5px}
 
-.group-chat{grid-template-rows:auto minmax(0,1fr) auto;height:min(640px,calc(100vh - 290px));min-height:420px}
+/* The chat is as tall as its messages (at least 280px), up to the screen; drag its bottom-right corner to resize it */
+.group-chat{display:grid;grid-template-rows:auto minmax(0,1fr) auto;height:auto;min-height:280px;max-height:min(600px,calc(100vh - 290px));resize:vertical;overflow:hidden}
+.group-chat .gchat-list{min-height:120px}
 .gchat-list{overflow-y:auto;display:grid;align-content:start;gap:2px;padding:4px 2px 8px;margin:0 -6px;padding-inline:6px}
 .gchat-day{text-align:center;font-size:.72rem;font-weight:600;color:var(--faint);margin:12px 0 6px;text-transform:uppercase;letter-spacing:.04em}
 .gchat-msg{display:flex;align-items:flex-end;gap:8px;margin-top:8px}
@@ -907,7 +909,7 @@ img.avatar,img.set-avatar{object-fit:cover;padding:0;background:var(--surface-2)
 .share-who b,.share-who span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .share-who .muted{font-size:.78rem}
 .role-chip{font-size:.68rem;font-weight:700;padding:1px 7px;border-radius:999px;background:var(--accent-soft);color:var(--accent);white-space:nowrap}
-@media (max-width:980px){.group-cols{grid-template-columns:1fr}.group-chat{height:520px}}
+@media (max-width:980px){.group-cols{grid-template-columns:1fr}.group-chat{max-height:520px}}
 @media (max-width:620px){.group-rename{grid-template-columns:1fr}.gtask-form{grid-template-columns:1fr 1fr}.gtask-form input:first-child{grid-column:1/-1}.gtask-actions{opacity:1}}
 
 /* ---------- A page shared to the web ---------- */
