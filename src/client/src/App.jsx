@@ -9,7 +9,7 @@ import { daysUntil } from './lib/dates.js';
 import { Icon } from './icons.jsx';
 import { InstallButton } from './lib/install.jsx';
 import { RemindersPanel } from './lib/reminders.jsx';
-import { getLang, chosenHere, setLang } from './lib/i18n.jsx';
+import { getLang, chosenHere, setLang, t } from './lib/i18n.jsx';
 import Landing from './pages/Landing.jsx';
 import Login from './pages/Login.jsx';
 import ForgotPassword from './pages/ForgotPassword.jsx';
@@ -162,8 +162,8 @@ function usePrefsSync() {
 }
 
 function Shell() {
-  const { loading } = useData();
-  const { pathname } = useLocation();
+  const { loading, notify } = useData();
+  const { pathname, search } = useLocation();
   const navigate = useNavigate();
   const { prefs } = useTheme();
   const [open, setOpen] = useState(false);
@@ -182,7 +182,17 @@ function Shell() {
   useEffect(() => { window.scrollTo({ top: 0 }); }, [pathname]);
   usePrefsSync();
   // Open on the page chosen in Settings (only when the app starts on the home address)
-  useEffect(() => { if (pathname === '/' && START[prefs.startPage]) navigate(START[prefs.startPage], { replace: true }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (pathname === '/' && !search && START[prefs.startPage]) navigate(START[prefs.startPage], { replace: true }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // Coming back from Zoom (?zoom=linked|failed), or a link that opens a Settings section (?settings=apps)
+  useEffect(() => {
+    const q = new URLSearchParams(search);
+    const zoom = q.get('zoom'); const section = q.get('settings');
+    if (!zoom && !section) return;
+    if (zoom) notify(zoom === 'linked' ? t('Zoom is linked. You can start meetings from your study groups.') : t('Zoom was not linked. Try again.'));
+    if (section) setSettings(section);
+    q.delete('zoom'); q.delete('settings');
+    navigate({ pathname, search: q.toString() ? `?${q}` : '' }, { replace: true });
+  }, [search]); // eslint-disable-line react-hooks/exhaustive-deps
   // Ctrl+, (or Cmd+,) opens Settings, like in most desktop apps
   useEffect(() => {
     const key = (e) => {

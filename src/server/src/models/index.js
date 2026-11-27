@@ -269,3 +269,29 @@ export const Report = model('Report', new Schema({
   snapshot: { type: String, default: '', maxlength: 2500 },                 // what the content said when it was reported
   status: { type: String, enum: ['open', 'removed'], default: 'open' },
 }, opts).index({ reporter: 1, note: 1, message: 1, createdAt: -1 }));
+
+/**
+ * A student's linked Zoom account (only needed to START meetings; anyone can join with the link).
+ * The tokens are encrypted (AES-256-GCM) and never sent to the browser.
+ */
+export const ZoomLink = model('ZoomLink', new Schema({
+  user: { type: Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
+  zoomUserId: { type: String, required: true, index: true },
+  email: { type: String, default: '' },
+  access: { type: String, required: true },     // encrypted
+  refresh: { type: String, required: true },    // encrypted
+  expiresAt: { type: Date, required: true },
+}, { timestamps: true }));
+
+/** A video meeting of a study group: created through Zoom, or a link a member pasted (Zoom, Teams, Meet ...) */
+export const GroupMeeting = model('GroupMeeting', new Schema({
+  group: ref('Group'),
+  createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  topic: { type: String, required: [true, 'Name the meeting'], trim: true, maxlength: 120 },
+  provider: { type: String, enum: ['zoom', 'link'], default: 'zoom' },
+  start: { type: Date, required: true },        // when it starts (for "now": the moment it was made)
+  duration: { type: Number, default: 60, min: 5, max: 600 },   // minutes
+  joinUrl: { type: String, required: true, maxlength: 1000 },
+  zoomId: { type: String, default: '' },
+  passcode: { type: String, default: '', maxlength: 40 },
+}, opts).index({ group: 1, start: 1 }));

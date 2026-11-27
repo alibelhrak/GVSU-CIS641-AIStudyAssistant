@@ -14,6 +14,14 @@ export const config = {
   },
   // Where reports of shared pages and chat messages are emailed (default: MAIL_FROM)
   reportEmail: process.env.REPORT_EMAIL || process.env.MAIL_FROM || '',
+  // Zoom (a "General app, user-managed" on marketplace.zoom.us): lets students start group meetings
+  zoom: {
+    clientId: process.env.ZOOM_CLIENT_ID || '',
+    clientSecret: process.env.ZOOM_CLIENT_SECRET || '',
+    webhookSecret: process.env.ZOOM_WEBHOOK_SECRET || '',     // "Secret Token" for the deauthorization event
+    oauthUrl: (process.env.ZOOM_OAUTH_URL || 'https://zoom.us').replace(/\/+$/, ''),
+    apiUrl: (process.env.ZOOM_API_URL || 'https://api.zoom.us/v2').replace(/\/+$/, ''),
+  },
   // Push notifications (create the keys once with: npx web-push generate-vapid-keys)
   push: {
     publicKey: process.env.VAPID_PUBLIC_KEY || '',
@@ -40,3 +48,4 @@ export const chatEnabled = () => Boolean(config.llm.baseUrl && config.llm.chatMo
 // Emails are sent only when a Brevo key and a sender address are set
 export const mailEnabled = () => Boolean(config.mail.apiKey && config.mail.from);
 export const pushEnabled = () => Boolean(config.push.publicKey && config.push.privateKey);
+export const zoomEnabled = () => Boolean(config.zoom.clientId && config.zoom.clientSecret);

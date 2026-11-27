@@ -58,6 +58,7 @@ export default function Privacy() {
           <li><b>Your account:</b> your name, email address and password. The password is stored only as a secure hash (bcrypt), never as plain text.</li>
           <li><b>What you add:</b> courses, assignments and exams, study sessions and logged hours, materials (files you upload and links), notes, Ask AI conversations, and feedback you give on AI answers (👍 / 👎, with the question and answer).</li>
           <li><b>Sharing and study groups:</b> who you share each page with and their access, your study groups and their members, group chat messages and group deadlines, and whether a page has a public link.</li>
+          <li><b>Meetings:</b> the meetings you start or schedule for a study group (name, time, length, link and passcode).</li>
           <li><b>Reports:</b> if you report a page or a message, the report (reason, your comment, and a copy of what was reported) and your account, so it can be reviewed.</li>
           <li><b>Settings:</b> your language, reminder choices, reminder hour and time zone.</li>
           <li><b>Devices for notifications:</b> if you turn on push notifications, the address your browser gives for sending them.</li>
@@ -84,6 +85,7 @@ export default function Privacy() {
           <li><b>Database (MongoDB Atlas)</b> stores your account and study data.</li>
           <li><b>AI provider (currently Groq):</b> when you use an AI feature, your message, any files or pictures you attach, and the study data needed to answer (for example course codes, task titles, hours, and the note you are working on) are sent to the AI model to produce the answer. Nothing is sent to the AI when you do not use AI features.</li>
           <li><b>Email (Brevo)</b> sends sign-up codes, password-reset, reminder and invitation emails, and reports to the app's moderator, so it receives your name, email address and the email's content.</li>
+          <li><b>Zoom</b>, only if you link your Zoom account (Settings › Connected apps): StudyPilot keeps an encrypted key from Zoom that lets it create, read and cancel the meetings you start from a study group, plus your Zoom email. It cannot see your recordings, chats or contacts. The meeting's name, time and link are shown to your group. Unlink in Settings, or remove the app in your Zoom account, and the key is deleted.</li>
           <li><b>Push services</b> run by your browser's maker (Google, Microsoft, Apple or Mozilla) deliver notifications if you turn them on.</li>
         </ul>
 

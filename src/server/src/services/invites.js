@@ -8,7 +8,7 @@ import { config } from '../config.js';
 import { User } from '../models/index.js';
 import { sendMail } from './mailer.js';
 import { sendPush } from './reminders.js';
-import { dirOf } from '../i18n.js';
+import { dirOf, LOCALES } from '../i18n.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const fill = (s, v) => Object.entries(v).reduce((out, [k, x]) => out.replaceAll(`{${k}}`, String(x)), s);
@@ -73,12 +73,41 @@ const T = {
     zh: '你收到这封邮件是因为 {from} 邀请了你的 StudyPilot 账号。如果不想参与，可以在应用中退出该页面或小组。',
     hi: 'आपको यह ईमेल इसलिए मिला क्योंकि {from} ने आपके StudyPilot खाते को आमंत्रित किया। अगर आप साथ काम नहीं करना चाहते, तो ऐप में पेज या ग्रुप छोड़ सकते हैं।',
   },
+  meetNowSubject: {
+    en: '{from} started a meeting in "{group}"', fr: '{from} a lancé une réunion dans « {group} »', es: '{from} inició una reunión en «{group}»',
+    ar: 'بدأ {from} اجتماعًا في «{group}»', zh: '{from} 在“{group}”中发起了会议', hi: '{from} ने "{group}" में मीटिंग शुरू की',
+  },
+  meetLaterSubject: {
+    en: 'Meeting in "{group}": {topic}, {when}', fr: 'Réunion dans « {group} » : {topic}, {when}', es: 'Reunión en «{group}»: {topic}, {when}',
+    ar: 'اجتماع في «{group}»: {topic}، {when}', zh: '“{group}”会议：{topic}，{when}', hi: '"{group}" में मीटिंग: {topic}, {when}',
+  },
+  meetNowBody: {
+    en: '{from} started a video meeting for your study group. Join now:', fr: '{from} a lancé une réunion vidéo pour votre groupe d’étude. Rejoignez-la maintenant :',
+    es: '{from} inició una videollamada para tu grupo de estudio. Únete ahora:', ar: 'بدأ {from} اجتماع فيديو لمجموعة الدراسة. انضم الآن:',
+    zh: '{from} 为你的学习小组发起了视频会议。立即加入：', hi: '{from} ने आपके स्टडी ग्रुप के लिए वीडियो मीटिंग शुरू की है। अभी जुड़ें:',
+  },
+  meetLaterBody: {
+    en: '{from} scheduled a video meeting for your study group.', fr: '{from} a programmé une réunion vidéo pour votre groupe d’étude.',
+    es: '{from} programó una videollamada para tu grupo de estudio.', ar: 'حدّد {from} موعد اجتماع فيديو لمجموعة الدراسة.',
+    zh: '{from} 为你的学习小组安排了视频会议。', hi: '{from} ने आपके स्टडी ग्रुप के लिए वीडियो मीटिंग तय की है।',
+  },
+  meetWhen: { en: 'When: {when} ({minutes} min)', fr: 'Quand : {when} ({minutes} min)', es: 'Cuándo: {when} ({minutes} min)', ar: 'الموعد: {when} ({minutes} دقيقة)', zh: '时间：{when}（{minutes} 分钟）', hi: 'कब: {when} ({minutes} मिनट)' },
+  meetPass: { en: 'Passcode: {code}', fr: 'Code secret : {code}', es: 'Código de acceso: {code}', ar: 'رمز المرور: {code}', zh: '密码：{code}', hi: 'पासकोड: {code}' },
+  meetButton: { en: 'Join the meeting', fr: 'Rejoindre la réunion', es: 'Unirse a la reunión', ar: 'الانضمام إلى الاجتماع', zh: '加入会议', hi: 'मीटिंग से जुड़ें' },
+  meetWhy: {
+    en: 'You got this email because you are a member of the study group "{group}" on StudyPilot. Leave the group to stop these emails.',
+    fr: 'Vous recevez cet e-mail car vous êtes membre du groupe d’étude « {group} » sur StudyPilot. Quittez le groupe pour ne plus les recevoir.',
+    es: 'Recibes este correo porque eres miembro del grupo de estudio «{group}» en StudyPilot. Sal del grupo para dejar de recibirlos.',
+    ar: 'وصلك هذا البريد لأنك عضو في مجموعة الدراسة «{group}» على StudyPilot. غادر المجموعة لإيقاف هذه الرسائل.',
+    zh: '你收到这封邮件是因为你是 StudyPilot 学习小组“{group}”的成员。退出小组即可停止接收。',
+    hi: 'आपको यह ईमेल इसलिए मिला क्योंकि आप StudyPilot पर स्टडी ग्रुप "{group}" के सदस्य हैं। ये ईमेल रोकने के लिए ग्रुप छोड़ दें।',
+  },
   untitled: { en: 'Untitled', fr: 'Sans titre', es: 'Sin título', ar: 'بلا عنوان', zh: '无标题', hi: 'बिना शीर्षक' },
 };
 const tr = (key, lang, v = {}) => fill(T[key][lang] || T[key].en, v);
 
-function layout({ lang, title, lines, quote, button, path, note }) {
-  const url = `${config.appUrl}${path}`;
+function layout({ lang, title, lines, quote, button, path, href, note }) {
+  const url = href || `${config.appUrl}${path}`;
   const html = `<!doctype html><html lang="${lang}" dir="${dirOf(lang)}"><body style="margin:0;background:#f7f7f5;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif">
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center" style="padding:28px 12px">
   <table role="presentation" width="100%" style="max-width:560px;background:#fff;border:1px solid #e9e9e7;border-radius:14px" cellspacing="0" cellpadding="0"><tr><td style="padding:28px">
@@ -145,5 +174,36 @@ export async function notifyGroupAdded({ toId, fromId, group }) {
     await sendPush(to._id, { title: subject, body: group.description || group.name, url: path, tag: `group-${group._id}` });
   } catch (err) {
     console.warn('Group email failed:', err.message);
+  }
+}
+
+function whenText(date, lang, timezone) {
+  let tz = timezone || 'America/Detroit';
+  try { new Intl.DateTimeFormat('en-US', { timeZone: tz }); } catch { tz = 'America/Detroit'; }
+  return new Intl.DateTimeFormat(LOCALES[lang] || 'en-US', { timeZone: tz, weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }).format(date);
+}
+
+/** A study group meeting was started (now) or scheduled: tell the other members */
+export async function notifyMeeting({ group, meeting, fromId, toIds, now }) {
+  try {
+    const from = await User.findById(fromId).select('name email').lean();
+    const fromName = from?.name || from?.email || 'A classmate';
+    const people = await User.find({ _id: { $in: toIds } }).select('name email language reminders.timezone').lean();
+    for (const to of people) {
+      const lang = to.language || 'en';
+      const when = whenText(meeting.start, lang, to.reminders?.timezone);
+      const subject = tr(now ? 'meetNowSubject' : 'meetLaterSubject', lang, { from: fromName, group: group.name, topic: meeting.topic, when });
+      const lines = [tr('hi', lang, { name: (to.name || '').split(' ')[0] || to.email }), tr(now ? 'meetNowBody' : 'meetLaterBody', lang, { from: fromName }),
+        tr('meetWhen', lang, { when, minutes: meeting.duration }), ...(meeting.passcode ? [tr('meetPass', lang, { code: meeting.passcode })] : [])];
+      try {
+        await sendMail({
+          to: to.email, toName: to.name, subject,
+          ...layout({ lang, title: subject, lines, quote: meeting.topic, button: tr('meetButton', lang), href: meeting.joinUrl, note: tr('meetWhy', lang, { group: group.name }) }),
+        });
+      } catch (err) { console.warn('Meeting email failed:', err.message); }
+      await sendPush(to._id, { title: subject, body: now ? meeting.topic : when, url: `/groups/${group._id}`, tag: `meet-${meeting._id}` }).catch(() => {});
+    }
+  } catch (err) {
+    console.warn('Meeting notices failed:', err.message);
   }
 }

@@ -15,6 +15,7 @@ const SECTIONS = [
   { id: 'appearance', label: 'Appearance', icon: 'palette' },
   { id: 'region', label: 'Language & region', icon: 'globe' },
   { id: 'notifications', label: 'Notifications', icon: 'bell' },
+  { id: 'apps', label: 'Connected apps', icon: 'link' },
   { id: 'data', label: 'Data & privacy', icon: 'shield' },
   { id: 'about', label: 'About', icon: 'info' },
 ];
@@ -337,6 +338,38 @@ function Notifications({ onOpenReminders }) {
   );
 }
 
+// ---------------- Connected apps ----------------
+function ConnectedApps() {
+  const [zoom, setZoom] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [flash, view] = useFlash();
+  useEffect(() => { api.get('/zoom/status').then(setZoom).catch(() => setZoom({ enabled: false })); }, []);
+  const link = async () => {
+    setBusy(true);
+    try { const { url } = await api.post('/zoom/link', { back: '/?settings=apps' }); window.location.href = url; } catch (err) { flash(err.message, 'err'); setBusy(false); }
+  };
+  const unlink = async () => {
+    setBusy(true);
+    try { await api.del('/zoom/link'); setZoom({ ...zoom, linked: false, email: '' }); flash(t('Zoom was unlinked.')); } catch (err) { flash(err.message, 'err'); } finally { setBusy(false); }
+  };
+  return (
+    <>
+      <Row title="Zoom" desc={!zoom ? '' : !zoom.enabled ? t('Zoom is not set up on this server yet.')
+        : zoom.linked ? `${t('Linked')}${zoom.email ? ` · ${zoom.email}` : ''}. ${t('You can start and schedule Zoom meetings for your study groups.')}`
+          : t('Link your Zoom account to start and schedule meetings for your study groups. Only the person who starts a meeting needs it.')}>
+        {zoom?.enabled && (zoom.linked
+          ? <button type="button" className="btn" onClick={unlink} disabled={busy}>Unlink</button>
+          : <button type="button" className="btn primary" onClick={link} disabled={busy}><Icon name="video" size={15} /> Link Zoom</button>)}
+        {view}
+      </Row>
+      <div className="set-note">
+        <Icon name="shield" size={16} />
+        <p>StudyPilot can only create, read and cancel the meetings you make from the app. It cannot see your recordings, chats or contacts. You can also remove it in your Zoom account under Apps › Manage › Added apps.</p>
+      </div>
+    </>
+  );
+}
+
 // ---------------- Data & privacy ----------------
 function DataPrivacy({ onClose }) {
   const [busy, setBusy] = useState(false);
@@ -468,6 +501,7 @@ function Settings({ onClose, onOpenReminders, start = 'account' }) {
             {section === 'appearance' && <Appearance />}
             {section === 'region' && <Region />}
             {section === 'notifications' && <Notifications onOpenReminders={onOpenReminders} />}
+            {section === 'apps' && <ConnectedApps />}
             {section === 'data' && <DataPrivacy onClose={onClose} />}
             {section === 'about' && <About />}
           </div>

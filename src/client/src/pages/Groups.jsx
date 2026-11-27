@@ -7,6 +7,7 @@ import { daysUntil, relDay } from '../lib/dates.js';
 import { Icon } from '../icons.jsx';
 import { Face } from './NoteShare.jsx';
 import { ReportDialog } from './Report.jsx';
+import GroupMeetings from './GroupMeetings.jsx';
 
 const COLORS = ['#2383e2', '#e8590c', '#2f9e44', '#9c36b5', '#d6336c', '#0c8599'];
 const TYPES = ['Assignment', 'Exam', 'Quiz', 'Project', 'Reading'];
@@ -154,6 +155,7 @@ function GroupView({ id }) {
       <div className="group-cols">
         <GroupChat id={id} />
         <div className="group-side">
+          <GroupMeetings g={g} notify={notify} />
           <Deadlines g={g} setG={setG} courses={courses} run={run} notify={notify} />
           <section className="panel">
             <h3 className="card-title"><Icon name="note" size={17} /> Shared pages</h3>

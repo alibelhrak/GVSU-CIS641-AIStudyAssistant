@@ -4,7 +4,8 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { User, Course, Task, StudySession, StudyLog, Material, Recommendation, Conversation, Note, Folder, Feedback, PushSub, ReminderLog, Group, GroupMessage, Report } from '../models/index.js';
+import { User, Course, Task, StudySession, StudyLog, Material, Recommendation, Conversation, Note, Folder, Feedback, PushSub, ReminderLog, Group, GroupMessage, Report, GroupMeeting } from '../models/index.js';
+import { unlink as unlinkZoom } from '../services/zoom.js';
 import { deleteGroups } from './groups.js';
 import { deleteForever } from '../services/trash.js';
 import { config } from '../config.js';
@@ -402,6 +403,8 @@ r.delete('/me', requireAuth, h(async (req, res) => {
   const me = new mongoose.Types.ObjectId(String(req.userId));
   await Group.updateMany({ 'members.user': me }, { $pull: { members: { user: me } } });
   await GroupMessage.deleteMany({ user: me });
+  await GroupMeeting.deleteMany({ createdBy: me });
+  await unlinkZoom(me).catch(() => {});   // revoke StudyPilot's access to their Zoom account
   await Report.updateMany({ reporter: me }, { $set: { reporter: null } });   // reports stay for review, without the name of who sent them
   await Note.updateMany({ 'shares.user': me }, { $pull: { shares: { user: me } } });
   await Promise.all([Course, Task, StudySession, StudyLog, Material, Recommendation, Conversation, Note, Folder, Feedback, PushSub, ReminderLog]

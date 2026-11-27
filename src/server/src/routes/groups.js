@@ -5,8 +5,10 @@
  */
 import { Router } from 'express';
 import mongoose from 'mongoose';
-import { Group, GroupMessage, GroupTask, Note, User, TASK_TYPES } from '../models/index.js';
-import { notifyGroupAdded } from '../services/invites.js';
+import { Group, GroupMeeting, GroupMessage, GroupTask, Note, User, TASK_TYPES } from '../models/index.js';
+import { notifyGroupAdded, notifyMeeting } from '../services/invites.js';
+import { zoomApi } from '../services/zoom.js';
+import { zoomEnabled } from '../config.js';
 import { h, HttpError } from '../middleware/error.js';
 
 const r = Router();
@@ -125,6 +127,7 @@ export async function deleteGroups(ids) {
   await Promise.all([
     GroupMessage.deleteMany({ group: { $in: ids } }),
     GroupTask.deleteMany({ group: { $in: ids } }),
+    GroupMeeting.deleteMany({ group: { $in: ids } }),
     (async () => {   // forget the groups on the pages shared with them
       const gone = new Set(ids.map(String));
       for (const n of await Note.find({ groups: { $in: ids } }).select('groups').lean()) {
@@ -227,6 +230,84 @@ r.delete('/:id/tasks/:tid', h(async (req, res) => {
   if (!mongoose.isValidObjectId(req.params.tid)) throw new HttpError(404, 'Deadline not found');
   const del = await GroupTask.deleteOne({ _id: req.params.tid, group: group._id });
   if (!del.deletedCount) throw new HttpError(404, 'Deadline not found');
+  res.json({ ok: true });
+}));
+
+// ---------- Video meetings (Zoom, or a pasted Zoom / Teams / Meet link) ----------
+const MAX_MEETINGS = 30;
+const meetingView = (m, names, userId) => {
+  const end = m.start.getTime() + m.duration * 60_000;
+  const now = Date.now();
+  return {
+    id: String(m._id), topic: m.topic, provider: m.provider, start: m.start, duration: m.duration,
+    joinUrl: m.joinUrl, passcode: m.passcode,
+    by: names.get(String(m.createdBy)) || '', mine: String(m.createdBy) === String(userId),
+    status: now > end ? 'ended' : now >= m.start.getTime() - 10 * 60_000 ? 'live' : 'upcoming',
+  };
+};
+
+r.get('/:id/meetings', h(async (req, res) => {
+  const group = await memberOf(req);
+  const list = await GroupMeeting.find({ group: group._id, start: { $gt: new Date(Date.now() - 12 * 3600_000) } }).sort({ start: 1 }).limit(50).lean();
+  const live = list.filter((m) => m.start.getTime() + m.duration * 60_000 > Date.now() - 30 * 60_000);
+  const names = new Map((await User.find({ _id: { $in: live.map((m) => m.createdBy) } }).select('name').lean()).map((u) => [String(u._id), u.name]));
+  res.json(live.map((m) => meetingView(m, names, req.userId)));
+}));
+
+r.post('/:id/meetings', h(async (req, res) => {
+  const group = await memberOf(req);
+  const topic = (typeof req.body?.topic === 'string' ? req.body.topic.replace(/\s+/g, ' ').trim() : '').slice(0, 120) || `${group.name} meeting`;
+  const duration = Math.min(600, Math.max(5, Math.round(Number(req.body?.duration) || 60)));
+  const now = !req.body?.start;
+  const start = now ? new Date() : new Date(String(req.body.start));
+  if (Number.isNaN(start.getTime())) throw new HttpError(400, 'Choose a date and time');
+  if (!now && (start.getTime() < Date.now() - 3600_000 || start.getTime() > Date.now() + 366 * 86400_000)) throw new HttpError(400, 'Choose a time within the next year');
+  if (await GroupMeeting.countDocuments({ group: group._id, start: { $gt: new Date() } }) >= MAX_MEETINGS) throw new HttpError(400, `A group can have up to ${MAX_MEETINGS} upcoming meetings`);
+
+  const meeting = { group: group._id, createdBy: req.userId, topic, start, duration };
+  if (req.body?.link) {
+    let url;
+    try { url = new URL(String(req.body.link).trim()); } catch { throw new HttpError(400, 'Paste the full meeting link, starting with https://'); }
+    if (url.protocol !== 'https:') throw new HttpError(400, 'Paste the full meeting link, starting with https://');
+    Object.assign(meeting, { provider: 'link', joinUrl: url.href.slice(0, 1000) });
+  } else {
+    if (!zoomEnabled()) throw new HttpError(400, 'Zoom is not set up on this server yet. Paste a meeting link instead.');
+    const z = await zoomApi(req.userId, 'POST', '/users/me/meetings', {
+      topic, type: now ? 1 : 2, duration, timezone: 'UTC',
+      ...(now ? {} : { start_time: start.toISOString().replace(/\.\d{3}Z$/, 'Z') }),
+      agenda: `StudyPilot study group: ${group.name}`,
+      settings: { join_before_host: true, jbh_time: 0, waiting_room: false, mute_upon_entry: true },
+    });
+    if (!z?.join_url) throw new HttpError(502, 'Zoom did not create the meeting. Try again.');
+    Object.assign(meeting, { provider: 'zoom', joinUrl: z.join_url, zoomId: String(z.id), passcode: z.password || '' });
+  }
+  const m = await GroupMeeting.create(meeting);
+  await Group.updateOne({ _id: group._id }, { $currentDate: { updatedAt: true } });
+  notifyMeeting({ group, meeting: m, fromId: req.userId, toIds: group.members.map((x) => x.user).filter((u) => String(u) !== String(req.userId)), now });
+  const me = await User.findById(req.userId).select('name').lean();
+  res.status(201).json(meetingView(m, new Map([[String(req.userId), me?.name || '']]), req.userId));
+}));
+
+// The host link for a Zoom meeting (only for the person who made it; Zoom's start links expire, so it is fetched each time)
+r.get('/:id/meetings/:mid/start', h(async (req, res) => {
+  const group = await memberOf(req);
+  if (!mongoose.isValidObjectId(req.params.mid)) throw new HttpError(404, 'Meeting not found');
+  const m = await GroupMeeting.findOne({ _id: req.params.mid, group: group._id }).lean();
+  if (!m) throw new HttpError(404, 'Meeting not found');
+  if (String(m.createdBy) !== String(req.userId) || m.provider !== 'zoom') return res.json({ url: m.joinUrl });
+  const z = await zoomApi(req.userId, 'GET', `/meetings/${encodeURIComponent(m.zoomId)}`);
+  res.json({ url: z?.start_url || m.joinUrl });
+}));
+
+r.delete('/:id/meetings/:mid', h(async (req, res) => {
+  const group = await memberOf(req);
+  if (!mongoose.isValidObjectId(req.params.mid)) throw new HttpError(404, 'Meeting not found');
+  const m = await GroupMeeting.findOne({ _id: req.params.mid, group: group._id });
+  if (!m) throw new HttpError(404, 'Meeting not found');
+  const mine = String(m.createdBy) === String(req.userId);
+  if (!mine && !isOwner(group, req.userId)) throw new HttpError(403, 'Only the person who made the meeting, or the group owner, can cancel it');
+  if (mine && m.provider === 'zoom' && m.zoomId) await zoomApi(req.userId, 'DELETE', `/meetings/${encodeURIComponent(m.zoomId)}`).catch(() => {});
+  await m.deleteOne();
   res.json({ ok: true });
 }));
 

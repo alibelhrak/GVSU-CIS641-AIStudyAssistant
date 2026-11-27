@@ -20,17 +20,19 @@ import trashRoutes from './routes/trash.js';
 import groupRoutes from './routes/groups.js';
 import publicRoutes from './routes/public.js';
 import reportRoutes from './routes/reports.js';
+import zoomRoutes, { publicZoom } from './routes/zoom.js';
 import reminderRoutes, { publicReminders } from './routes/reminders.js';
 
 export function createApp() {
   const app = express();
   app.use(cors());
-  app.use(express.json({ limit: '10mb' }));   // room for pictures attached in Ask AI
+  app.use(express.json({ limit: '10mb', verify: (req, _res, buf) => { if (req.originalUrl.startsWith('/api/zoom/webhook')) req.rawBody = buf.toString('utf8'); } }));   // room for pictures attached in Ask AI
 
   app.get('/api/health', (_req, res) => res.json({ ok: true, llm: llmEnabled(), chat: chatEnabled() }));
   app.use('/api/auth', authRoutes);
   app.use('/api/reminders', publicReminders);   // the scheduler and the email unsubscribe link (no login)
   app.use('/api/public', publicRoutes);         // pages shared to the web (no login)
+  app.use('/api/zoom', publicZoom);             // Zoom sends students back here after linking, and its webhook (no login)
   app.use('/api/reports', reportRoutes);       // reporting harmful content (login optional), and the moderator's link
 
   // Everything below under /api needs a valid login token
@@ -47,6 +49,7 @@ export function createApp() {
   app.use('/api/folders', folderRoutes);
   app.use('/api/trash', trashRoutes);
   app.use('/api/groups', groupRoutes);
+  app.use('/api/zoom', zoomRoutes);
   app.use('/api/reminders', reminderRoutes);
 
   // Online (Render): also serve the built React app from client/dist.

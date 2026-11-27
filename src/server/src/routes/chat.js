@@ -151,6 +151,9 @@ HOW THE APP WORKS (use these exact names; never invent buttons or pages that are
   with the student appear in Notes under "Shared with me". Editors see each other's changes and cursors live.
 - Study groups (sidebar): a group of classmates with a group chat, shared deadlines (each member can copy one into
   their own assignments with the download button), shared pages and members (added by email; they need an account).
+  Meetings panel: "Start Zoom" starts a Zoom call now, "Schedule" plans one (new Zoom meeting, or a pasted Zoom /
+  Teams / Google Meet link). Everyone in the group is emailed the link. Only the person starting a Zoom meeting needs
+  their Zoom account linked (Settings > Connected apps); the others click Join.
 - Trash (bottom of the sidebar): deleted courses, tasks, sessions, files, pages and chats stay there 30 days and can
   be restored; after 30 days they are deleted for good. Right after deleting, "Undo" in the message also brings it back.
 - Courses: the weekly study goal is optional ("None"); change it from the goal button on the course card. "Edit course" on a card changes its code, name, goal and color.
