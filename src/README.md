@@ -120,6 +120,7 @@ All routes start with `/api`. Every route except `/auth/*` and `/health` needs t
 | `/notes/:id/messages` | The chat on a shared page (409 when the page is not shared): `GET ?after=`, `POST { text }`, `DELETE /:mid` (your own; the page owner can delete any) |
 | `/notes/:id/versions` | Page history (owner and editors): `GET` the list, `GET /:vid` one version, `POST` keep a copy now (the app calls it before restoring) |
 | `WS /collab/:noteId?token=` | Live co-editing (WebSocket, Yjs protocol); see below |
+| `GET /links/preview?url=` | Title, description, picture and site name of a public web page, for Web bookmark blocks. Private, local and cloud-metadata addresses are refused (checked after every redirect); 6 s and 600 KB limits |
 | `/conversations` | Chat history: list (`GET`), open (`GET /:id`), save (`POST`, `PATCH /:id`) and delete (`DELETE /:id`) |
 
 ## Sharing and live co-editing
@@ -228,7 +229,7 @@ src/
     public/                logo, app icons, manifest.webmanifest, sw.js (installable app)
     public/.well-known/assetlinks.json   proves to Android that the Google Play app and this website belong together
     src/App.jsx            sidebar, pages and routes
-    src/pages/             Landing, Login, ForgotPassword, Dashboard, Courses, Tasks, Schedule, Materials, Notes, NoteAI (AI inside notes), NotesChat (the Notes AI panel), NoteShare (Share window, faces), Groups (study groups), PublicNote (read-only public page), Report (the report window), PageChat (chat on a shared page), PageHistory, EmojiPicker, NoteLink (link toolbar), GroupMeetings (the Meetings panel), Terms, Guidelines (community guidelines), Privacy, Chat (Ask AI)
+    src/pages/             Landing, Login, ForgotPassword, Dashboard, Courses, Tasks, Schedule, Materials, Notes, NoteAI (AI inside notes), NotesChat (the Notes AI panel), NoteShare (Share window, faces), Groups (study groups), PublicNote (read-only public page), Report (the report window), blocks.jsx (Callout, Equation, Table of contents, Columns, Embed, Web bookmark), PageChat (chat on a shared page), PageHistory, EmojiPicker, NoteLink (link toolbar), GroupMeetings (the Meetings panel), Terms, Guidelines (community guidelines), Privacy, Chat (Ask AI)
     src/lib/               api helper, login state, data store, themes, dates, install.jsx (Download app button), runCode.js (Run in code blocks), trash.jsx (Trash window), avatar.jsx (profile picture), resize.jsx (drag to resize), live.js (live co-editing)
     src/run/               the Python (Pyodide) and SQL (SQLite) workers
     src/styles.css         design, the four themes and the scrollbars

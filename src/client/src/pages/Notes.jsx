@@ -1,7 +1,8 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useParams } from 'react-router-dom';
-import { BlockNoteSchema, createCodeBlockSpec, defaultBlockSpecs, filterSuggestionItems } from '@blocknote/core';
+import { BlockNoteSchema, createCodeBlockSpec, defaultBlockSpecs, defaultInlineContentSpecs, filterSuggestionItems } from '@blocknote/core';
+import { calloutSpec, mathSpec, inlineMathSpec, tocSpec, embedSpec, bookmarkSpec, columnsSpec, extraSlashItems } from './blocks.jsx';
 import { SyntaxHighlightingExtension } from '@blocknote/core/extensions';
 import { withCollaboration } from '@blocknote/core/yjs';
 import { codeBlockOptions } from '@blocknote/code-block';
@@ -155,7 +156,7 @@ const AiLogo = () => <img src="/logo.png" alt="" width={18} height={18} style={{
 /* ---------- The "/" menu: Notion-style, with AI first ---------- */
 const BASIC = ['paragraph', 'heading', 'heading_2', 'heading_3', 'bullet_list', 'numbered_list', 'check_list', 'toggle_list', 'quote', 'divider', 'code_block'];
 const MEDIA = ['image', 'video', 'audio', 'file'];
-const GROUPS = ['AI', 'Basic blocks', 'Media', 'More'];
+const GROUPS = ['AI', 'Basic blocks', 'Media', 'Advanced', 'More'];
 const HINT = { heading: '#', heading_2: '##', heading_3: '###', heading_4: '####', bullet_list: '-', numbered_list: '1.', check_list: '[]',
   toggle_list: '>', quote: '"', code_block: '```', divider: '---', emoji: ':' };
 const MORE_ALIASES = { paragraph: ['text', 'plain'], check_list: ['todo', 'to-do', 'task', 'checkbox'], bullet_list: ['bulleted', 'bullet'],
@@ -166,13 +167,13 @@ const RENAME = { paragraph: 'Text', bullet_list: 'Bulleted list', numbered_list:
 const slashQuery = { text: '' };                     // what was typed after "/", shown at the top of the menu
 
 function slashItems(editor, onAi) {
-  const blocks = getDefaultReactSlashMenuItems(editor)
+  const blocks = [...getDefaultReactSlashMenuItems(editor)
     .filter((i) => !['heading_5', 'heading_6'].includes(i.key))
     .map((i) => ({
       ...i, badge: undefined, title: (englishEditor && RENAME[i.key]) || i.title, hint: HINT[i.key], aliases: [...(i.aliases || []), i.title, ...(MORE_ALIASES[i.key] || [])],
       group: BASIC.includes(i.key) ? 'Basic blocks' : MEDIA.includes(i.key) ? 'Media' : 'More',
-    }))
-    .sort((a, b) => GROUPS.indexOf(a.group) - GROUPS.indexOf(b.group) || (BASIC.indexOf(a.key) - BASIC.indexOf(b.key)));
+    })), ...extraSlashItems(editor)]
+    .sort((a, b) => GROUPS.indexOf(a.group) - GROUPS.indexOf(b.group) || ((BASIC.indexOf(a.key) + 1 || 99) - (BASIC.indexOf(b.key) + 1 || 99)));
   return [
     { title: 'Ask AI', subtext: 'Write, edit or explain anything', aliases: ['ai', 'write', 'generate', 'gpt'], group: 'AI', icon: <AiLogo />,
       hint: 'Ctrl J', ai: true, onItemClick: () => onAi({}) },
@@ -265,7 +266,10 @@ codeSpec.implementation.render = function render(...args) {
   out?.contentDOM?.setAttribute?.('spellcheck', 'false');
   return out;
 };
-const SCHEMA = BlockNoteSchema.create({ blockSpecs: { ...defaultBlockSpecs, codeBlock: codeSpec } });
+const SCHEMA = BlockNoteSchema.create({
+  blockSpecs: { ...defaultBlockSpecs, codeBlock: codeSpec, callout: calloutSpec(), math: mathSpec(), toc: tocSpec(), embed: embedSpec(), bookmark: bookmarkSpec(), columns: columnsSpec() },
+  inlineContentSpecs: { ...defaultInlineContentSpecs, inlineMath: inlineMathSpec },
+});
 
 /** The color-theme menu of code blocks (one choice for all code, saved in Settings) */
 function CodeThemeMenu({ value, onPick }) {
@@ -590,7 +594,15 @@ function NoteEditor({ note, dark, onChange, onReady, onAi, liveOn = false, readO
     }
   }, [editor]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const getItems = async (query) => { slashQuery.text = query; return filterSuggestionItems(slashItems(editor, onAi), query); };
+  const getItems = async (query) => {
+    slashQuery.text = query;
+    const q = query.trim().toLowerCase();
+    const found = filterSuggestionItems(slashItems(editor, onAi), query);
+    if (!q) return found;
+    // Within each group, items whose name starts with what was typed come first ("/inline equation" picks Inline equation)
+    const rank = (i) => (i.title.toLowerCase() === q ? 0 : i.title.toLowerCase().startsWith(q) ? 1 : 2);
+    return found.map((it, k) => ({ it, k })).sort((a, b) => GROUPS.indexOf(a.it.group) - GROUPS.indexOf(b.it.group) || rank(a.it) - rank(b.it) || a.k - b.k).map((x) => x.it);
+  };
 
   return (
     <div className="note-editor-wrap" ref={wrap} data-code-theme={codeTheme} style={{ '--code-bg': theme.bg, '--code-fg': theme.fg }}>

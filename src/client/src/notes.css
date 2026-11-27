@@ -739,3 +739,62 @@ html.dragging-note .group-head{outline:1px dashed var(--line-strong);outline-off
 .ph-actions .btn{display:inline-flex;align-items:center;gap:6px;flex:none}
 .ph-none{padding:20px 4px}
 @media (max-width:720px){.ph-body{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr);height:min(78vh,700px)}.ph-list{max-height:150px;border-right:0;border-bottom:1px solid var(--line);padding:0 0 6px}}
+
+/* ---------- Extra blocks: callout, equation, table of contents, embed, bookmark, columns ---------- */
+.nb-callout{display:flex;gap:10px;align-items:flex-start;width:100%;padding:12px 14px 12px 10px;border-radius:8px;background:var(--callout-bg,rgba(135,131,120,.12));border:1px solid transparent}
+.nb-callout[data-tone="gray"]{--callout-bg:rgba(135,131,120,.13)}
+.nb-callout[data-tone="brown"]{--callout-bg:rgba(159,107,83,.14)}
+.nb-callout[data-tone="red"]{--callout-bg:rgba(224,62,62,.12)}
+.nb-callout[data-tone="orange"]{--callout-bg:rgba(217,115,13,.13)}
+.nb-callout[data-tone="yellow"]{--callout-bg:rgba(223,171,1,.16)}
+.nb-callout[data-tone="green"]{--callout-bg:rgba(15,123,108,.13)}
+.nb-callout[data-tone="blue"]{--callout-bg:rgba(35,131,226,.12)}
+.nb-callout[data-tone="purple"]{--callout-bg:rgba(144,101,176,.13)}
+.nb-callout[data-tone="pink"]{--callout-bg:rgba(221,0,129,.1)}
+.nb-callout-icon{flex:none;position:relative}
+.nb-callout-icon > button{width:28px;height:28px;border:0;padding:0;border-radius:6px;background:none;font-size:1.25rem;line-height:1;cursor:pointer;display:grid;place-items:center}
+.nb-callout-icon > button:hover{background:rgba(0,0,0,.06)}
+.nb-callout-text{flex:1;min-width:0;padding-top:3px}
+.nb-math{width:100%;border-radius:8px}
+.nb-math-view{padding:10px 8px;border-radius:8px;cursor:pointer;overflow-x:auto;text-align:center;min-height:44px}
+.nb-math-view:hover,.nb-math.editing .nb-math-view{background:var(--hover)}
+.nb-math-error{color:#e03e3e;font-family:var(--mono,monospace);font-size:.85rem}
+.nb-math-edit{margin-top:6px;border:1px solid var(--line);border-radius:8px;background:var(--surface);overflow:hidden}
+.nb-math-edit textarea{display:block;width:100%;border:0;border-radius:0;resize:vertical;padding:10px 12px;font-family:var(--mono,ui-monospace,monospace);font-size:.88rem;background:var(--surface);color:var(--fg)}
+.nb-math-edit textarea:focus{box-shadow:none;outline:none}
+.nb-math-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 8px 6px 12px;border-top:1px solid var(--line);background:var(--surface-2);font-size:.76rem}
+.nb-math-bar a{color:var(--accent)}
+.nb-imath{position:relative;display:inline-block;padding:0 2px;border-radius:4px;cursor:pointer}
+.nb-imath:hover{background:var(--hover)}
+.nb-imath-pop{position:absolute;top:calc(100% + 4px);left:0;z-index:30;padding:6px;border-radius:9px;background:var(--surface);border:1px solid var(--line);box-shadow:0 8px 24px rgba(0,0,0,.16)}
+.nb-imath-pop input{width:240px;height:32px;padding:0 9px;border:1px solid var(--line);border-radius:7px;font-family:var(--mono,ui-monospace,monospace);font-size:.85rem;background:var(--surface-2);color:var(--fg)}
+.nb-toc{display:grid;gap:1px;width:100%;padding:6px 0}
+.nb-toc button{justify-self:start;max-width:100%;border:0;background:none;padding:3px 6px;border-radius:5px;color:var(--muted);text-align:start;cursor:pointer;font:inherit;font-size:.92rem;text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
+.nb-toc button:hover{background:var(--hover);color:var(--fg)}
+.nb-toc .nb-toc-2{margin-inline-start:18px}
+.nb-toc .nb-toc-3{margin-inline-start:36px}
+.nb-toc .muted{margin:0;font-size:.88rem}
+.nb-embed,.nb-bookmark{width:100%}
+.nb-embed-frame{width:100%;border-radius:10px;overflow:hidden;border:1px solid var(--line);background:var(--surface-2)}
+.nb-embed-frame iframe{width:100%;height:100%;border:0;display:block}
+.nb-embed-bar{display:flex;align-items:center;gap:10px;padding:5px 2px;font-size:.76rem}
+.nb-embed-bar a{display:inline-flex;align-items:center;gap:4px;color:var(--muted);text-decoration:none}
+.nb-embed-bar a:hover{color:var(--accent)}
+.nb-embed-bar button{margin-inline-start:auto;border:0;background:none;color:var(--muted);font:inherit;cursor:pointer;padding:2px 6px;border-radius:5px}
+.nb-embed-bar button:hover{background:var(--hover);color:var(--fg)}
+.nb-embed.empty,.nb-bookmark.empty{padding:12px;border-radius:10px;background:var(--surface-2);border:1px dashed var(--line)}
+.nb-urlform{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.nb-urlform input{flex:1;min-width:200px;height:34px;padding:0 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--fg);font:inherit;font-size:.88rem}
+.nb-urlform .muted{flex-basis:100%;font-size:.78rem;color:#e03e3e}
+.nb-urlform .muted:empty{display:none}
+a.nb-bookmark{display:flex;align-items:stretch;min-height:96px;border:1px solid var(--line);border-radius:10px;overflow:hidden;text-decoration:none;color:var(--fg);background:var(--surface)}
+a.nb-bookmark:hover{background:var(--hover)}
+.nb-bm-text{flex:1;min-width:0;display:grid;align-content:start;gap:4px;padding:12px 14px}
+.nb-bm-text b{font-size:.92rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nb-bm-desc{font-size:.8rem;color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.nb-bm-site{display:inline-flex;align-items:center;gap:5px;margin-top:2px;font-size:.76rem;color:var(--muted)}
+a.nb-bookmark img{flex:none;width:min(220px,32%);object-fit:cover;border-inline-start:1px solid var(--line)}
+.nb-cols{display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));gap:20px;width:100%}
+.nb-cols .nb-col{width:100%;min-height:72px;resize:none;border:0;border-radius:6px;padding:4px 6px;margin:0;background:none;box-shadow:none;color:var(--fg);font:inherit;line-height:1.55;overflow:hidden;border-inline-start:2px solid var(--line)}
+.nb-cols .nb-col:focus{outline:none;box-shadow:none;background:var(--hover);border-inline-start-color:var(--accent)}
+@media (max-width:640px){.nb-cols{grid-template-columns:1fr;gap:8px}a.nb-bookmark img{display:none}}

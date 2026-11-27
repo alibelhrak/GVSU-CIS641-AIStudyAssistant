@@ -106,11 +106,17 @@ const mine = (req) => {
 /** Plain text of the editor blocks (headings, lists, tables...), for search and the AI */
 export function blocksToText(blocks, depth = 0) {
   if (!Array.isArray(blocks)) return '';
-  const inline = (c) => (typeof c === 'string' ? c : Array.isArray(c) ? c.map((x) => (x?.type === 'link' ? inline(x.content) : x?.text || '')).join('') : '');
+  const inline = (c) => (typeof c === 'string' ? c : Array.isArray(c) ? c.map((x) => (x?.type === 'link' ? inline(x.content) : x?.type === 'inlineMath' ? `$${x.props?.latex || ''}$` : x?.text || '')).join('') : '');
   return blocks.map((b) => {
     const pad = '  '.repeat(depth);
     let line = '';
-    if (b?.type === 'table') {
+    if (b?.type === 'math') line = `$$${b.props?.latex || ''}$$`;
+    else if (b?.type === 'embed') line = b.props?.url || '';
+    else if (b?.type === 'bookmark') line = [b.props?.title, b.props?.description, b.props?.url].filter(Boolean).join(' - ');
+    else if (b?.type === 'columns') { try { line = JSON.parse(b.props?.cols || '[]').filter(Boolean).join('\n'); } catch { line = ''; } }
+    else if (b?.type === 'toc') line = '';
+    else if (b?.type === 'callout') { const t = inline(b?.content); line = t ? `> ${b.props?.emoji || ''} ${t}` : ''; }
+    else if (b?.type === 'table') {
       line = (b.content?.rows || []).map((row) => row.cells.map((cell) => inline(cell?.content || cell)).join(' | ')).join('\n');
     } else {
       const t = inline(b?.content);
