@@ -1002,7 +1002,6 @@
 "Shared with me": "与我共享",
 "Study groups": "学习小组",
 "The link may be wrong, or the owner turned sharing off.": "链接可能有误，或者所有者已关闭共享。",
-"They need a StudyPilot account with this email. The page appears in their notes under \"Shared with me\".": "对方需要用这个邮箱注册 StudyPilot 账号。页面会出现在对方笔记的“与我共享”中。",
 "This page is not shared": "此页面未共享",
 "What is it for? (optional)": "用途？（可选）",
 "What they can do": "对方的权限",
@@ -1016,5 +1015,7 @@
 "you": "你",
 "{n} people on this page": "此页面有 {n} 人",
 "Rename folder": "重命名文件夹",
-"No courses yet": "还没有课程"
+"No courses yet": "还没有课程",
+"They need a StudyPilot account with this email. They get an email with a link, and the page appears in their notes under \"Shared with me\".": "对方需要用这个邮箱注册 StudyPilot 账号。对方会收到一封带链接的邮件，页面也会出现在对方笔记的“与我共享”中。",
+"Only people with a StudyPilot account can be added. They get an email with a link to the group.": "只能添加有 StudyPilot 账号的人。对方会收到一封带小组链接的邮件。"
 }

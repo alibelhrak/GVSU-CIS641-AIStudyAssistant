@@ -101,7 +101,7 @@ export function ShareDialog({ note, onClose, onChanged, onLeft, notify }) {
               </select>
               <button className="btn primary" type="submit" disabled={busy || !email.trim()}>Invite</button>
             </form>
-            <p className="note share-hint">They need a StudyPilot account with this email. The page appears in their notes under "Shared with me".</p>
+            <p className="note share-hint">They need a StudyPilot account with this email. They get an email with a link, and the page appears in their notes under "Shared with me".</p>
             {error && <p className="error-box">{error}</p>}
 
             <div className="share-list">

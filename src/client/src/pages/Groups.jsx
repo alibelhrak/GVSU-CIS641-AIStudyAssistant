@@ -338,7 +338,7 @@ function Members({ g, setG, notify }) {
         <button className="btn sm" type="submit" disabled={busy || !email.trim()}>Add</button>
       </form>
       {error && <p className="error-box">{error}</p>}
-      <p className="note">Only people with a StudyPilot account can be added.</p>
+      <p className="note">Only people with a StudyPilot account can be added. They get an email with a link to the group.</p>
     </section>
   );
 }

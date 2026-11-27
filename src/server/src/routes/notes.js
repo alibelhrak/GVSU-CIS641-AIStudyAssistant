@@ -18,6 +18,7 @@ import { config, chatEnabled } from '../config.js';
 import { thinkFilter } from './chat.js';
 import notesChat from './notesChat.js';
 import { langOf, LANG_NAMES } from '../i18n.js';
+import { notifyPageShared } from '../services/invites.js';
 import { fetchLLM, isGarbled } from '../services/llmGuard.js';
 
 const r = Router();
@@ -396,6 +397,8 @@ r.post('/:id/share', h(async (req, res) => {
     note.shares.push({ user: user._id, role });
   }
   await note.save();
+  // Tell the new person by email (and push), without making the owner wait
+  if (!old) notifyPageShared({ toId: user._id, fromId: req.userId, note, role });
   res.json(await sharingOf(note, req.userId));
 }));
 

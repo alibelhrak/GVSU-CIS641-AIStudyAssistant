@@ -990,7 +990,6 @@
 "Shared with me": "Partagé avec moi",
 "Study groups": "Groupes d’étude",
 "The link may be wrong, or the owner turned sharing off.": "Le lien est peut-être incorrect, ou le propriétaire a désactivé le partage.",
-"They need a StudyPilot account with this email. The page appears in their notes under \"Shared with me\".": "Il faut un compte StudyPilot avec cet e-mail. La page apparaît dans ses notes sous « Partagé avec moi ».",
 "This page is not shared": "Cette page n’est pas partagée",
 "Type": "Type",
 "What is it for? (optional)": "À quoi sert-il ? (facultatif)",
@@ -1005,5 +1004,7 @@
 "you": "vous",
 "{n} people on this page": "{n} personnes sur cette page",
 "Rename folder": "Renommer le dossier",
-"No courses yet": "Aucun cours pour l’instant"
+"No courses yet": "Aucun cours pour l’instant",
+"They need a StudyPilot account with this email. They get an email with a link, and the page appears in their notes under \"Shared with me\".": "Il faut un compte StudyPilot avec cet e-mail. La personne reçoit un e-mail avec un lien, et la page apparaît dans ses notes sous « Partagé avec moi ».",
+"Only people with a StudyPilot account can be added. They get an email with a link to the group.": "Seules les personnes ayant un compte StudyPilot peuvent être ajoutées. Elles reçoivent un e-mail avec un lien vers le groupe."
 }

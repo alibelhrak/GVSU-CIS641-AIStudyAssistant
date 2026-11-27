@@ -118,6 +118,7 @@ All routes start with `/api`. Every route except `/auth/*` and `/health` needs t
 - **Live editing** (`server/src/services/collab.js`): a WebSocket at `/api/collab/:noteId?token=` speaks the [y-websocket](https://github.com/yjs/y-websocket) protocol. The server checks the token and the role (401 / 403), keeps one Yjs document per open page in memory, relays changes and cursors, and ignores changes sent by viewers. A room is dropped 30 seconds after the last person leaves. Only shared pages use it (409 otherwise); private pages keep the normal save.
 - **First load:** when a room starts empty, the first editor to ask `POST /notes/:id/collab/seed` fills it from the saved page; the others wait for it. Editors keep saving the page through `PATCH /notes/:id` as before, so the database always has the latest copy and the AI features, search and the public link keep working.
 - **Browser** (`client/src/lib/live.js`): `y-websocket`'s `WebsocketProvider` and BlockNote's `withCollaboration()` (cursors and names). The title, icon and cover go through a shared Yjs map. If the socket can't connect in 9 seconds, the page falls back to normal saving and says so.
+- **Invite emails** (`server/src/services/invites.js`): inviting someone to a page (not changing their role) or adding them to a group sends them an email through Brevo, in their own language, with a button to the page or group, plus a push notification if they turned those on. It runs in the background, so a failed email never blocks the invite.
 - **Hosting:** Render's free plan supports WebSockets. The rooms live in one server's memory, so running several server copies would need a shared Yjs backend (e.g. Redis); one copy is fine for this project.
 
 ## Reminders (email and push)
@@ -178,6 +179,7 @@ src/
     src/services/mailer.js password reset and reminder emails (Brevo)
     src/services/access.js who may open or edit a note page
     src/services/collab.js live co-editing over WebSocket (Yjs)
+    src/services/invites.js invite emails for shared pages and study groups
     src/services/trash.js  moving to the Trash, restoring, and deleting for good after 30 days
     src/services/reminders.js  morning summary, deadline, session and weekly reminders (email and push)
     test/engine.test.js    unit tests for the rules

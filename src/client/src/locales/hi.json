@@ -1095,7 +1095,6 @@
 "Shared with me": "मेरे साथ साझा",
 "Study groups": "स्टडी ग्रुप",
 "The link may be wrong, or the owner turned sharing off.": "लिंक गलत हो सकता है, या मालिक ने शेयर करना बंद कर दिया है।",
-"They need a StudyPilot account with this email. The page appears in their notes under \"Shared with me\".": "उनके पास इस ईमेल से StudyPilot खाता होना चाहिए। पेज उनके नोट्स में \"मेरे साथ साझा\" में दिखेगा।",
 "This page is not shared": "यह पेज साझा नहीं है",
 "What is it for? (optional)": "यह किसलिए है? (वैकल्पिक)",
 "What they can do": "वे क्या कर सकते हैं",
@@ -1109,5 +1108,7 @@
 "you": "आप",
 "{n} people on this page": "इस पेज पर {n} लोग",
 "Rename folder": "फ़ोल्डर का नाम बदलें",
-"No courses yet": "अभी कोई कोर्स नहीं"
+"No courses yet": "अभी कोई कोर्स नहीं",
+"They need a StudyPilot account with this email. They get an email with a link, and the page appears in their notes under \"Shared with me\".": "उनके पास इस ईमेल से StudyPilot खाता होना चाहिए। उन्हें लिंक के साथ एक ईमेल मिलेगा, और पेज उनके नोट्स में \"मेरे साथ साझा\" में दिखेगा।",
+"Only people with a StudyPilot account can be added. They get an email with a link to the group.": "केवल StudyPilot खाते वाले लोग जोड़े जा सकते हैं। उन्हें ग्रुप के लिंक के साथ एक ईमेल मिलेगा।"
 }

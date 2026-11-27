@@ -1003,7 +1003,6 @@
 "Shared with me": "تمت مشاركتها معي",
 "Study groups": "مجموعات الدراسة",
 "The link may be wrong, or the owner turned sharing off.": "قد يكون الرابط خاطئًا، أو أوقف المالك المشاركة.",
-"They need a StudyPilot account with this email. The page appears in their notes under \"Shared with me\".": "يجب أن يكون لديه حساب StudyPilot بهذا البريد. تظهر الصفحة في ملاحظاته تحت «تمت مشاركتها معي».",
 "This page is not shared": "هذه الصفحة غير مشتركة",
 "What is it for? (optional)": "ما الغرض منها؟ (اختياري)",
 "What they can do": "ما يمكنهم فعله",
@@ -1017,5 +1016,7 @@
 "you": "أنت",
 "{n} people on this page": "{n} أشخاص في هذه الصفحة",
 "Rename folder": "إعادة تسمية المجلد",
-"No courses yet": "لا توجد مقررات بعد"
+"No courses yet": "لا توجد مقررات بعد",
+"They need a StudyPilot account with this email. They get an email with a link, and the page appears in their notes under \"Shared with me\".": "يجب أن يكون لديه حساب StudyPilot بهذا البريد. يصله بريد إلكتروني برابط، وتظهر الصفحة في ملاحظاته تحت «تمت مشاركتها معي».",
+"Only people with a StudyPilot account can be added. They get an email with a link to the group.": "يمكن إضافة من لديهم حساب في StudyPilot فقط. يصلهم بريد إلكتروني برابط إلى المجموعة."
 }

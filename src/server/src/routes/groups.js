@@ -6,6 +6,7 @@
 import { Router } from 'express';
 import mongoose from 'mongoose';
 import { Group, GroupMessage, GroupTask, Note, User, TASK_TYPES } from '../models/index.js';
+import { notifyGroupAdded } from '../services/invites.js';
 import { h, HttpError } from '../middleware/error.js';
 
 const r = Router();
@@ -143,6 +144,7 @@ r.post('/:id/members', h(async (req, res) => {
   if (await Group.countDocuments({ 'members.user': user._id }) >= MAX_GROUPS) throw new HttpError(400, 'They are already in too many groups');
   group.members.push({ user: user._id, role: 'member' });
   await group.save();
+  notifyGroupAdded({ toId: user._id, fromId: req.userId, group });   // email + push, in the background
   res.json(await view(group, req.userId));
 }));
 
