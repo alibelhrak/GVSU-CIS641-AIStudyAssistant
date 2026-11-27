@@ -257,9 +257,10 @@ export const GroupTask = model('GroupTask', new Schema({
 /** A report about a shared page or a group chat message, for the app's moderator to review */
 export const REPORT_REASONS = ['harassment', 'hate', 'sexual', 'violence', 'spam', 'privacy', 'cheating', 'other'];
 export const Report = model('Report', new Schema({
-  kind: { type: String, enum: ['page', 'message'], required: true },
+  kind: { type: String, enum: ['page', 'message', 'note_message'], required: true },
   note: { type: Schema.Types.ObjectId, ref: 'Note', default: null },
   message: { type: Schema.Types.ObjectId, ref: 'GroupMessage', default: null },
+  noteMessage: { type: Schema.Types.ObjectId, ref: 'NoteMessage', default: null },   // a message in a page's chat
   group: { type: Schema.Types.ObjectId, ref: 'Group', default: null },
   author: { type: Schema.Types.ObjectId, ref: 'User', default: null },     // who wrote the reported content
   reporter: { type: Schema.Types.ObjectId, ref: 'User', default: null },   // null: someone without an account (public link)
@@ -295,3 +296,21 @@ export const GroupMeeting = model('GroupMeeting', new Schema({
   zoomId: { type: String, default: '' },
   passcode: { type: String, default: '', maxlength: 40 },
 }, opts).index({ group: 1, start: 1 }));
+
+/** Earlier versions of a note page, saved automatically, so a page can be restored after a mistake */
+export const NoteVersion = model('NoteVersion', new Schema({
+  note: ref('Note'),
+  user: { type: Schema.Types.ObjectId, ref: 'User', default: null },   // whose change came next (who "caused" the save)
+  title: { type: String, default: '' },
+  icon: { type: String, default: '' },
+  content: { type: Schema.Types.Mixed, default: [] },
+  length: { type: Number, default: 0 },                                 // characters of text, to show "1,240 characters"
+  reason: { type: String, enum: ['auto', 'shrink'], default: 'auto' },  // shrink: saved just before a big part was removed
+}, { timestamps: true }).index({ note: 1, createdAt: -1 }));
+
+/** The chat on a shared note page: everyone who can open the page can read and write it */
+export const NoteMessage = model('NoteMessage', new Schema({
+  note: ref('Note'),
+  user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  text: { type: String, required: true, trim: true, maxlength: 2000 },
+}, { timestamps: true }).index({ note: 1, createdAt: -1 }));

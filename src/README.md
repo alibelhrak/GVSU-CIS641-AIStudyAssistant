@@ -117,6 +117,8 @@ All routes start with `/api`. Every route except `/auth/*` and `/health` needs t
 | `GET /zoom/status`, `POST`/`DELETE /zoom/link` | Is Zoom set up and linked; start linking (returns Zoom's address); unlink (revokes the token) |
 | `GET /zoom/callback`, `POST /zoom/webhook` | **No login**: where Zoom sends the student back after linking (signed `state`), and Zoom's events (signed with `ZOOM_WEBHOOK_SECRET`: endpoint check and "app deauthorized") |
 | `/groups/:id/meetings` | `GET` upcoming and live meetings; `POST { topic, start?, duration, link? }` (no `start` = now; no `link` = a new Zoom meeting from my account); `GET /:mid/start` (the host link, only for whoever made it); `DELETE /:mid` (its maker or the group owner; also cancels it on Zoom, and emails a calendar cancellation); `GET /:mid/ics` (the meeting as a `.ics` file) |
+| `/notes/:id/messages` | The chat on a shared page (409 when the page is not shared): `GET ?after=`, `POST { text }`, `DELETE /:mid` (your own; the page owner can delete any) |
+| `/notes/:id/versions` | Page history (owner and editors): `GET` the list, `GET /:vid` one version, `POST` keep a copy now (the app calls it before restoring) |
 | `WS /collab/:noteId?token=` | Live co-editing (WebSocket, Yjs protocol); see below |
 | `/conversations` | Chat history: list (`GET`), open (`GET /:id`), save (`POST`, `PATCH /:id`) and delete (`DELETE /:id`) |
 
@@ -128,6 +130,8 @@ All routes start with `/api`. Every route except `/auth/*` and `/health` needs t
 - **Browser** (`client/src/lib/live.js`): `y-websocket`'s `WebsocketProvider` and BlockNote's `withCollaboration()` (cursors and names). The title, icon and cover go through a shared Yjs map. If the socket can't connect in 9 seconds, the page falls back to normal saving and says so.
 - **Invite emails** (`server/src/services/invites.js`): inviting someone to a page (not changing their role) or adding them to a group sends them an email through Brevo, in their own language, with a button to the page or group, plus a push notification if they turned those on. It runs in the background, so a failed email never blocks the invite.
 - **Reports** (`server/src/routes/reports.js`): the 🚩 button sends `POST /api/reports`. A page can be reported by anyone it is shared with (or anyone, from its public link); a chat message by the other members of the group. Each report is saved with a copy of the content and emailed to `REPORT_EMAIL` (or `MAIL_FROM`). The email's **Review and take it down** button opens a page signed with `JWT_SECRET`; confirming there unshares the page (its owner keeps it, its public link stops) or deletes the message. This covers Microsoft Store policy 11.12 and Google Play's user-generated content policy, together with the community guidelines page at `/guidelines`.
+- **Page history** (`server/src/services/versions.js`): before a save, the server keeps a `NoteVersion` of the page when the save removes 40 % or more of a page of 200+ characters, and at most every 15 minutes otherwise (40 per page, 60 days). Restoring goes through the editor (`replaceBlocks`), so it reaches live editors and Ctrl+Z works.
+- **Notes AI safety** (`routes/notesChat.js`): `replace_page` is refused when the model only saw part of the page, or when the new page is much shorter than the old one; changes cut off by the token limit are not applied; long tool arguments are summarized before the follow-up request.
 - **Hosting:** Render's free plan supports WebSockets. The rooms live in one server's memory, so running several server copies would need a shared Yjs backend (e.g. Redis); one copy is fine for this project.
 
 ## Zoom meetings
@@ -203,7 +207,7 @@ src/
     src/index.js           start-up: connects to MongoDB, starts the server
     src/app.js             routes; also serves the built app online
     src/config.js          reads the settings above
-    src/models/            Mongoose models: User, Course, Task, StudySession, StudyLog, Material, Recommendation, Conversation, Note, Folder, Group, GroupMessage, GroupTask, GroupMeeting, ZoomLink, Report, TrashItem, Feedback, PushSub, ReminderLog
+    src/models/            Mongoose models: User, Course, Task, StudySession, StudyLog, Material, Recommendation, Conversation, Note, Folder, Group, GroupMessage, GroupTask, GroupMeeting, ZoomLink, Report, NoteVersion, NoteMessage, TrashItem, Feedback, PushSub, ReminderLog
     src/routes/            auth, courses, tasks, sessions, logs, materials, recommendations, chat, conversations, notes (and the notes AI), notesChat (the Notes AI panel), groups (study groups), public (pages shared to the web)
     src/services/recommendationEngine.js   rules: study gap, ranking, session plan
     src/services/llm.js    recommendation text from the model, with rule-based fallback
@@ -216,6 +220,7 @@ src/
     src/services/zoom.js   linking Zoom (encrypted tokens) and calling Zoom's API
     src/routes/zoom.js     link / unlink Zoom, the OAuth callback and Zoom's webhook
     src/routes/reports.js  reporting shared content, and the moderator's take-down link
+    src/services/versions.js  page history (copies before big removals and every 15 minutes)
     src/services/trash.js  moving to the Trash, restoring, and deleting for good after 30 days
     src/services/reminders.js  morning summary, deadline, session and weekly reminders (email and push)
     test/engine.test.js    unit tests for the rules
@@ -223,7 +228,7 @@ src/
     public/                logo, app icons, manifest.webmanifest, sw.js (installable app)
     public/.well-known/assetlinks.json   proves to Android that the Google Play app and this website belong together
     src/App.jsx            sidebar, pages and routes
-    src/pages/             Landing, Login, ForgotPassword, Dashboard, Courses, Tasks, Schedule, Materials, Notes, NoteAI (AI inside notes), NotesChat (the Notes AI panel), NoteShare (Share window, faces), Groups (study groups), PublicNote (read-only public page), Report (the report window), GroupMeetings (the Meetings panel), Terms, Guidelines (community guidelines), Privacy, Chat (Ask AI)
+    src/pages/             Landing, Login, ForgotPassword, Dashboard, Courses, Tasks, Schedule, Materials, Notes, NoteAI (AI inside notes), NotesChat (the Notes AI panel), NoteShare (Share window, faces), Groups (study groups), PublicNote (read-only public page), Report (the report window), PageChat (chat on a shared page), PageHistory, EmojiPicker, NoteLink (link toolbar), GroupMeetings (the Meetings panel), Terms, Guidelines (community guidelines), Privacy, Chat (Ask AI)
     src/lib/               api helper, login state, data store, themes, dates, install.jsx (Download app button), runCode.js (Run in code blocks), trash.jsx (Trash window), avatar.jsx (profile picture), resize.jsx (drag to resize), live.js (live co-editing)
     src/run/               the Python (Pyodide) and SQL (SQLite) workers
     src/styles.css         design, the four themes and the scrollbars

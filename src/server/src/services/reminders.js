@@ -14,6 +14,7 @@ import { buildCandidates, addDays, daysBetween } from './recommendationEngine.js
 import { sendMail } from './mailer.js';
 import { tr, trn, kindName, dirOf, LOCALES } from '../i18n.js';
 import { purgeOld } from './trash.js';
+import { purgeOldVersions } from './versions.js';
 
 // A wrong key must not stop the whole server: push is then simply off
 let pushReady = false;
@@ -254,6 +255,7 @@ export async function runReminders(now = new Date()) {
   // Sign-ups whose email was never confirmed are removed after 7 days (they hold no data)
   await User.deleteMany({ emailVerified: false, createdAt: { $lt: new Date(now.getTime() - 7 * 86400000) } }).catch(() => {});
   await purgeOld(now).catch(() => {});   // Trash items older than 30 days
+  await purgeOldVersions().catch(() => {});   // page history older than 60 days
   const users = await User.find({ $or: [{ 'reminders.daily': true }, { 'reminders.deadlines': true }, { 'reminders.sessions': true }, { 'reminders.weekly': true }] });
   const report = { users: users.length, sent: 0, errors: 0 };
   for (const user of users) {

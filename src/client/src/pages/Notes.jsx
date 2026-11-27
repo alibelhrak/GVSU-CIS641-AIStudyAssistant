@@ -10,8 +10,14 @@ import { en, fr, es, ar, zh } from '@blocknote/core/locales';
 import { getLang, locale, t } from '../lib/i18n.jsx';
 import {
   useCreateBlockNote, SuggestionMenuController, getDefaultReactSlashMenuItems,
-  FormattingToolbarController, FormattingToolbar, getFormattingToolbarItems, useComponentsContext,
+  FormattingToolbarController, FormattingToolbar, getFormattingToolbarItems, useComponentsContext, LinkToolbarController,
 } from '@blocknote/react';
+import EmojiPicker from './EmojiPicker.jsx';
+import NoteLinkToolbar from './NoteLink.jsx';
+import PageChat, { usePageChatUnread } from './PageChat.jsx';
+import PageHistory from './PageHistory.jsx';
+// The link toolbar opens under the link, like in Notion (above it, it was cut off near the top of a page)
+const LINK_TOOLBAR_POSITION = { useFloatingOptions: { placement: 'bottom-start' } };
 import { BlockNoteView } from '@blocknote/mantine';
 import '@blocknote/mantine/style.css';
 import { api, getToken } from '../lib/api.js';
@@ -38,8 +44,6 @@ import '../notes.css';
  * "Ask AI" opens a chat panel next to the page that can read and edit it (see NotesChat.jsx).
  */
 
-const EMOJIS = ['📘', '📗', '📕', '📙', '📓', '📒', '📝', '📄', '📚', '🧠', '💡', '🎯', '✅', '⭐', '🔥', '📌',
-  '🧪', '🧮', '📊', '📈', '🧬', '🔬', '📐', '💻', '🤖', '⚙️', '🌍', '🗣️', '🎨', '🎵', '🗓️', '❓'];
 
 const TEMPLATES = [
   { id: 'blank', icon: '📄', title: '', label: 'Empty page', text: 'Start from nothing', blocks: [] },
@@ -612,7 +616,8 @@ function NoteEditor({ note, dark, onChange, onReady, onAi, liveOn = false, readO
         if (liveOn && !ready.current) { if (!isBlank(editor.document) && liveStatus === 'synced') ready.current = true; else return; }
         onChange(editor.document); scheduleAI();
       }}
-      slashMenu={false} formattingToolbar={false}>
+      slashMenu={false} formattingToolbar={false} linkToolbar={false}>
+      <LinkToolbarController linkToolbar={NoteLinkToolbar} floatingUIOptions={LINK_TOOLBAR_POSITION} />
       <SuggestionMenuController triggerCharacter="/" getItems={getItems} suggestionMenuComponent={SlashMenu} />
       <FormattingToolbarController formattingToolbar={() => (
         <FormattingToolbar>
@@ -968,6 +973,8 @@ export default function Notes() {
     try { localStorage.setItem('notes-ai-open', next ? '1' : '0'); } catch { /* ignore */ }
     return next;
   });
+  const [pchatOpen, setPchatOpen] = useState(false);     // the chat on a shared page
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [entering, setEntering] = useState(false);    // blocks fade in one after another when a page opens                 // the AI writer: { ctx, start, key }
 
   const editorRef = useRef(null);
@@ -1019,7 +1026,7 @@ export default function Notes() {
 
   useEffect(() => {
     flush();
-    setEmojiOpen(false); setDelOpen(false); setStatus(''); setAi(null); setCoverOpen(false); setShareOpen(false); setReporting(false); setPeople([]);
+    setEmojiOpen(false); setDelOpen(false); setStatus(''); setAi(null); setCoverOpen(false); setShareOpen(false); setReporting(false); setHistoryOpen(false); setPeople([]);
     editorRef.current = null;
     if (!id) { setCurrent(null); return; }
     setLoadingNote(true);
@@ -1210,6 +1217,8 @@ export default function Notes() {
   const owner = !current?.role || current.role === 'owner';
   const viewer = current?.role === 'viewer';
   const liveOn = Boolean(current?.shared) && !liveOff.has(current?.id);
+  const isSharedPage = Boolean(current?.shared);
+  const unread = usePageChatUnread(current?.id, isSharedPage, pchatOpen);
   const sharingChanged = (d) => {
     const on = d.shares.length > 0 || d.groups.length > 0;
     setCurrent((c) => (c ? { ...c, shared: on, publicId: d.publicId } : c));
@@ -1400,8 +1409,19 @@ export default function Notes() {
                   </button>
                 </>
               )}
+              {isSharedPage && (
+                <button className={`btn sm pchat-btn ${pchatOpen ? 'on' : ''}`} type="button" onClick={() => { setPchatOpen((v) => !v); setChatOpen(false); }} aria-pressed={pchatOpen}
+                  title="Chat with everyone on this page">
+                  <Icon name="chat" size={15} /> Chat{unread > 0 && <span className="pchat-badge" aria-label={t('{n} new messages', { n: unread })}>{unread > 9 ? '9+' : unread}</span>}
+                </button>
+              )}
               {!viewer && (
-                <button className={`btn sm ai-btn ${chatOpen ? 'on' : ''}`} type="button" onClick={() => setChatOpen((v) => !v)} aria-pressed={chatOpen}
+                <button className="icon-btn" type="button" onClick={() => setHistoryOpen(true)} title="Page history: see and restore earlier versions" aria-label="Page history">
+                  <Icon name="history" size={16} />
+                </button>
+              )}
+              {!viewer && (
+                <button className={`btn sm ai-btn ${chatOpen ? 'on' : ''}`} type="button" onClick={() => { setChatOpen((v) => !v); setPchatOpen(false); }} aria-pressed={chatOpen}
                   title="Chat with AI about this page. It can edit the page for you.">
                   <img src="/logo.png" alt="" width={16} height={16} /> Ask AI
                 </button>
@@ -1439,12 +1459,8 @@ export default function Notes() {
                 <div className="note-icon-row">
                   <div className="pop-wrap">
                     <button type="button" className="note-icon" onClick={() => setEmojiOpen((v) => !v)} aria-label="Change icon">{current.icon}</button>
-                    {emojiOpen && (
-                      <div className="pop-menu emoji-grid">
-                        {EMOJIS.map((e) => <button key={e} type="button" onClick={() => { setMeta({ icon: e }, true); setEmojiOpen(false); }}>{e}</button>)}
-                        <button type="button" className="emoji-remove" onClick={() => { setMeta({ icon: '' }, true); setEmojiOpen(false); }}>Remove</button>
-                      </div>
-                    )}
+                    {emojiOpen && <EmojiPicker onPick={(e) => { setMeta({ icon: e }, true); setEmojiOpen(false); }}
+                      onRemove={() => { setMeta({ icon: '' }, true); setEmojiOpen(false); }} onClose={() => setEmojiOpen(false)} />}
                   </div>
                 </div>
               )}
@@ -1452,11 +1468,7 @@ export default function Notes() {
                 {!current.icon && (
                   <div className="pop-wrap">
                     <button type="button" className="add-icon" onClick={() => setEmojiOpen((v) => !v)}><Icon name="smile" size={15} /> Add icon</button>
-                    {emojiOpen && (
-                      <div className="pop-menu emoji-grid">
-                        {EMOJIS.map((e) => <button key={e} type="button" onClick={() => { setMeta({ icon: e }, true); setEmojiOpen(false); }}>{e}</button>)}
-                      </div>
-                    )}
+                    {emojiOpen && <EmojiPicker onPick={(e) => { setMeta({ icon: e }, true); setEmojiOpen(false); }} onClose={() => setEmojiOpen(false)} />}
                   </div>
                 )}
                 {!coverStyle(current) && (
@@ -1512,6 +1524,8 @@ export default function Notes() {
       {chatOpen && current && !viewer && (
         <NotesChat note={current} getEditor={() => editorRef.current} notify={notify} onClose={() => setChatOpen(false)} />
       )}
+      {pchatOpen && current && isSharedPage && !chatOpen && <PageChat key={current.id} note={current} notify={notify} onClose={() => setPchatOpen(false)} />}
+      {historyOpen && current && <PageHistory note={current} dark={dark} getEditor={() => editorRef.current} notify={notify} onClose={() => setHistoryOpen(false)} />}
     </div>
   );
 }

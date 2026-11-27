@@ -9,8 +9,9 @@
 import { Router } from 'express';
 import mongoose from 'mongoose';
 import crypto from 'node:crypto';
-import { Note, Course, Feedback, Folder, User, Group } from '../models/index.js';
-import { noteAccess, canEdit, groupIdsOf } from '../services/access.js';
+import { Note, Course, Feedback, Folder, User, Group, NoteVersion, NoteMessage } from '../models/index.js';
+import { snapshotBefore } from '../services/versions.js';
+import { noteAccess, canEdit, groupIdsOf, isShared } from '../services/access.js';
 import { claimSeed, seedDone, closeRoom } from '../services/collab.js';
 import { moveToTrash } from '../services/trash.js';
 import { h, HttpError } from '../middleware/error.js';
@@ -349,10 +350,73 @@ r.patch('/:id', h(async (req, res) => {
   let data = pick(req.body);
   if (role === 'owner') await checkRefs(req.userId, data, req.params.id);
   else data = Object.fromEntries(Object.entries(data).filter(([k]) => EDITOR_FIELDS.includes(k)));
+  if (data.content !== undefined) await snapshotBefore(found._id, req.userId, data.text);   // page history (before a big removal, and every 15 min)
   const note = await Note.findByIdAndUpdate(found._id, data, { new: true, runValidators: true });
   const { content, text, cover, ...meta } = note.toJSON();   // the editor already has these
   if (role !== 'owner') Object.assign(meta, { course: null, folder: null, parent: null, favorite: false, publicId: undefined, shares: undefined, groups: undefined });
   res.json({ ...meta, role });
+}));
+
+// ---------- Page history ----------
+r.get('/:id/versions', h(async (req, res) => {
+  const { note, role } = await noteAccess(req.params.id, req.userId, '_id');
+  if (!canEdit(role)) throw new HttpError(404, 'Note not found');
+  const list = await NoteVersion.find({ note: note._id }).sort({ createdAt: -1 }).select('user length reason createdAt title icon').lean();
+  const names = new Map((await User.find({ _id: { $in: list.map((v) => v.user).filter(Boolean) } }).select('name').lean()).map((u) => [String(u._id), u.name]));
+  res.json(list.map((v) => ({ id: String(v._id), at: v.createdAt, length: v.length, reason: v.reason, title: v.title, icon: v.icon,
+    by: v.user ? (String(v.user) === String(req.userId) ? 'you' : names.get(String(v.user)) || '') : '' })));
+}));
+
+// Keep a copy of the page as it is now (the app calls this just before restoring an older version)
+r.post('/:id/versions', h(async (req, res) => {
+  const { note, role } = await noteAccess(req.params.id, req.userId, '_id');
+  if (!canEdit(role)) throw new HttpError(404, 'Note not found');
+  await snapshotBefore(note._id, req.userId, null, { force: true });
+  res.status(201).json({ ok: true });
+}));
+
+r.get('/:id/versions/:vid', h(async (req, res) => {
+  const { note, role } = await noteAccess(req.params.id, req.userId, '_id');
+  if (!canEdit(role) || !mongoose.isValidObjectId(req.params.vid)) throw new HttpError(404, 'Version not found');
+  const v = await NoteVersion.findOne({ _id: req.params.vid, note: note._id }).lean();
+  if (!v) throw new HttpError(404, 'Version not found');
+  res.json({ id: String(v._id), at: v.createdAt, title: v.title, icon: v.icon, content: v.content || [] });
+}));
+
+// ---------- Page chat (only on shared pages; everyone who can open the page) ----------
+const chatMsg = (m, u, me) => ({ id: String(m._id), text: m.text, at: m.createdAt, me: String(m.user) === String(me),
+  user: { id: String(m.user), name: u?.name || 'Former member', avatar: u?.avatar || '' } });
+async function chatAccess(req) {
+  const { note, role } = await noteAccess(req.params.id, req.userId, '_id');
+  if (!role) throw new HttpError(404, 'Note not found');
+  if (!isShared(note)) throw new HttpError(409, 'Share the page to chat about it');
+  return { note, role };
+}
+r.get('/:id/messages', h(async (req, res) => {
+  const { note } = await chatAccess(req);
+  const q = { note: note._id };
+  const after = req.query.after ? new Date(String(req.query.after)) : null;
+  if (after && !Number.isNaN(after.getTime())) q.createdAt = { $gt: after };
+  const list = (await NoteMessage.find(q).sort({ createdAt: -1 }).limit(after ? 200 : 100).lean()).reverse();
+  const people = new Map((await User.find({ _id: { $in: [...new Set(list.map((m) => String(m.user)))] } }).select('name avatar').lean()).map((u) => [String(u._id), u]));
+  res.json(list.map((m) => chatMsg(m, people.get(String(m.user)), req.userId)));
+}));
+r.post('/:id/messages', h(async (req, res) => {
+  const { note } = await chatAccess(req);
+  const text = typeof req.body?.text === 'string' ? req.body.text.trim().slice(0, 2000) : '';
+  if (!text) throw new HttpError(400, 'Write a message');
+  const m = await NoteMessage.create({ note: note._id, user: req.userId, text });
+  const me = await User.findById(req.userId).select('name avatar').lean();
+  res.status(201).json(chatMsg(m, me, req.userId));
+}));
+r.delete('/:id/messages/:mid', h(async (req, res) => {
+  const { note, role } = await chatAccess(req);
+  if (!mongoose.isValidObjectId(req.params.mid)) throw new HttpError(404, 'Message not found');
+  const m = await NoteMessage.findOne({ _id: req.params.mid, note: note._id });
+  if (!m) throw new HttpError(404, 'Message not found');
+  if (String(m.user) !== String(req.userId) && role !== 'owner') throw new HttpError(403, 'You can only delete your own messages');
+  await m.deleteOne();
+  res.json({ ok: true });
 }));
 
 // ---------- Sharing (the owner decides; people shared with can leave) ----------

@@ -10,7 +10,7 @@
 import crypto from 'node:crypto';
 import express, { Router } from 'express';
 import { config } from '../config.js';
-import { Group, GroupMessage, Note, Report, REPORT_REASONS, User } from '../models/index.js';
+import { Group, GroupMessage, Note, NoteMessage, Report, REPORT_REASONS, User } from '../models/index.js';
 import { h, HttpError } from '../middleware/error.js';
 import { userFromToken } from '../middleware/auth.js';
 import { roleOn } from '../services/access.js';
@@ -53,7 +53,7 @@ async function emailModerator(report) {
     report.reporter ? User.findById(report.reporter).select('name email').lean() : null,
     report.group ? Group.findById(report.group).select('name').lean() : null,
   ]);
-  const what = report.kind === 'page' ? 'a shared note page' : `a message in the study group "${group?.name || '?'}"`;
+  const what = report.kind === 'page' ? 'a shared note page' : report.kind === 'note_message' ? 'a message in a shared page\'s chat' : `a message in the study group "${group?.name || '?'}"`;
   const link = `${config.appUrl}/api/reports/${report._id}/moderate?sig=${signature(report._id)}`;
   const rows = [
     ['Reported', what],
@@ -92,7 +92,7 @@ r.post('/', h(async (req, res) => {
     const note = await Note.findOne({ publicId: target }).select('title text markdown user').lean();
     if (!note) throw new HttpError(404, 'This page is not shared (anymore)');
     Object.assign(report, { kind: 'page', via: 'public', note: note._id, author: note.user, snapshot: `${note.title || 'Untitled'}\n\n${note.text || note.markdown || ''}` });
-  } else if (kind === 'page' || kind === 'message') {
+  } else if (kind === 'page' || kind === 'message' || kind === 'note_message') {
     if (!userId) throw new HttpError(401, 'Sign in required');
     if (!/^[a-f0-9]{24}$/.test(target)) throw new HttpError(404, 'Not found');
     if (kind === 'page') {
@@ -101,6 +101,12 @@ r.post('/', h(async (req, res) => {
       if (!role) throw new HttpError(404, 'Note not found');
       if (role === 'owner') throw new HttpError(400, 'This is your own page');
       Object.assign(report, { kind: 'page', note: note._id, author: note.user, snapshot: `${note.title || 'Untitled'}\n\n${note.text || note.markdown || ''}` });
+    } else if (kind === 'note_message') {
+      const msg = await NoteMessage.findById(target).lean();
+      const note = msg && await Note.findById(msg.note).select('title user shares groups');
+      if (!msg || !(await roleOn(note, userId))) throw new HttpError(404, 'Message not found');
+      if (String(msg.user) === String(userId)) throw new HttpError(400, 'This is your own message');
+      Object.assign(report, { kind: 'note_message', noteMessage: msg._id, note: note._id, author: msg.user, snapshot: msg.text });
     } else {
       const msg = await GroupMessage.findById(target).lean();
       if (!msg || !(await Group.exists({ _id: msg.group, 'members.user': userId }))) throw new HttpError(404, 'Message not found');
@@ -116,7 +122,7 @@ r.post('/', h(async (req, res) => {
   const ip = String(req.headers['x-forwarded-for'] || req.ip || '').split(',')[0].trim();
   if (tooMany(userId || ip)) throw new HttpError(429, 'Too many reports. Try again later.');
   // The same person reporting the same thing again within a day: no second email
-  const target2 = report.kind === 'page' ? { note: report.note } : { message: report.message };
+  const target2 = report.kind === 'page' ? { note: report.note } : report.kind === 'note_message' ? { noteMessage: report.noteMessage } : { message: report.message };
   const dup = userId && await Report.exists({ reporter: userId, ...target2, createdAt: { $gt: new Date(Date.now() - 86400_000) } });
   if (!dup) {
     const saved = await Report.create(report);
@@ -167,11 +173,13 @@ r.post('/:id/moderate', express.urlencoded({ extended: false, limit: '2kb' }), h
       closeRoom(report.note);
     } else if (report.kind === 'message' && report.message) {
       await GroupMessage.deleteOne({ _id: report.message });
+    } else if (report.kind === 'note_message' && report.noteMessage) {
+      await NoteMessage.deleteOne({ _id: report.noteMessage });
     }
     report.status = 'removed';
     await report.save();
     // Close other open reports about the same thing
-    await Report.updateMany({ status: 'open', ...(report.note ? { note: report.note } : { message: report.message }) }, { $set: { status: 'removed' } });
+    await Report.updateMany({ status: 'open', ...(report.kind === 'note_message' ? { noteMessage: report.noteMessage } : report.note ? { note: report.note } : { message: report.message }) }, { $set: { status: 'removed' } });
   }
   res.type('html').send(page('Taken down', `<h2 style="margin:0 0 8px">Taken down</h2><p>${report.kind === 'page' ? 'The page is no longer shared with anyone, and its public link no longer works.' : 'The message was deleted.'}</p>`));
 }));

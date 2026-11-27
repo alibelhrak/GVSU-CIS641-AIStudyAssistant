@@ -27,7 +27,9 @@ THE PAGE is given as blocks: "[id] markdown". Use the ids exactly as given.
 - edit_block: replace one block with new Markdown (can be several blocks).
 - insert_blocks: add new Markdown after a block id, or at "START" or "END".
 - delete_block: remove a block.
-- replace_page: rewrite the whole page. Only when the student asks to rewrite or reorganize everything.
+- replace_page: rewrite the whole page. Only when the student asks to rewrite or reorganize everything, and only for
+  short pages: it must keep ALL the content (never drop sections). For a long page, or to clean up tables, change the
+  blocks one at a time with edit_block instead.
 Rules:
 - Only change the page when the student asks you to write, add, fix, format, translate, reorganize or remove something.
   For questions, just answer in the chat.
@@ -60,6 +62,7 @@ export default async function notesChat(req, res) {
     .filter((x) => typeof x?.id === 'string' && /^[\w-]{1,64}$/.test(x.id) && typeof x.md === 'string')
     .slice(0, 400);
   const ids = new Map(blocks.map((x) => [x.id, x.md]));
+  const pageLength = blocks.reduce((n, x) => n + x.md.trim().length, 0);
   let pageText = '';
   let cut = false;
   for (const x of blocks) {
@@ -82,7 +85,7 @@ export default async function notesChat(req, res) {
   if (hasImages && !config.llm.visionModel) throw new HttpError(400, 'Reading pictures is not set up yet (the server needs VISION_MODEL). Files and text work without it.');
   const model = hasImages ? config.llm.visionModel : config.llm.chatModel;
   const convo = [
-    { role: 'system', content: `${SYSTEM}${replyIn(langOf(req))}${langOf(req) !== 'en' ? `Text you write into the page follows the page's own language; on an empty page use ${LANG_NAMES[langOf(req)]}.\n` : ''}\n\nPAGE TITLE: ${title || 'Untitled'}\nTHE PAGE${cut ? ' (only the first part fits; the rest is not shown)' : ''}:\n${pageText || '(the page is empty; use insert_blocks with after "START")'}` },
+    { role: 'system', content: `${SYSTEM}${replyIn(langOf(req))}${langOf(req) !== 'en' ? `Text you write into the page follows the page's own language; on an empty page use ${LANG_NAMES[langOf(req)]}.\n` : ''}\n\nPAGE TITLE: ${title || 'Untitled'}\nTHE PAGE${cut ? ' (only the first part fits; the rest is not shown)' : ''}:\n${pageText || '(the page is empty; use insert_blocks with after "START")'}${cut ? '\n\nThis page is too long to rewrite at once: do NOT use replace_page; change the blocks you need with edit_block.' : ''}` },
     ...apiMessages,
   ];
 
@@ -119,7 +122,7 @@ export default async function notesChat(req, res) {
     if (withTools && upstream.status === 400 && /tool|function/i.test(detail)) return ask(false);
     console.warn('Notes chat: LLM responded', upstream.status, detail.slice(0, 300));
     fail(502, upstream.status === 429 ? 'The AI is busy right now (rate limit). Wait a few seconds and try again.'
-      : upstream.status === 413 ? 'This page and files are too long for the AI at once. Try a shorter file.'
+      : upstream.status === 413 ? 'This page (with its files) is too long for the AI at once. Ask about one section, or attach a shorter file.'
         : 'The AI service returned an error. Try again in a moment.');
     return null;
   }
@@ -150,6 +153,12 @@ export default async function notesChat(req, res) {
     }
     if (name === 'replace_page') {
       if (!md.trim()) return { ok: false, error: 'The new page is empty.' };
+      // Safety: never let a rewrite lose content. A page the model could not see in full, or a "rewrite" much
+      // shorter than the page, would delete the student's work, so it is refused and the model edits blocks instead.
+      if (cut) return { ok: false, error: 'Refused: this page is too long to rewrite at once and you only saw part of it. Use edit_block on the blocks that need changes.' };
+      if (pageLength > 600 && md.trim().length < pageLength * 0.6) {
+        return { ok: false, error: `Refused: the new page (${md.trim().length} characters) is much shorter than the current one (${pageLength}), so content would be lost. Keep all the content, or use edit_block on the blocks that need changes.` };
+      }
       send({ t: 'edit', op: { type: 'page', markdown: md }, label: 'Rewrote the page' });
       return { ok: true };
     }
@@ -167,6 +176,7 @@ export default async function notesChat(req, res) {
       const decoder = new TextDecoder();
       const visible = thinkFilter();
       const calls = [];
+      let finish = '';
       let text = '';
       let sent = 0;
       let buffer = '';
@@ -189,7 +199,7 @@ export default async function notesChat(req, res) {
           const data = line.trim().startsWith('data:') ? line.trim().slice(5).trim() : '';
           if (!data || data === '[DONE]') continue;
           let delta;
-          try { delta = JSON.parse(data).choices?.[0]?.delta; } catch { continue; }
+          try { const ch = JSON.parse(data).choices?.[0]; delta = ch?.delta; if (ch?.finish_reason) finish = ch.finish_reason; } catch { continue; }
           if (delta?.content) emit(visible(delta.content));
           for (const tc of delta?.tool_calls || []) {
             const c = (calls[tc.index ?? calls.length] ||= { id: '', name: '', args: '' });
@@ -203,8 +213,13 @@ export default async function notesChat(req, res) {
       if (garbled) break;
       const todo = calls.filter((c) => c?.name).slice(0, 40);
       if (!todo.length) break;
+      // The answer hit the length limit: its changes may be cut off half-way, so none of them is applied
+      if (finish === 'length') {
+        send({ t: 'text', v: `${wroteText ? '\n\n' : ''}_The change was too long to finish, so I did not apply it. Ask for one section at a time (for example "clean up the first table")._` });
+        break;
+      }
       convo.push({ role: 'assistant', content: text || null,
-        tool_calls: todo.map((c, k) => ({ id: c.id || `call_${round}_${k}`, type: 'function', function: { name: c.name, arguments: c.args || '{}' } })) });
+        tool_calls: todo.map((c, k) => ({ id: c.id || `call_${round}_${k}`, type: 'function', function: { name: c.name, arguments: (c.args || '').length > 1500 ? JSON.stringify({ note: `(${c.name} with ${c.args.length} characters of Markdown, already sent)` }) : (c.args || '{}') } })) });
       for (const [k, c] of todo.entries()) {
         const result = apply(c.name, c.args);
         if (result.ok) edits += 1;

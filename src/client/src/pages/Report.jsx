@@ -52,7 +52,7 @@ export function ReportDialog({ kind, id, name, onClose, onSent }) {
         <div className="rem-head">
           <span className="rem-bell report-badge"><Icon name="flag" size={19} /></span>
           <div>
-            <h2 id="report-title">{kind === 'message' ? 'Report this message' : 'Report this page'}</h2>
+            <h2 id="report-title">{kind === 'message' || kind === 'note_message' ? 'Report this message' : 'Report this page'}</h2>
             {name && <p className="muted ellipsis"><span data-no-translate>{name}</span></p>}
           </div>
           <button className="icon-btn" type="button" onClick={onClose} aria-label="Close"><Icon name="close" size={18} /></button>
