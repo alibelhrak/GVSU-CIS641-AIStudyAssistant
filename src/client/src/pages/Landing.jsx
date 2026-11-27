@@ -201,6 +201,114 @@ function CodeShowcase() {
   );
 }
 
+const DB_STEPS = [1900, 1100, 1900, 2700, 2700];
+const TAG = { gray: ['rgba(120,119,116,.16)', '#5b5953'], blue: ['rgba(11,110,153,.15)', '#0f4f73'], green: ['rgba(15,123,108,.16)', '#1c5e51'], orange: ['rgba(217,115,13,.18)', '#8a4b0c'], purple: ['rgba(105,64,165,.15)', '#4f3184'], red: ['rgba(224,62,62,.15)', '#9b2727'], yellow: ['rgba(223,171,1,.22)', '#7a5d00'] };
+const Tg = ({ c, children }) => <span className="sc-tag" style={{ background: TAG[c][0], color: TAG[c][1] }}>{children}</span>;
+const DB_ROWS = [
+  ['Use case diagram', 'doing', 'Tue, Dec 1', ['CIS 641', 'blue']],
+  ['Quiz 4: regression', 'todo', 'Sun, Nov 29', ['STA 610', 'purple']],
+  ['Midterm', 'todo', 'Dec 9', ['CIS 678', 'orange']],
+  ['Lab 5: image filters', 'doing', 'Dec 6', ['CIS 663', 'purple']],
+  ['Read chapter 7', 'done', 'Wed, Nov 25', ['CIS 678', 'orange']],
+];
+// Two weeks, Sun Nov 22 to Sat Dec 5 (today is the 27th)
+const CAL_DAYS = [[22], [23], [24], [25, 'Read chapter 7'], [26], [27], [28], [29, 'Quiz 4: regression'], [30], [1, 'Use case diagram'], [2], [3, 'Problem set 4'], [4], [5]];
+const STATUS = { todo: ['Not started', 'gray'], doing: ['In progress', 'blue'], done: ['Done', 'green'] };
+
+/** A database, acted out: a card dragged across the board, then the same rows as a table and a calendar */
+function DatabaseShowcase() {
+  const step = useLoop(DB_STEPS);
+  const moved = step >= 2;
+  const rows = DB_ROWS.map((r) => (r[0] === 'Quiz 4: regression' && moved ? [r[0], 'done', r[2], r[3]] : r));
+  const view = step === 3 ? 'table' : step === 4 ? 'calendar' : 'board';
+  const status = (k) => <span className="sc-status" style={{ background: TAG[STATUS[k][1]][0], color: TAG[STATUS[k][1]][1] }}><i />{t(STATUS[k][0])}</span>;
+  return (
+    <div className="sc-window sc-db" aria-hidden="true">
+      <div className="pv-bar"><span className="pv-dot" /><span className="pv-dot" /><span className="pv-dot" /><span className="pv-url">Notes · Assignment tracker</span></div>
+      <div className="sc-db-body">
+        <h4>📚 {t('Assignment tracker')}</h4>
+        <div className="sc-db-tabs">
+          <span className={view === 'table' ? 'on' : ''}>▤ {t('Table')}</span>
+          <span className={view === 'board' ? 'on' : ''}>▥ {t('Board')}</span>
+          <span className={view === 'calendar' ? 'on' : ''}>▦ {t('Calendar')}</span>
+          <b>+ {t('New')}</b>
+        </div>
+        {view === 'board' && (
+          <div className="sc-cols">
+            {['todo', 'doing', 'done'].map((k) => (
+              <div key={k} className={`sc-col ${step === 1 && k === 'done' ? 'over' : ''}`}>
+                <div className="sc-col-head">{status(k)}<span>{rows.filter((r) => r[1] === k).length}</span></div>
+                {rows.filter((r) => r[1] === k).map((r) => (
+                  <div key={r[0]} className={`sc-dcard ${r[0] === 'Quiz 4: regression' && step === 1 ? 'lift' : ''} ${r[0] === 'Quiz 4: regression' && step === 2 ? 'land' : ''}`}>
+                    <b>{r[0]}</b>
+                    <span className="sc-dmeta">{r[2]} <Tg c={r[3][1]}>{r[3][0]}</Tg></span>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
+        {view === 'table' && (
+          <div className="sc-dtable">
+            <div className="sc-dtr head"><span>Aa {t('Name')}</span><span>◉ {t('Status')}</span><span>▦ {t('Due')}</span><span>▾ {t('Course')}</span></div>
+            {rows.map((r) => (
+              <div key={r[0]} className="sc-dtr"><span><b>{r[0]}</b></span><span>{status(r[1])}</span><span>{r[2]}</span><span><Tg c={r[3][1]}>{r[3][0]}</Tg></span></div>
+            ))}
+          </div>
+        )}
+        {view === 'calendar' && (
+          <div className="sc-dcal">
+            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => <span key={d} className="wd">{d}</span>)}
+            {CAL_DAYS.map(([label, item], i) => (
+              <span key={i} className={`d ${i === 5 ? 'today' : ''} ${i >= 9 ? 'next' : ''}`}><em>{label}</em>{item && <i>{item}</i>}</span>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const TOGETHER_STEPS = [1500, 2600, 2300, 2100, 2900];
+
+/** Two classmates on one page: a live cursor typing, a comment thread, and the Inbox */
+function TogetherShowcase() {
+  const step = useLoop(TOGETHER_STEPS);
+  return (
+    <div className="sc-window sc-team" aria-hidden="true">
+      <div className="pv-bar"><span className="pv-dot" /><span className="pv-dot" /><span className="pv-dot" /><span className="pv-url">Notes · Midterm study guide</span>
+        <span className="sc-faces"><i style={{ background: '#d6336c' }}>A</i><i style={{ background: '#e03131' }}>S</i><i style={{ background: '#2f9e44' }}>O</i></span>
+      </div>
+      <div className="sc-team-body">
+        <div className="sc-page">
+          <span className="sc-icon solo">🧠</span>
+          <h4>{t('Midterm study guide')}</h4>
+          <p className="sc-h">{t('Gradient descent')}</p>
+          <p>{t('Step against the gradient, one batch at a time.')}</p>
+          <p className="sc-call">💡 <span>{t('Start the learning rate at 1e-3.')}{step >= 1 && <> <Typer text="Adam is a safe default." speed={45} /></>}<span className="sc-peer"><em>Sara</em></span></span></p>
+          <p className="sc-h">{t('Bias vs. variance')}</p>
+          <p><span className={`sc-mark ${step >= 2 ? 'on' : ''}`}>{t('Underfitting')}</span> {t('means high bias; overfitting means high variance.')}</p>
+        </div>
+        <div className={`sc-panel ${step >= 2 ? 'open' : ''}`}>
+          <div className="sc-panel-head">💬 {t('Comments')}</div>
+          <div className="sc-thread">
+            <span className="q">{t('Underfitting')}</span>
+            <p><i style={{ background: '#e03131' }}>S</i><span><b>Sara</b> {t('Add the learning-curve plot here?')}</span></p>
+            {step >= 3 && <p className="reply"><i style={{ background: '#d6336c' }}>A</i><span><b>{t('You')}</b> {t('Yes! I’ll paste it tonight.')}</span></p>}
+          </div>
+        </div>
+        {step === 4 && (
+          <div className="sc-toast">
+            <b>🔔 {t('Inbox')}</b>
+            <span><i style={{ background: '#2f9e44' }}>O</i>{t('Omar suggested changes')} · <u>{t('Review')}</u></span>
+            <span><i style={{ background: '#7048e8' }}>M</i>{t('Maya accepted your invitation')}</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 const AI_LINES = [
   'Spend more time on CIS 678: your Midterm exam is in 3 days.',
   'You have studied 2 h, but this exam needs about 10 h.',
@@ -264,7 +372,10 @@ const FEATURES = [
   { icon: 'note', title: 'Notes, like Notion', text: 'Pages and sub-pages with headings, to-dos, tables, covers and pictures. AI is built right into the page.', hot: true },
   { icon: 'chat', title: 'Ask AI', text: 'A study coach that knows your deadlines and notes, reads your PDFs, and adds exams and sessions for you.', hot: true },
   { icon: 'spark', title: 'AI recommendations', text: 'Get told which course to focus on next, with a ready-made plan you can accept in one click.' },
-  { icon: 'play', title: 'Code that runs', text: 'Write Python, JavaScript, SQL or HTML in your notes and run it right there, with VS Code shortcuts and AI completions.', hot: true },
+  { icon: 'database', title: 'Databases', text: 'Track assignments or readings as a table, a board you drag cards across, a calendar or a gallery.', hot: true },
+  { icon: 'users', title: 'Study groups', text: 'A group chat, shared deadlines and pages, and Zoom meetings. Classmates join when they accept your invitation.', hot: true },
+  { icon: 'comment', title: 'Comments & suggested edits', text: 'Edit pages together live, talk about any sentence, and review suggestions before they change your page.' },
+  { icon: 'play', title: 'Code that runs', text: 'Write Python, JavaScript, SQL or HTML in your notes and run it right there, with VS Code shortcuts and AI completions.' },
   { icon: 'folder', title: 'Folders and course groups', text: 'Pages sort themselves by course. Drag them into your own folders, like "Midterm prep".' },
   { icon: 'trash', title: 'Trash with Undo', text: 'Deleted something by mistake? Undo it at once, or restore it from the Trash for 30 days.' },
 ];
@@ -334,6 +445,8 @@ export default function Landing() {
             <a href="#features">Features</a>
             <a href="#ask-ai">Ask AI</a>
             <a href="#notes">Notes</a>
+            <a href="#databases">Databases</a>
+            <a href="#together">Together</a>
             <a href="#code">Code</a>
             <a href="#how">How the AI works</a>
             <a href="#themes">Themes</a>
@@ -351,7 +464,7 @@ export default function Landing() {
 
       <section className="hero lp-wrap" id="top">
         <div className="hero-glow" aria-hidden="true" />
-        <a className="eyebrow new-pill" href="#code" data-reveal><b>New</b><span>Run Python, SQL and JavaScript in your notes</span><Icon name="arrow" size={13} /></a>
+        <a className="eyebrow new-pill" href="#databases" data-reveal><b>New</b><span>Databases, live pages and study groups</span><Icon name="arrow" size={13} /></a>
         <h1 data-reveal>Know exactly<br /><span className="grad">what to study next.</span></h1>
         <p className="hero-sub" data-reveal>
           Courses, deadlines, study sessions, notes and an AI study coach in one place. The assistant looks at what is due
@@ -421,6 +534,38 @@ export default function Landing() {
         <div data-reveal style={{ transitionDelay: '.1s' }}><NotesShowcase /></div>
       </section>
 
+      <section className="lp-section lp-wrap showcase" id="databases">
+        <div className="sc-text" data-reveal>
+          <span className="eyebrow"><Icon name="database" size={14} /> Databases</span>
+          <h2>One list of assignments. Four ways to see it.</h2>
+          <p className="muted">Keep assignments, readings or exam topics in a database, then look at them the way you need today.</p>
+          <ul className="sc-list">
+            <li><Icon name="check" size={16} /><span><b>Board:</b> drag a card from Not started to Done.</span></li>
+            <li><Icon name="calendar" size={16} /><span><b>Calendar:</b> every deadline on its day; drag it to move it.</span></li>
+            <li><Icon name="text" size={16} /><span><b>Table:</b> status, due date, course, priority, grade, people. Filter and sort each view.</span></li>
+            <li><Icon name="note" size={16} /><span><b>Every row is a page,</b> so your notes for an assignment live right inside it.</span></li>
+            <li><Icon name="spark" size={16} /><span><b>Start in one click</b> from the Assignment tracker, Reading list or Exam prep template.</span></li>
+          </ul>
+        </div>
+        <div data-reveal style={{ transitionDelay: '.1s' }}><DatabaseShowcase /></div>
+      </section>
+
+      <section className="lp-section lp-wrap showcase flip" id="together">
+        <div className="sc-text" data-reveal>
+          <span className="eyebrow"><Icon name="users" size={14} /> Study together</span>
+          <h2>Your study group, on the same page.</h2>
+          <p className="muted">Share a page and work on it with classmates at the same time, then keep the whole team on track.</p>
+          <ul className="sc-list">
+            <li><Icon name="users" size={16} /><span><b>Edit live.</b> See each classmate's cursor and changes as they type.</span></li>
+            <li><Icon name="comment" size={16} /><span><b>Comment on any words,</b> and reply in threads until it is resolved.</span></li>
+            <li><Icon name="pencil" size={16} /><span><b>Suggested edits:</b> classmates who can only view propose changes; you accept or reject them.</span></li>
+            <li><Icon name="video" size={16} /><span><b>Study groups</b> with a chat, shared deadlines and Zoom meetings that land in everyone's calendar.</span></li>
+            <li><Icon name="bell" size={16} /><span><b>One Inbox</b> for mentions, comments, suggestions and invitations.</span></li>
+          </ul>
+        </div>
+        <div data-reveal style={{ transitionDelay: '.1s' }}><TogetherShowcase /></div>
+      </section>
+
       <section className="lp-section lp-wrap showcase" id="code">
         <div className="sc-text" data-reveal>
           <span className="eyebrow"><Icon name="play" size={14} /> Code in your notes</span>
@@ -488,7 +633,7 @@ export default function Landing() {
       <section className="lp-section lp-wrap">
         <div className="final" data-reveal>
           <h2>Your next study session is one click away.</h2>
-          <p>Create an account, add your courses and deadlines, write your notes, and let the assistant plan the week.</p>
+          <p>Create an account, add your courses and deadlines, invite your study group, and let the assistant plan the week.</p>
           <div className="hero-cta">
             <Link className="btn primary lg" to="/signup">Create your free account <Icon name="arrow" size={16} /></Link>
             <a className="btn lg" href={STORE_URL} target="_blank" rel="noopener noreferrer"><WinLogo /> Get it for Windows</a>
