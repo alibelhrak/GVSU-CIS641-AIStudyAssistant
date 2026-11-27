@@ -10,6 +10,7 @@ import { sendMail } from './mailer.js';
 import { sendPush } from './reminders.js';
 import { dirOf, LOCALES } from '../i18n.js';
 import { calendarLinks, meetingIcs } from './calendar.js';
+import { inbox } from './notify.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const fill = (s, v) => Object.entries(v).reduce((out, [k, x]) => out.replaceAll(`{${k}}`, String(x)), s);
@@ -185,6 +186,7 @@ export async function notifyPageShared({ toId, fromId, note, role }) {
     const shown = `${note.icon ? `${note.icon} ` : ''}${title}`;
     const path = `/notes/${note._id}`;
     const subject = tr('pageSubject', lang, { from: fromName, title });
+    await inbox(to._id, { actor: fromId, kind: 'share', title: subject, body: shown, url: path });   // in the app first: a failed email must not lose it
     await sendMail({
       to: to.email, toName: to.name, subject,
       ...layout({
@@ -192,7 +194,7 @@ export async function notifyPageShared({ toId, fromId, note, role }) {
         lines: [tr('hi', lang, { name }), tr(role === 'viewer' ? 'pageView' : 'pageEdit', lang, { from: fromName }), tr('pageWhere', lang)],
         note: tr('why', lang, { from: fromName }),
       }),
-    });
+    }).catch((err) => console.warn('Email failed:', err.message));   // the push and the inbox still go out
     await sendPush(to._id, { title: subject, body: shown, url: path, tag: `share-${note._id}` });
   } catch (err) {
     console.warn('Share email failed:', err.message);
@@ -207,6 +209,7 @@ export async function notifyGroupAdded({ toId, fromId, group }) {
     const name = (to.name || '').split(' ')[0] || to.email;
     const path = `/groups/${group._id}`;
     const subject = tr('groupSubject', lang, { from: fromName, title: group.name });
+    await inbox(to._id, { actor: fromId, kind: 'group', title: subject, body: group.description || '', url: path });   // in the app first: a failed email must not lose it
     await sendMail({
       to: to.email, toName: to.name, subject,
       ...layout({
@@ -214,7 +217,7 @@ export async function notifyGroupAdded({ toId, fromId, group }) {
         lines: [tr('hi', lang, { name }), tr('groupBody', lang, { from: fromName })],
         note: tr('why', lang, { from: fromName }),
       }),
-    });
+    }).catch((err) => console.warn('Email failed:', err.message));   // the push and the inbox still go out
     await sendPush(to._id, { title: subject, body: group.description || group.name, url: path, tag: `group-${group._id}` });
   } catch (err) {
     console.warn('Group email failed:', err.message);
@@ -257,6 +260,7 @@ export async function notifyMeeting({ group, meeting, fromId, toIds, now }) {
           attachments: now ? [] : [{ name: 'invite.ics', content: meetingIcs(meeting, group.name, { method: 'REQUEST', attendee: to }) }],
         });
       } catch (err) { console.warn('Meeting email failed:', err.message); }
+      if (!me) await inbox(to._id, { actor: fromId, kind: 'meeting', title: subject, body: meeting.topic, url: `/groups/${group._id}` });
       if (!me) await sendPush(to._id, { title: subject, body: now ? meeting.topic : when, url: `/groups/${group._id}`, tag: `meet-${meeting._id}` }).catch(() => {});
     }
   } catch (err) {
@@ -295,11 +299,12 @@ export async function notifyMentioned({ toId, fromId, note }) {
     const title = note.title?.trim() || tr('untitled', lang);
     const path = `/notes/${note._id}`;
     const subject = tr('mentionSubject', lang, { from: fromName, title });
+    await inbox(to._id, { actor: fromId, kind: 'mention', title: subject, body: '', url: path });   // in the app first: a failed email must not lose it
     await sendMail({
       to: to.email, toName: to.name, subject,
       ...layout({ lang, title: subject, path, quote: `${note.icon ? `${note.icon} ` : ''}${title}`, button: tr('pageButton', lang),
         lines: [tr('hi', lang, { name: (to.name || '').split(' ')[0] || to.email }), tr('mentionBody', lang, { from: fromName })], note: tr('mentionWhy', lang) }),
-    });
+    }).catch((err) => console.warn('Email failed:', err.message));   // the push and the inbox still go out
     await sendPush(to._id, { title: subject, body: title, url: path, tag: `mention-${note._id}` });
   } catch (err) {
     console.warn('Mention email failed:', err.message);

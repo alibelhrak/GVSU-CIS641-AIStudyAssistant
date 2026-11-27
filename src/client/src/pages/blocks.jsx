@@ -356,12 +356,18 @@ function dateChoices(query) {
 
 /** The "@" menu: people who can open the page, pages, and dates */
 export function mentionItems(editor, noteId) {
+  let latest = 0;
+  const searches = new Map();   // query -> pages found (typing back over a word does not search again)
   return async (query) => {
     const q = query.trim().toLowerCase();
     const insert = (props) => () => editor.insertInlineContent([{ type: 'mention', props }, ' ']);
+    // Search pages once typing pauses (not on every key), so the answers do not queue up behind each other
+    const mine = ++latest;
+    if (!searches.has(q)) await new Promise((done) => { setTimeout(done, 180); });
+    const stale = mine !== latest;
     const [people, found] = await Promise.all([
       (mentionItems.cache[noteId] ||= api.get(`/notes/${noteId}/people`).catch(() => [])),
-      api.get(`/search?q=${encodeURIComponent(query.trim())}`).then((d) => d.notes).catch(() => []),
+      stale && !searches.has(q) ? [] : (searches.get(q) || searches.set(q, api.get(`/search?q=${encodeURIComponent(query.trim())}`).then((d) => d.notes).catch(() => [])).get(q)),
     ]);
     const persons = people.filter((p) => !q || p.name.toLowerCase().includes(q) || p.email.toLowerCase().startsWith(q)).slice(0, 5)
       .map((p) => ({ key: `u${p.id}`, title: p.name + (p.me ? ` (${t('you')})` : ''), subtext: p.email, group: t('People'), icon: <span className="slash-emoji">👤</span>, onItemClick: insert({ kind: 'user', id: p.id, label: p.name }) }));
@@ -369,7 +375,7 @@ export function mentionItems(editor, noteId) {
       .map((n) => ({ key: `p${n.id}`, title: n.title || t('Untitled'), subtext: n.parent || (n.owner ? `${t('Shared by')} ${n.owner}` : ''), group: t('Link to page'), icon: <span className="slash-emoji">{n.icon || '📄'}</span>,
         onItemClick: insert({ kind: 'page', id: n.id, label: `${n.icon ? `${n.icon} ` : ''}${n.title || t('Untitled')}` }) }));
     const dates = dateChoices(query).slice(0, 4).map((d) => ({ key: `d${d.id}${d.title}`, title: d.title, subtext: d.id, group: t('Date'), icon: <span className="slash-emoji">📅</span>, onItemClick: insert({ kind: 'date', id: d.id, label: d.id }) }));
-    return [...persons, ...pages, ...dates];
+    return q && dates.length ? [...persons, ...dates, ...pages] : [...persons, ...pages, ...dates];   // "@tomorrow": the date first
   };
 }
 mentionItems.cache = {};

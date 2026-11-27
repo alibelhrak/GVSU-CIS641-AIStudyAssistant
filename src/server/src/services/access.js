@@ -32,9 +32,16 @@ export async function roleOn(note, userId) {
 export async function noteAccess(noteId, userId, select) {
   if (!mongoose.isValidObjectId(noteId)) return { note: null, role: null };
   let q = Note.findById(noteId);
-  if (select) q = q.select(`${select} user shares groups`);
+  if (select) q = q.select(`${select} user shares groups inDb`);
   const note = await q;
-  return { note, role: await roleOn(note, userId) };
+  let role = await roleOn(note, userId);
+  // A database row can be opened by everyone who can open its database
+  if (note?.inDb && role !== 'owner') {
+    const db = await Note.findById(note.inDb).select('user shares groups').lean();
+    const viaDb = await roleOn(db, userId);
+    if ((RANK[viaDb] || 0) > (RANK[role] || 0)) role = viaDb;
+  }
+  return { note, role };
 }
 
 export const canEdit = (role) => role === 'owner' || role === 'editor';

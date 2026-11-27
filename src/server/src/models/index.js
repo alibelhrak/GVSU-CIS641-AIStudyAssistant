@@ -194,7 +194,14 @@ export const Note = model('Note', new Schema({
   publicId: { type: String, default: undefined },   // set when "Share to web" is on
   links: { type: [{ type: Schema.Types.ObjectId, ref: 'Note' }], default: [] },      // pages this page links to (@page mentions and links), for backlinks
   mentions: { type: [{ type: Schema.Types.ObjectId, ref: 'User' }], default: [] },  // people @mentioned on the page
-}, opts).index({ 'shares.user': 1 }).index({ groups: 1 }).index({ links: 1 }).index({ publicId: 1 }, { unique: true, sparse: true }));
+  locked: { type: Boolean, default: false },                                         // the owner locked the page: nobody can edit it
+  // Databases (services/database.js): a database page has `db` (properties and views); its rows are pages with `inDb` and `props`
+  db: { type: Schema.Types.Mixed, default: undefined },
+  inDb: { type: Schema.Types.ObjectId, ref: 'Note', default: undefined },
+  props: { type: Schema.Types.Mixed, default: undefined },
+  rank: { type: Number, default: undefined },                                        // a row's place in the database (manual order)
+  createdBy: { type: Schema.Types.ObjectId, ref: 'User', default: undefined },      // a row added by someone the database is shared with
+}, opts).index({ 'shares.user': 1 }).index({ groups: 1 }).index({ links: 1 }).index({ inDb: 1, rank: 1 }).index({ publicId: 1 }, { unique: true, sparse: true }));
 
 
 /** Thumbs up / down on an AI answer, so the team can see what works */
@@ -316,3 +323,33 @@ export const NoteMessage = model('NoteMessage', new Schema({
   user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   text: { type: String, required: true, trim: true, maxlength: 2000 },
 }, { timestamps: true }).index({ note: 1, createdAt: -1 }));
+
+/** The notifications inbox (🔔): shares, group invites, @mentions, comments, meetings, suggestions */
+export const Notification = model('Notification', new Schema({
+  user: ref('User'),                                                         // who it is for
+  actor: { type: Schema.Types.ObjectId, ref: 'User', default: null },       // who did it
+  kind: { type: String, enum: ['share', 'group', 'mention', 'comment', 'meeting', 'suggestion'], required: true },
+  title: { type: String, default: '', maxlength: 300 },
+  body: { type: String, default: '', maxlength: 500 },
+  url: { type: String, default: '', maxlength: 300 },
+  read: { type: Boolean, default: false },
+}, { timestamps: true }).index({ user: 1, createdAt: -1 }));
+
+/** A comment thread on a piece of text in a note (the text is marked with the thread's id) */
+export const NoteComment = model('NoteComment', new Schema({
+  note: ref('Note'),
+  quote: { type: String, default: '', maxlength: 500 },                     // the text it is about
+  resolved: { type: Boolean, default: false },
+  messages: [{ user: { type: Schema.Types.ObjectId, ref: 'User', required: true }, text: { type: String, required: true, trim: true, maxlength: 2000 }, at: { type: Date, default: Date.now } }],
+}, opts).index({ note: 1, createdAt: 1 }));
+
+/** A suggested change to a page, from someone who can view it; the owner or an editor accepts or rejects it */
+export const NoteSuggestion = model('NoteSuggestion', new Schema({
+  note: ref('Note'),
+  user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  message: { type: String, default: '', trim: true, maxlength: 500 },
+  content: { type: [Schema.Types.Mixed], default: [] },                     // the page as suggested
+  baseText: { type: String, default: '' },                                  // the page's text when the suggestion was made
+  text: { type: String, default: '' },                                      // the suggested page's text
+  status: { type: String, enum: ['open', 'accepted', 'rejected'], default: 'open' },
+}, opts).index({ note: 1, status: 1 }));

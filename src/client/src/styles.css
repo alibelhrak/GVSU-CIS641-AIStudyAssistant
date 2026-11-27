@@ -1032,3 +1032,26 @@ img.avatar,img.set-avatar{object-fit:cover;padding:0;background:var(--surface-2)
 .qf-foot{display:flex;gap:16px;padding:8px 14px;border-top:1px solid var(--line);font-size:.74rem;color:var(--faint)}
 .qf-foot span{display:inline-flex;align-items:center;gap:3px}
 @media (max-width:560px){.qf-foot{display:none}.qf-overlay{padding-top:10px}}
+
+/* ---------- Inbox (🔔) ---------- */
+.side-link .count.unread{background:var(--accent);color:#fff}
+.inbox-overlay{align-items:flex-start;justify-content:flex-start;padding:min(10vh,80px) 0 0 max(12px,calc(var(--side-w,260px) - 8px))}
+.inbox{width:min(420px,calc(100vw - 24px));max-height:min(75vh,640px);display:grid;grid-template-rows:auto minmax(0,1fr) auto;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:0 24px 70px rgba(0,0,0,.28);overflow:hidden;animation:rise .16s var(--ease)}
+.inbox-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 10px 10px 14px;border-bottom:1px solid var(--line)}
+.inbox-head b{display:flex;align-items:center;gap:6px}
+.inbox-tools{display:flex;align-items:center;gap:6px}
+.inbox-filter{display:flex;align-items:center;gap:4px;font-size:12px;color:var(--muted);white-space:nowrap;cursor:pointer}
+.inbox-list{overflow:auto;padding:4px}
+.inbox-item{all:unset;box-sizing:border-box;display:flex;align-items:flex-start;gap:10px;width:100%;padding:10px;border-radius:10px;cursor:pointer}
+.inbox-item:hover,.inbox-item:focus-visible{background:var(--hover)}
+.inbox-item.unread{background:var(--accent-soft)}
+.inbox-face{position:relative;flex:0 0 auto;display:grid;place-items:center;width:30px;height:30px}
+.inbox-kind{position:absolute;right:-4px;bottom:-4px;display:grid;place-items:center;width:17px;height:17px;border-radius:50%;background:var(--surface);border:1px solid var(--line);color:var(--muted)}
+.inbox-text{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1;font-size:13px}
+.inbox-text b{font-weight:600;line-height:1.35}
+.inbox-body{color:var(--muted);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.inbox-text .muted{font-size:11.5px}
+.inbox-dot{flex:0 0 auto;width:8px;height:8px;margin-top:6px;border-radius:50%;background:var(--accent)}
+.inbox-clear{all:unset;padding:9px;text-align:center;font-size:12.5px;color:var(--muted);border-top:1px solid var(--line);cursor:pointer}
+.inbox-clear:hover{color:var(--fg);background:var(--hover)}
+@media (max-width:760px){.inbox-overlay{padding:10px;justify-content:center}}

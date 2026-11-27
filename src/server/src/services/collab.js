@@ -146,12 +146,12 @@ export function attachCollab(server) {
     const refuse = (code, text) => { socket.write(`HTTP/1.1 ${code} ${text}\r\nConnection: close\r\n\r\n`); socket.destroy(); };
     const userId = await userFromToken(url.searchParams.get('token') || '');
     if (!userId) return refuse(401, 'Unauthorized');
-    const { note, role } = await noteAccess(m[1], userId, '_id');
+    const { note, role } = await noteAccess(m[1], userId, '_id locked');
     if (!role) return refuse(403, 'Forbidden');
     if (!isShared(note)) return refuse(409, 'Not shared');   // private pages are edited without live sync
     wss.handleUpgrade(req, socket, head, (ws) => {
       const room = roomFor(m[1]);
-      room.conns.set(ws, { userId, canEdit: canEdit(role), clients: new Set() });
+      room.conns.set(ws, { userId, canEdit: canEdit(role) && !note.locked, clients: new Set() });
       ws.binaryType = 'arraybuffer';
       ws.on('message', (data) => onMessage(room, ws, data));
       ws.on('close', () => closeConn(room, ws));

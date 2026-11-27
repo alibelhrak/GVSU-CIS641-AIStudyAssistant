@@ -9,12 +9,15 @@
 import { Router } from 'express';
 import mongoose from 'mongoose';
 import crypto from 'node:crypto';
-import { Note, Course, Feedback, Folder, User, Group, NoteVersion, NoteMessage } from '../models/index.js';
+import { Note, Course, Feedback, Folder, User, Group, NoteVersion, NoteMessage, NoteComment, NoteSuggestion } from '../models/index.js';
+import { inbox } from '../services/notify.js';
+import { cleanSchema, cleanValues, DB_TEMPLATES, MAX_ROWS } from '../services/database.js';
+import { moveToTrash } from '../services/trash.js';
+import { sendPush } from '../services/reminders.js';
 import { snapshotBefore } from '../services/versions.js';
 import { afterSave } from '../services/mentions.js';
 import { noteAccess, canEdit, groupIdsOf, isShared } from '../services/access.js';
 import { claimSeed, seedDone, closeRoom } from '../services/collab.js';
-import { moveToTrash } from '../services/trash.js';
 import { h, HttpError } from '../middleware/error.js';
 import { config, chatEnabled } from '../config.js';
 import { thinkFilter } from './chat.js';
@@ -95,9 +98,9 @@ ${before}<CURSOR>${after}`;
   res.json({ text });   // (no garble check: code is full of symbols)
 }));
 const MAX_CONTENT = 3_000_000;          // characters of editor data per note (pictures included)
-const LIST_FIELDS = 'title icon parent course folder favorite updatedAt createdAt shares groups publicId';
+const LIST_FIELDS = 'title icon parent course folder favorite updatedAt createdAt shares groups publicId db';
 // What someone a page is shared with may change (the owner keeps course, folder, place and layout)
-const EDITOR_FIELDS = ['title', 'icon', 'cover', 'coverY', 'content', 'text', 'markdown'];
+const EDITOR_FIELDS = ['title', 'icon', 'cover', 'coverY', 'content', 'text', 'markdown', 'db', 'props', 'rank'];
 
 const mine = (req) => {
   if (!mongoose.isValidObjectId(req.params.id)) throw new HttpError(404, 'Note not found');
@@ -136,6 +139,7 @@ async function checkRefs(userId, { parent, course, folder }, selfId) {
   }
   if (parent) {
     if (!mongoose.isValidObjectId(parent) || !(await Note.exists({ _id: parent, user: userId }))) throw new HttpError(400, 'Parent page not found');
+    if (await Note.exists({ _id: parent, db: { $exists: true } })) throw new HttpError(400, 'To add a page to a database, use + New in the database');
     // A page cannot be moved inside itself or one of its own sub-pages
     for (let id = parent; id && selfId; ) {
       if (String(id) === String(selfId)) throw new HttpError(400, 'A page cannot go inside itself');
@@ -165,6 +169,8 @@ function pick(body = {}) {
   if (typeof body.wide === 'boolean') out.wide = body.wide;
   if (['s', 'm', 'l'].includes(body.textSize)) out.textSize = body.textSize;
   if (typeof body.markdown === 'string') out.markdown = body.markdown.slice(0, 100000);
+  if (body.db !== undefined) out.db = cleanSchema(body.db);   // a database's properties and views
+  if (typeof body.rank === 'number' && Number.isFinite(body.rank)) out.rank = body.rank;
   if (body.content !== undefined) {
     if (!Array.isArray(body.content)) throw new HttpError(400, 'Invalid note content');
     if (JSON.stringify(body.content).length > MAX_CONTENT) throw new HttpError(413, 'This note is too big. Remove some pictures or split it into sub-pages.');
@@ -176,7 +182,8 @@ function pick(body = {}) {
 
 // All pages (without their content), most recently edited first
 r.get('/', h(async (req, res) => {
-  res.json(await Note.find({ user: req.userId }).select(LIST_FIELDS).sort({ updatedAt: -1 }));
+  // database rows are listed inside their database, not with the pages
+  res.json(await Note.find({ user: req.userId, inDb: null }).select(LIST_FIELDS).sort({ updatedAt: -1 }));
 }));
 
 // ---------- AI inside the editor ----------
@@ -336,6 +343,10 @@ r.get('/:id', h(async (req, res) => {
   const { note, role } = await noteAccess(req.params.id, req.userId);
   if (!role) throw new HttpError(404, 'Note not found');
   const out = { ...note.toJSON(), role, shared: Boolean(note.shares.length || note.groups.length) };
+  if (note.inDb) {   // a row: the database it belongs to (its properties, and the way back)
+    const db = await Note.findById(note.inDb).select('title icon db parent locked').lean();
+    if (db) out.database = { id: String(db._id), title: db.title, icon: db.icon, db: db.db, parent: role === 'owner' && db.parent ? String(db.parent) : null, locked: db.locked };
+  }
   if (role !== 'owner') {
     // other people's organisation of the page is not theirs to see
     Object.assign(out, { course: null, folder: null, parent: null, favorite: false, publicId: undefined, shares: undefined, groups: undefined });
@@ -345,19 +356,39 @@ r.get('/:id', h(async (req, res) => {
 }));
 
 r.post('/', h(async (req, res) => {
-  const data = pick(req.body);
+  const tpl = typeof req.body?.database === 'string' ? DB_TEMPLATES[req.body.database]?.() : null;   // a new database
+  if (req.body?.database && !tpl) throw new HttpError(400, 'Unknown database template');
+  const data = pick(tpl ? { title: tpl.title, icon: tpl.icon, ...req.body, db: tpl.db } : req.body);
   await checkRefs(req.userId, data);
   const note = await Note.create({ ...data, user: req.userId });
+  if (tpl) {
+    await Note.insertMany(tpl.rows.map((row, i) => ({ user: req.userId, parent: note._id, inDb: note._id, title: row.title, props: row.props ? cleanValues(note.db, row.props).set : {}, rank: i + 1 })));
+  }
   res.status(201).json(note);
 }));
 
 r.patch('/:id', h(async (req, res) => {
-  const { note: found, role } = await noteAccess(req.params.id, req.userId, '_id');
+  const { note: found, role } = await noteAccess(req.params.id, req.userId, '_id locked');
   if (!role) throw new HttpError(404, 'Note not found');
   if (!canEdit(role)) throw new HttpError(403, 'You can only view this page');
   let data = pick(req.body);
   if (role === 'owner') await checkRefs(req.userId, data, req.params.id);
   else data = Object.fromEntries(Object.entries(data).filter(([k]) => EDITOR_FIELDS.includes(k)));
+  if (found.locked && EDITOR_FIELDS.some((k) => data[k] !== undefined)) throw new HttpError(423, 'This page is locked. The owner can unlock it in the ⋯ menu.');
+  // A database row: its property values (checked against the database's properties), and it stays in its database
+  const extra = {};
+  if (found.inDb) {
+    delete data.parent;
+    const db = await Note.findById(found.inDb).select('db locked').lean();
+    if (db?.locked && (req.body.props || EDITOR_FIELDS.some((k) => data[k] !== undefined))) throw new HttpError(423, 'This database is locked.');
+    if (req.body.props !== undefined) {
+      const { set, unset } = cleanValues(db?.db, req.body.props);
+      for (const [k, v] of Object.entries(set)) extra[`props.${k}`] = v;
+      if (unset.length) data.$unset = Object.fromEntries(unset.map((k) => [`props.${k}`, 1]));
+    }
+  } else if (data.rank !== undefined) delete data.rank;
+  if (data.db !== undefined && !(await Note.exists({ _id: found._id, db: { $exists: true } }))) delete data.db;   // only databases have properties
+  Object.assign(data, extra);
   if (data.content !== undefined) await snapshotBefore(found._id, req.userId, data.text);   // page history (before a big removal, and every 15 min)
   const before = data.content !== undefined ? (await Note.findById(found._id).select('mentions').lean())?.mentions : null;
   const note = await Note.findByIdAndUpdate(found._id, data, { new: true, runValidators: true });
@@ -365,6 +396,175 @@ r.patch('/:id', h(async (req, res) => {
   const { content, text, cover, ...meta } = note.toJSON();   // the editor already has these
   if (role !== 'owner') Object.assign(meta, { course: null, folder: null, parent: null, favorite: false, publicId: undefined, shares: undefined, groups: undefined });
   res.json({ ...meta, role });
+}));
+
+// ---------- Lock (owner only): nobody can change the page until it is unlocked ----------
+r.post('/:id/lock', h(async (req, res) => {
+  const note = await Note.findOneAndUpdate(mine(req), { $set: { locked: Boolean(req.body?.on) } }, { new: true });
+  if (!note) throw new HttpError(404, 'Note not found');
+  closeRoom(note._id);   // live editors reconnect read-only (or editable again)
+  res.json({ locked: note.locked });
+}));
+
+// Tell the people around a page (owner, others in a comment thread...) in their inbox, with a push notification
+async function tellAbout(note, userIds, actorId, kind, title, body, extra = '') {
+  const url = `/notes/${note._id}?open=${kind === 'comment' ? 'comments' : 'suggestions'}${extra}`;
+  for (const u of [...new Set(userIds.map(String))]) {
+    if (u === String(actorId)) continue;
+    await inbox(u, { actor: actorId, kind, title, body, url });
+    sendPush(u, { title, body, url, tag: `${kind}-${note._id}` }).catch(() => {});
+  }
+}
+const nameOf = async (id) => (await User.findById(id).select('name').lean())?.name || 'Someone';
+const pageName = (note) => `${note.icon ? `${note.icon} ` : ''}${note.title || 'Untitled'}`;
+
+// ---------- Comments on text ----------
+const threadView = (c, people, me) => ({ id: String(c._id), quote: c.quote, resolved: c.resolved, at: c.createdAt,
+  messages: c.messages.map((m) => ({ id: String(m._id), text: m.text, at: m.at, me: String(m.user) === String(me),
+    user: { id: String(m.user), name: people.get(String(m.user))?.name || 'Former member', avatar: people.get(String(m.user))?.avatar || '' } })) });
+async function peopleOf(threads) {
+  const ids = [...new Set(threads.flatMap((c) => c.messages.map((m) => String(m.user))))];
+  return new Map((await User.find({ _id: { $in: ids } }).select('name avatar').lean()).map((u) => [String(u._id), u]));
+}
+r.get('/:id/comments', h(async (req, res) => {
+  const { note, role } = await noteAccess(req.params.id, req.userId, '_id');
+  if (!role) throw new HttpError(404, 'Note not found');
+  const list = await NoteComment.find({ note: note._id }).sort({ createdAt: 1 }).limit(300).lean();
+  const people = await peopleOf(list);
+  res.json(list.map((c) => threadView(c, people, req.userId)));
+}));
+// A new thread (only people who can edit, since the text gets marked)
+r.post('/:id/comments', h(async (req, res) => {
+  const { note, role } = await noteAccess(req.params.id, req.userId, 'title icon user');
+  if (!canEdit(role)) throw new HttpError(403, 'Only people who can edit the page can comment on its text');
+  const text = String(req.body?.text || '').trim().slice(0, 2000);
+  if (!text) throw new HttpError(400, 'Write a comment');
+  if (await NoteComment.countDocuments({ note: note._id }) >= 300) throw new HttpError(400, 'This page has too many comments');
+  const c = await NoteComment.create({ note: note._id, quote: String(req.body?.quote || '').slice(0, 500), messages: [{ user: req.userId, text }] });
+  const who = await nameOf(req.userId);
+  tellAbout(note, [note.user], req.userId, 'comment', `${who} commented on ${pageName(note)}`, text.slice(0, 200), `&thread=${c._id}`);
+  res.status(201).json(threadView(c.toObject(), await peopleOf([c]), req.userId));
+}));
+r.post('/:id/comments/:cid/replies', h(async (req, res) => {
+  const { note, role } = await noteAccess(req.params.id, req.userId, 'title icon user');
+  if (!role || !mongoose.isValidObjectId(req.params.cid)) throw new HttpError(404, 'Comment not found');
+  const text = String(req.body?.text || '').trim().slice(0, 2000);
+  if (!text) throw new HttpError(400, 'Write a reply');
+  const c = await NoteComment.findOne({ _id: req.params.cid, note: note._id });
+  if (!c) throw new HttpError(404, 'Comment not found');
+  if (c.messages.length >= 100) throw new HttpError(400, 'This thread is full');
+  c.messages.push({ user: req.userId, text }); c.resolved = false;
+  await c.save();
+  const who = await nameOf(req.userId);
+  tellAbout(note, [note.user, ...c.messages.map((m) => m.user)], req.userId, 'comment', `${who} replied on ${pageName(note)}`, text.slice(0, 200), `&thread=${c._id}`);
+  res.json(threadView(c.toObject(), await peopleOf([c]), req.userId));
+}));
+r.patch('/:id/comments/:cid', h(async (req, res) => {
+  const { note, role } = await noteAccess(req.params.id, req.userId, '_id');
+  if (!canEdit(role) || !mongoose.isValidObjectId(req.params.cid)) throw new HttpError(404, 'Comment not found');
+  const c = await NoteComment.findOneAndUpdate({ _id: req.params.cid, note: note._id }, { $set: { resolved: Boolean(req.body?.resolved) } }, { new: true }).lean();
+  if (!c) throw new HttpError(404, 'Comment not found');
+  res.json(threadView(c, await peopleOf([c]), req.userId));
+}));
+r.delete('/:id/comments/:cid', h(async (req, res) => {
+  const { note, role } = await noteAccess(req.params.id, req.userId, '_id');
+  if (!role || !mongoose.isValidObjectId(req.params.cid)) throw new HttpError(404, 'Comment not found');
+  const c = await NoteComment.findOne({ _id: req.params.cid, note: note._id });
+  if (!c) throw new HttpError(404, 'Comment not found');
+  if (role !== 'owner' && String(c.messages[0]?.user) !== String(req.userId)) throw new HttpError(403, 'Only the person who started the thread, or the page owner, can delete it');
+  await c.deleteOne();
+  res.json({ ok: true });
+}));
+
+// ---------- Suggested edits (from people who can only view the page) ----------
+const suggestionView = (s, name, me) => ({ id: String(s._id), message: s.message, status: s.status, at: s.createdAt, by: name, mine: String(s.user) === String(me), baseText: s.baseText, text: s.text });
+r.get('/:id/suggestions', h(async (req, res) => {
+  const { note, role } = await noteAccess(req.params.id, req.userId, '_id text');
+  if (!role) throw new HttpError(404, 'Note not found');
+  const q = { note: note._id, status: 'open', ...(canEdit(role) ? {} : { user: req.userId }) };
+  const list = await NoteSuggestion.find(q).sort({ createdAt: -1 }).limit(30).select('-content').lean();
+  const names = new Map((await User.find({ _id: { $in: list.map((s) => s.user) } }).select('name').lean()).map((u) => [String(u._id), u.name]));
+  res.json(list.map((s) => ({ ...suggestionView(s, names.get(String(s.user)) || '', req.userId), stale: s.baseText !== (note.text || '') })));   // stale: the page changed since
+}));
+r.post('/:id/suggestions', h(async (req, res) => {
+  const { note, role } = await noteAccess(req.params.id, req.userId, 'title icon user text locked');
+  if (!role) throw new HttpError(404, 'Note not found');
+  if (note.locked) throw new HttpError(423, 'This page is locked');
+  if (!Array.isArray(req.body?.content)) throw new HttpError(400, 'Nothing to suggest');
+  if (JSON.stringify(req.body.content).length > 2_000_000) throw new HttpError(413, 'This suggestion is too large');
+  if (await NoteSuggestion.countDocuments({ note: note._id, user: req.userId, status: 'open' }) >= 5) throw new HttpError(400, 'You already have 5 suggestions waiting on this page');
+  const text = blocksToText(req.body.content).slice(0, 200000);
+  if (text === (note.text || '')) throw new HttpError(400, 'Nothing changed yet');
+  const s = await NoteSuggestion.create({ note: note._id, user: req.userId, content: req.body.content, message: String(req.body?.message || '').slice(0, 500), baseText: note.text || '', text });
+  const who = await nameOf(req.userId);
+  tellAbout(note, [note.user], req.userId, 'suggestion', `${who} suggested changes to ${pageName(note)}`, s.message);
+  res.status(201).json(suggestionView(s, who, req.userId));
+}));
+// The suggested page (to apply it in the editor, so it reaches everyone editing live)
+r.get('/:id/suggestions/:sid', h(async (req, res) => {
+  const { note, role } = await noteAccess(req.params.id, req.userId, '_id');
+  if (!role || !mongoose.isValidObjectId(req.params.sid)) throw new HttpError(404, 'Suggestion not found');
+  const s = await NoteSuggestion.findOne({ _id: req.params.sid, note: note._id }).lean();
+  if (!s || (!canEdit(role) && String(s.user) !== String(req.userId))) throw new HttpError(404, 'Suggestion not found');
+  res.json({ id: String(s._id), content: s.content });
+}));
+r.post('/:id/suggestions/:sid/:verdict', h(async (req, res) => {
+  if (!['accept', 'reject'].includes(req.params.verdict)) throw new HttpError(404, 'Not found');
+  const { note, role } = await noteAccess(req.params.id, req.userId, 'title icon user');
+  if (!role || !mongoose.isValidObjectId(req.params.sid)) throw new HttpError(404, 'Suggestion not found');
+  const s = await NoteSuggestion.findOne({ _id: req.params.sid, note: note?._id, status: 'open' });
+  if (!s) throw new HttpError(404, 'Suggestion not found');
+  const mineToWithdraw = req.params.verdict === 'reject' && String(s.user) === String(req.userId);
+  if (!canEdit(role) && !mineToWithdraw) throw new HttpError(403, 'Only the owner or an editor can accept or reject suggestions');
+  s.status = req.params.verdict === 'accept' ? 'accepted' : 'rejected';
+  await s.save();
+  if (!mineToWithdraw) {
+    const who = await nameOf(req.userId);
+    tellAbout(note, [s.user], req.userId, 'suggestion', `${who} ${s.status} your suggestion on ${pageName(note)}`, s.message);
+  }
+  res.json({ ok: true, status: s.status });
+}));
+
+// ---------- Databases: the rows of a database page ----------
+const rowView = (n) => ({ id: String(n._id), title: n.title, icon: n.icon, props: n.props || {}, rank: n.rank ?? 0,
+  hasText: Boolean(n.text), createdAt: n.createdAt, updatedAt: n.updatedAt });
+async function dbAccess(req, edit) {
+  const { note, role } = await noteAccess(req.params.id, req.userId, 'title icon db locked');
+  if (!role || !note.db) throw new HttpError(404, 'Database not found');
+  if (edit && !canEdit(role)) throw new HttpError(403, 'You can only view this database');
+  if (edit && note.locked) throw new HttpError(423, 'This database is locked.');
+  return { note, role };
+}
+// The database's properties and views, its rows, and the people who can be picked in a Person property
+r.get('/:id/rows', h(async (req, res) => {
+  const { note, role } = await dbAccess(req, false);
+  const rows = await Note.find({ inDb: note._id }).select('title icon props rank text createdAt updatedAt').sort({ rank: 1, createdAt: 1 }).limit(MAX_ROWS).lean();
+  const ids = new Set([String(note.user), ...(note.shares || []).map((s) => String(s.user))]);
+  if (note.groups?.length) (await Group.find({ _id: { $in: note.groups } }).select('members.user').lean()).forEach((g) => g.members.forEach((m) => ids.add(String(m.user))));
+  rows.forEach((r2) => Object.values(r2.props || {}).forEach((v) => Array.isArray(v) && v.forEach((x) => mongoose.isValidObjectId(x) && ids.add(String(x)))));
+  const people = (await User.find({ _id: { $in: [...ids].slice(0, 300) } }).select('name avatar').lean()).map((u) => ({ id: String(u._id), name: u.name, avatar: u.avatar || '' }));
+  res.json({ db: note.db, role, locked: note.locked, rows: rows.map((n) => ({ ...rowView(n), hasText: Boolean(n.text) })), people });
+}));
+// A new row: { title, props, rank } (owned by the database's owner, like everything in it)
+r.post('/:id/rows', h(async (req, res) => {
+  const { note } = await dbAccess(req, true);
+  if (await Note.countDocuments({ inDb: note._id }) >= MAX_ROWS) throw new HttpError(400, `A database can have up to ${MAX_ROWS} rows`);
+  const props = req.body?.props ? cleanValues(note.db, req.body.props).set : {};
+  let rank = Number(req.body?.rank);
+  if (!Number.isFinite(rank)) rank = ((await Note.findOne({ inDb: note._id }).sort({ rank: -1 }).select('rank').lean())?.rank || 0) + 1;
+  const row = await Note.create({ user: note.user, parent: note._id, inDb: note._id, title: String(req.body?.title || '').slice(0, 200), icon: String(req.body?.icon || '').slice(0, 16),
+    props, rank, ...(String(note.user) !== String(req.userId) ? { createdBy: req.userId } : {}) });
+  await Note.updateOne({ _id: note._id }, { $currentDate: { updatedAt: true } });
+  res.status(201).json(rowView(row));
+}));
+// Delete rows: { ids } (they go to the database owner's Trash)
+r.post('/:id/rows/delete', h(async (req, res) => {
+  const { note } = await dbAccess(req, true);
+  const ids = (Array.isArray(req.body?.ids) ? req.body.ids : []).filter((x) => mongoose.isValidObjectId(x)).slice(0, 200);
+  const rows = await Note.find({ _id: { $in: ids }, inDb: note._id }).lean();
+  const trashIds = [];
+  for (const row of rows) trashIds.push(await moveToTrash('note', row, row.user));
+  res.json({ ok: true, deleted: rows.length, trashIds });
 }));
 
 // ---------- Duplicate ----------
@@ -377,8 +577,15 @@ r.post('/:id/duplicate', h(async (req, res) => {
     user: req.userId, title: `${note.title || 'Untitled'} (copy)`.slice(0, 200), icon: note.icon, cover: note.cover, coverY: note.coverY,
     wide: note.wide, textSize: note.textSize, content: note.content, text: note.text, markdown: note.content?.length ? '' : note.markdown,
     parent: own ? note.parent : null, folder: own ? note.folder : null, course: own ? note.course : null,
+    ...(note.db ? { db: note.db } : {}),
   });
   if (copy.content?.length) afterSave(copy._id, req.userId, copy.content, []).catch(() => {});
+  if (note.db) {   // a database: its rows too (people properties only make sense for the original's people)
+    const rows = await Note.find({ inDb: note._id }).sort({ rank: 1 }).limit(MAX_ROWS).lean();
+    const people = new Set((note.db.props || []).filter((p) => p.type === 'person').map((p) => p.id));
+    if (rows.length) await Note.insertMany(rows.map((row) => ({ user: req.userId, parent: copy._id, inDb: copy._id, title: row.title, icon: row.icon, content: row.content, text: row.text,
+      rank: row.rank, props: Object.fromEntries(Object.entries(row.props || {}).filter(([k]) => own || !people.has(k))) })));
+  }
   res.status(201).json(copy);
 }));
 

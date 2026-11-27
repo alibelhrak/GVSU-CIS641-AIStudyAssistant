@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate, useParams } from 'react-router-dom';
-import { BlockNoteEditor, BlockNoteSchema, createCodeBlockSpec, defaultBlockSpecs, defaultInlineContentSpecs, filterSuggestionItems } from '@blocknote/core';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { BlockNoteEditor, BlockNoteSchema, createCodeBlockSpec, defaultBlockSpecs, defaultInlineContentSpecs, defaultStyleSpecs, filterSuggestionItems } from '@blocknote/core';
 import { exportMarkdown, exportPdf, exportWord, importFile, IMPORT_TYPES } from './noteFiles.js';
 import { calloutSpec, mathSpec, inlineMathSpec, tocSpec, embedSpec, bookmarkSpec, columnsSpec, extraSlashItems, mentionSpec, mentionItems } from './blocks.jsx';
 import { SyntaxHighlightingExtension } from '@blocknote/core/extensions';
@@ -18,6 +18,9 @@ import EmojiPicker from './EmojiPicker.jsx';
 import NoteLinkToolbar from './NoteLink.jsx';
 import PageChat, { usePageChatUnread } from './PageChat.jsx';
 import PageHistory from './PageHistory.jsx';
+import CommentsPanel, { CommentToolbarButton, commentStyleSpec } from './comments.jsx';
+import SuggestionsDialog, { useSuggestions } from './Suggestions.jsx';
+import DatabaseView, { RowProps } from './Database.jsx';
 // The link toolbar opens under the link, like in Notion (above it, it was cut off near the top of a page)
 const LINK_TOOLBAR_POSITION = { useFloatingOptions: { placement: 'bottom-start' } };
 import { BlockNoteView } from '@blocknote/mantine';
@@ -160,6 +163,14 @@ const MEDIA = ['image', 'video', 'audio', 'file'];
 const GROUPS = ['AI', 'Basic blocks', 'Media', 'Advanced', 'More'];
 const HINT = { heading: '#', heading_2: '##', heading_3: '###', heading_4: '####', bullet_list: '-', numbered_list: '1.', check_list: '[]',
   toggle_list: '>', quote: '"', code_block: '```', divider: '---', emoji: ':' };
+/** Ready-made databases (made on the server: services/database.js) */
+const DB_TEMPLATES = [
+  { id: 'assignments', icon: '📚', label: 'Assignment tracker', text: 'Due dates as a table, a board and a calendar' },
+  { id: 'reading', icon: '📖', label: 'Reading list', text: 'Papers and books, with status and topics' },
+  { id: 'exams', icon: '🎯', label: 'Exam prep', text: 'Topics, how sure you are, when to review' },
+  { id: 'blank', icon: '🗃️', label: 'Empty database', text: 'Your own columns and views' },
+];
+
 const MORE_ALIASES = { paragraph: ['text', 'plain'], check_list: ['todo', 'to-do', 'task', 'checkbox'], bullet_list: ['bulleted', 'bullet'],
   numbered_list: ['numbered', 'ordered'], code_block: ['code', 'snippet'], divider: ['line', 'hr', 'separator'], image: ['picture', 'photo'], table: ['grid'] };
 const RENAME = { paragraph: 'Text', bullet_list: 'Bulleted list', numbered_list: 'Numbered list', check_list: 'To-do list', toggle_list: 'Toggle list',
@@ -168,13 +179,15 @@ const RENAME = { paragraph: 'Text', bullet_list: 'Bulleted list', numbered_list:
 const slashQuery = { text: '' };                     // what was typed after "/", shown at the top of the menu
 const mentionQuery = { text: '' };                   // ... and after "@"
 
-function slashItems(editor, onAi) {
+function slashItems(editor, onAi, onNewDatabase) {
   const blocks = [...getDefaultReactSlashMenuItems(editor)
     .filter((i) => !['heading_5', 'heading_6'].includes(i.key))
     .map((i) => ({
       ...i, badge: undefined, title: (englishEditor && RENAME[i.key]) || i.title, hint: HINT[i.key], aliases: [...(i.aliases || []), i.title, ...(MORE_ALIASES[i.key] || [])],
       group: BASIC.includes(i.key) ? 'Basic blocks' : MEDIA.includes(i.key) ? 'Media' : 'More',
-    })), ...extraSlashItems(editor)]
+    })), ...extraSlashItems(editor),
+    ...(onNewDatabase ? [{ key: 'database', title: 'Database', subtext: 'A table, board or calendar of pages', aliases: ['database', 'db', 'table', 'board', 'kanban', 'calendar', 'tracker', 'gallery'],
+      group: 'Advanced', icon: <span className="slash-emoji">🗃️</span>, onItemClick: () => onNewDatabase(editor) }] : [])]
     .sort((a, b) => GROUPS.indexOf(a.group) - GROUPS.indexOf(b.group) || ((BASIC.indexOf(a.key) + 1 || 99) - (BASIC.indexOf(b.key) + 1 || 99)));
   return [
     { title: 'Ask AI', subtext: 'Write, edit or explain anything', aliases: ['ai', 'write', 'generate', 'gpt'], group: 'AI', icon: <AiLogo />,
@@ -236,7 +249,7 @@ function SlashMenu({ items, selectedIndex, onItemClick, loadingState, mention = 
 const MentionMenu = (props) => <SlashMenu {...props} mention />;
 
 /** The "⋯" menu of a page: duplicate, move, export, history */
-function PageMenu({ owner, onDuplicate, onMove, onHistory, onExport }) {
+function PageMenu({ owner, locked, onLock, onDuplicate, onMove, onHistory, onExport, onCsv }) {
   const [open, setOpen] = useState(false);
   const wrap = useRef(null);
   useEffect(() => {
@@ -254,10 +267,12 @@ function PageMenu({ owner, onDuplicate, onMove, onHistory, onExport }) {
           {item('copy', owner ? 'Duplicate' : 'Duplicate to my notes', onDuplicate)}
           {owner && item('folder', 'Move to…', onMove)}
           {onHistory && item('history', 'Page history', onHistory)}
+          {owner && onLock && item('lock', locked ? 'Unlock page' : 'Lock page', onLock)}
           <p className="code-menu-title">Export</p>
-          {item('file', 'PDF', () => onExport('pdf'))}
-          {item('file', 'Word (.docx)', () => onExport('docx'))}
-          {item('file', 'Markdown (.md)', () => onExport('md'))}
+          {onExport && item('file', 'PDF', () => onExport('pdf'))}
+          {onExport && item('file', 'Word (.docx)', () => onExport('docx'))}
+          {onExport && item('file', 'Markdown (.md)', () => onExport('md'))}
+          {onCsv && item('file', 'CSV (Excel, Google Sheets)', onCsv)}
         </div>
       )}
     </div>
@@ -270,7 +285,7 @@ function MoveDialog({ note, notes, onClose, onMove }) {
   const below = new Set([note.id]);
   let grew = true;
   while (grew) { grew = false; for (const n of notes) if (n.parent && below.has(n.parent) && !below.has(n.id)) { below.add(n.id); grew = true; } }
-  const list = notes.filter((n) => !below.has(n.id) && titleOf(n).toLowerCase().includes(q.trim().toLowerCase())).slice(0, 60);
+  const list = notes.filter((n) => !below.has(n.id) && !n.db && titleOf(n).toLowerCase().includes(q.trim().toLowerCase())).slice(0, 60);
   useEffect(() => { const esc = (e) => { if (e.key === 'Escape') onClose(); }; document.addEventListener('keydown', esc); return () => document.removeEventListener('keydown', esc); }, [onClose]);
   return createPortal(
     <div className="install-overlay" onMouseDown={onClose} role="presentation">
@@ -349,6 +364,7 @@ codeSpec.implementation.render = function render(...args) {
 const SCHEMA = BlockNoteSchema.create({
   blockSpecs: { ...defaultBlockSpecs, codeBlock: codeSpec, callout: calloutSpec(), math: mathSpec(), toc: tocSpec(), embed: embedSpec(), bookmark: bookmarkSpec(), columns: columnsSpec() },
   inlineContentSpecs: { ...defaultInlineContentSpecs, inlineMath: inlineMathSpec, mention: mentionSpec },
+  styleSpecs: { ...defaultStyleSpecs, comment: commentStyleSpec },   // comments on text
 });
 
 /** The color-theme menu of code blocks (one choice for all code, saved in Settings) */
@@ -504,7 +520,7 @@ function useCodeTheme(theme) {
 
 const isBlank = (doc) => doc.length === 0 || (doc.length === 1 && doc[0].type === 'paragraph' && !doc[0].content?.length && !doc[0].children?.length);
 
-function NoteEditor({ note, dark, onChange, onReady, onAi, liveOn = false, readOnly = false, onPeople, onRemoteMeta, liveApi, onLiveFail }) {
+function NoteEditor({ note, dark, onChange, onReady, onAi, onComment, onNewDatabase, liveOn = false, readOnly = false, onPeople, onRemoteMeta, liveApi, onLiveFail }) {
   const wrap = useRef(null);
   const { prefs: { codeTheme, codeAI } } = useTheme();
   const { user } = useAuth();
@@ -674,12 +690,27 @@ function NoteEditor({ note, dark, onChange, onReady, onAi, liveOn = false, readO
     }
   }, [editor]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // The toolbar over selected text. It must stay the same component between renders: a new one each
+  // time (e.g. when someone else's cursor moves on a shared page) is rebuilt mid-click and the click is lost.
+  const aiRef = useRef(onAi); aiRef.current = onAi;
+  const dbRef = useRef(onNewDatabase); dbRef.current = onNewDatabase;
+  const commentRef = useRef(onComment); commentRef.current = onComment;
+  const canComment = Boolean(onComment);
+  const Toolbar = useMemo(() => function Toolbar() {
+    return (
+      <FormattingToolbar>
+        <AiToolbarButton key="ai" onAi={() => aiRef.current({ selection: true })} />
+        {canComment && <CommentToolbarButton key="comment" onComment={(d) => commentRef.current?.(d)} />}
+        {getFormattingToolbarItems()}
+      </FormattingToolbar>
+    );
+  }, [canComment]);
   const findMentions = useMemo(() => mentionItems(editor, note.id), [editor, note.id]);
   const getMentions = async (query) => { mentionQuery.text = query; return findMentions(query); };
   const getItems = async (query) => {
     slashQuery.text = query;
     const q = query.trim().toLowerCase();
-    const found = filterSuggestionItems(slashItems(editor, onAi), query);
+    const found = filterSuggestionItems(slashItems(editor, onAi, dbRef.current ? (ed) => dbRef.current(ed) : null), query);
     if (!q) return found;
     // Within each group, items whose name starts with what was typed come first ("/inline equation" picks Inline equation)
     const rank = (i) => (i.title.toLowerCase() === q ? 0 : i.title.toLowerCase().startsWith(q) ? 1 : 2);
@@ -714,12 +745,7 @@ function NoteEditor({ note, dark, onChange, onReady, onAi, liveOn = false, readO
       <LinkToolbarController linkToolbar={NoteLinkToolbar} floatingUIOptions={LINK_TOOLBAR_POSITION} />
       <SuggestionMenuController triggerCharacter="/" getItems={getItems} suggestionMenuComponent={SlashMenu} />
       {!readOnly && <SuggestionMenuController triggerCharacter="@" getItems={getMentions} suggestionMenuComponent={MentionMenu} />}
-      <FormattingToolbarController formattingToolbar={() => (
-        <FormattingToolbar>
-          <AiToolbarButton key="ai" onAi={() => onAi({ selection: true })} />
-          {getFormattingToolbarItems()}
-        </FormattingToolbar>
-      )} />
+      <FormattingToolbarController formattingToolbar={Toolbar} />
     </BlockNoteView>
     </div>
   );
@@ -883,7 +909,7 @@ function TreeItem({ note, depth, byParent, currentId, expanded, toggle, onOpen, 
             <button type="button" className="tree-open" onClick={() => onOpen(note.id)} title={titleOf(note)} draggable
               onDragStart={(e) => { e.dataTransfer.setData('text/x-sa-note', note.id); e.dataTransfer.effectAllowed = 'move'; document.documentElement.classList.add('dragging-note'); }}
               onDragEnd={() => document.documentElement.classList.remove('dragging-note')}>
-              <span className="tree-icon">{note.icon || <Icon name="file" size={15} />}</span>
+              <span className="tree-icon">{note.icon || <Icon name={note.db ? 'database' : 'file'} size={15} />}</span>
               <span className="ellipsis">{titleOf(note)}</span>
               {shared && <Icon name="users" size={13} className="tree-shared" title="Shared" />}
               {note.course && courseColor(note.course) && <span className="dot" style={{ background: courseColor(note.course) }} />}
@@ -1070,6 +1096,12 @@ export default function Notes() {
   });
   const [pchatOpen, setPchatOpen] = useState(false);     // the chat on a shared page
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [comments, setComments] = useState(null);      // the Comments panel: null, or { focus, draft }
+  const [suggesting, setSuggesting] = useState(null);  // a viewer suggesting edits: { content } (their copy of the page)
+  const [sgOpen, setSgOpen] = useState(false);         // the "Suggested edits" review window
+  const [sgMessage, setSgMessage] = useState('');
+  const suggestDraft = useRef(null);
+  const [params, setParams] = useSearchParams();
   const [moveOpen2, setMoveOpen2] = useState(false);   // the "Move to" window of the open page
   const [entering, setEntering] = useState(false);    // blocks fade in one after another when a page opens                 // the AI writer: { ctx, start, key }
 
@@ -1090,6 +1122,7 @@ export default function Notes() {
       setStatus('saved');
     } catch (err) {
       setStatus('error');
+      if (err.status === 423) setCurrent((c) => (c && c.id === noteId ? { ...c, locked: true } : c));   // the owner locked it meanwhile
       notify(err.message);
     }
   };
@@ -1123,6 +1156,7 @@ export default function Notes() {
   useEffect(() => {
     flush();
     setEmojiOpen(false); setDelOpen(false); setStatus(''); setAi(null); setCoverOpen(false); setShareOpen(false); setReporting(false); setHistoryOpen(false); setPeople([]);
+    setSuggesting(null); setSgOpen(false); setSgMessage(''); setComments((c) => (c ? { focus: null, draft: null } : null));
     editorRef.current = null;
     if (!id) { setCurrent(null); return; }
     setLoadingNote(true);
@@ -1179,6 +1213,32 @@ export default function Notes() {
       notify(err.message);
     }
   };
+
+  /** A new database (from a template), at the top level or inside a page */
+  const createDb = async (parent = null, template = 'blank', extra = {}) => {
+    await flush();
+    try {
+      const n = await api.post('/notes', { database: template, parent, ...extra });
+      const nid = n.id || n._id;
+      setNotes((ns) => [{ ...n, id: nid }, ...(ns || [])]);
+      if (parent) setExpanded((set) => new Set(set).add(parent));
+      navigate(`/notes/${nid}`);
+      if (!wide()) setPanel(false);
+      return { ...n, id: nid };
+    } catch (err) { notify(err.message); return null; }
+  };
+  // "/database" in a page: a database inside this page, with a link to it where the cursor was
+  const dbFromSlash = async (editor) => {
+    const n = await api.post('/notes', { database: 'blank', parent: current.id }).catch((err) => { notify(err.message); return null; });
+    if (!n) return;
+    const nid = n.id || n._id;
+    editor.insertInlineContent([{ type: 'mention', props: { kind: 'page', id: nid, label: n.title || t('Untitled') } }, ' ']);
+    setNotes((ns) => [{ ...n, id: nid }, ...(ns || [])]);
+    setExpanded((set) => new Set(set).add(current.id));
+    setTimeout(() => navigate(`/notes/${nid}`), 300);   // after the link is saved
+  };
+  const dbApi = useRef(null);
+  const onDbReady = useCallback((x) => { dbApi.current = x; }, []);
 
   // ---------- Duplicate, move, export, import ----------
   const duplicate = async () => {
@@ -1275,6 +1335,7 @@ export default function Notes() {
 
   const setMeta = (patch, now = false) => {
     if (current?.role === 'viewer') return;
+    if (current?.locked && Object.keys(patch).some((k) => ['title', 'icon', 'cover', 'coverY'].includes(k))) return;
     liveApi.current?.set(patch);   // shared pages: others see the new title, icon or cover at once
     setCurrent((c) => ({ ...c, ...patch }));
     setNotes((ns) => ns.map((n) => (n.id === current.id ? { ...n, ...patch } : n)));
@@ -1285,7 +1346,7 @@ export default function Notes() {
   /** Opens the AI writer. selection: use the selected text; start: run an action straight away */
   const openAi = ({ selection = false, start = null, end = false } = {}) => {
     const editor = editorRef.current;
-    if (!editor || current?.role === 'viewer') return;
+    if (!editor || current?.role === 'viewer' || current?.locked) return;
 
     const ctx = end ? { blocks: [], selection: '', anchor: null } : aiContext(editor, { useSelection: selection || !start });
     setAi({ ctx, start, key: Date.now() });
@@ -1326,7 +1387,10 @@ export default function Notes() {
   }, [current?.title, current?.id, current?.textSize]);
 
   const crumbs = [];
-  for (let p = current?.parent; p && byId.has(p); p = byId.get(p).parent) crumbs.unshift(byId.get(p));
+  if (current?.database) {   // a database row: the database, and the pages above it
+    for (let p = current.database.parent; p && byId.has(p); p = byId.get(p).parent) crumbs.unshift(byId.get(p));
+    crumbs.push({ id: current.database.id, icon: current.database.icon || '🗃️', title: current.database.title });
+  } else for (let p = current?.parent; p && byId.has(p); p = byId.get(p).parent) crumbs.unshift(byId.get(p));
   const children = current ? byParent.get(current.id) || [] : [];
   const favorites = (notes || []).filter((n) => n.favorite);
   const roots = byParent.get('root') || [];
@@ -1344,6 +1408,51 @@ export default function Notes() {
   // ---------- Sharing ----------
   const owner = !current?.role || current.role === 'owner';
   const viewer = current?.role === 'viewer';
+  const frozen = viewer || Boolean(current?.locked) || Boolean(current?.database?.locked);
+  const isDb = Boolean(current?.db);   // a database page: rows instead of text   // nothing can be typed: view-only, or the owner locked the page
+  const [suggestions, reloadSuggestions] = useSuggestions(current?.id, Boolean(current?.shared));
+  const toggleLock = async () => {
+    try {
+      await flush();
+      const d = await api.post(`/notes/${current.id}/lock`, { on: !current.locked });
+      setCurrent((c) => ({ ...c, locked: d.locked }));
+      setNotes((ns) => ns && ns.map((n) => (n.id === current.id ? { ...n, locked: d.locked } : n)));
+      notify(d.locked ? t('Page locked. Nobody can change it until you unlock it.') : t('Page unlocked'));
+    } catch (err) { notify(err.message); }
+  };
+  const startSuggest = () => {
+    const ed = editorRef.current;
+    suggestDraft.current = null; setSgMessage('');
+    setChatOpen(false); setComments(null);
+    setSuggesting({ content: ed ? JSON.parse(JSON.stringify(ed.document)) : current.content || [] });
+  };
+  const sendSuggest = async () => {
+    if (!suggestDraft.current) { notify(t('Change something in the page first.')); return; }
+    try {
+      await api.post(`/notes/${current.id}/suggestions`, { content: suggestDraft.current, message: sgMessage.trim() });
+      notify(t('Suggestion sent to {name}', { name: current.owner || '' }));
+      setSuggesting(null); reloadSuggestions();
+    } catch (err) { notify(err.message); }
+  };
+  const openComments = (focus = null, draft = null) => { setChatOpen(false); setPchatOpen(false); setComments({ focus, draft }); };
+  // Clicking highlighted words opens their comment thread
+  useEffect(() => {
+    const click = (e) => {
+      const mark = e.target.closest?.('.note-editor-wrap .cmark[data-comment]');
+      const cid = mark?.getAttribute('data-comment');
+      if (cid && !cid.startsWith('new-')) openComments(cid);
+    };
+    document.addEventListener('click', click);
+    return () => document.removeEventListener('click', click);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // Links from the inbox: /notes/:id?open=comments or ?open=suggestions
+  useEffect(() => {
+    const want = params.get('open');
+    if (!current?.id || !want) return;
+    if (want === 'comments') openComments(params.get('thread'));
+    if (want === 'suggestions') setSgOpen(true);
+    setParams({}, { replace: true });
+  }, [current?.id, params]); // eslint-disable-line react-hooks/exhaustive-deps
   const liveOn = Boolean(current?.shared) && !liveOff.has(current?.id);
   const isSharedPage = Boolean(current?.shared);
   const unread = usePageChatUnread(current?.id, isSharedPage, pchatOpen);
@@ -1390,7 +1499,7 @@ export default function Notes() {
                     <div key={n.id} className={`tree-item ${n.id === id ? 'active' : ''}`} style={{ paddingLeft: 6 }}>
                       <span className="tree-caret empty" />
                       <button type="button" className="tree-open" onClick={() => open(n.id)}>
-                        <span className="tree-icon">{n.icon || <Icon name="file" size={15} />}</span><span className="ellipsis">{titleOf(n)}</span>
+                        <span className="tree-icon">{n.icon || <Icon name={n.db ? 'database' : 'file'} size={15} />}</span><span className="ellipsis">{titleOf(n)}</span>
                       </button>
                     </div>
                   ))}
@@ -1406,7 +1515,7 @@ export default function Notes() {
                         <div key={n.id} className={`tree-item ${n.id === id ? 'active' : ''}`} style={{ paddingLeft: 6 }}>
                           <span className="tree-caret empty" />
                           <button type="button" className="tree-open" onClick={() => open(n.id)} title={`${titleOf(n)} · ${n.owner}`}>
-                            <span className="tree-icon">{n.icon || <Icon name="file" size={15} />}</span>
+                            <span className="tree-icon">{n.icon || <Icon name={n.db ? 'database' : 'file'} size={15} />}</span>
                             <span className="ellipsis">{titleOf(n)}</span>
                             <span className="tree-owner" data-no-translate>{n.owner.split(' ')[0]}</span>
                           </button>
@@ -1544,24 +1653,38 @@ export default function Notes() {
                 </>
               )}
               {isSharedPage && (
-                <button className={`btn sm pchat-btn ${pchatOpen ? 'on' : ''}`} type="button" onClick={() => { setPchatOpen((v) => !v); setChatOpen(false); }} aria-pressed={pchatOpen}
+                <button className={`btn sm pchat-btn ${pchatOpen ? 'on' : ''}`} type="button" onClick={() => { setPchatOpen((v) => !v); setChatOpen(false); setComments(null); }} aria-pressed={pchatOpen}
                   title="Chat with everyone on this page">
                   <Icon name="chat" size={15} /> Chat{unread > 0 && <span className="pchat-badge" aria-label={t('{n} new messages', { n: unread })}>{unread > 9 ? '9+' : unread}</span>}
                 </button>
               )}
-              {!viewer && (
+              {viewer && isSharedPage && !isDb && !current.locked && !suggesting && (
+                <button className="btn sm sg-btn" type="button" onClick={startSuggest} title="Change a copy of the page and send it to the owner for review">
+                  <Icon name="pencil" size={14} /> {t('Suggest edits')}
+                </button>
+              )}
+              {suggestions.length > 0 && (
+                <button className="btn sm sg-btn on" type="button" onClick={() => setSgOpen(true)} title="Review suggested edits">
+                  <Icon name="pencil" size={14} /> {viewer ? t('Your suggestions') : suggestions.length === 1 ? t('1 suggestion') : t('{n} suggestions', { n: suggestions.length })}
+                </button>
+              )}
+              {!isDb && <button className={`icon-btn ${comments ? 'on' : ''}`} type="button" onClick={() => (comments ? setComments(null) : openComments())}
+                title="Comments" aria-label="Comments" aria-pressed={Boolean(comments)}>
+                <Icon name="comment" size={16} />
+              </button>}
+              {!viewer && !isDb && (
                 <button className="icon-btn" type="button" onClick={() => setHistoryOpen(true)} title="Page history: see and restore earlier versions" aria-label="Page history">
                   <Icon name="history" size={16} />
                 </button>
               )}
-              {!viewer && (
-                <button className={`btn sm ai-btn ${chatOpen ? 'on' : ''}`} type="button" onClick={() => { setChatOpen((v) => !v); setPchatOpen(false); }} aria-pressed={chatOpen}
+              {!frozen && !isDb && (
+                <button className={`btn sm ai-btn ${chatOpen ? 'on' : ''}`} type="button" onClick={() => { setChatOpen((v) => !v); setPchatOpen(false); setComments(null); }} aria-pressed={chatOpen}
                   title="Chat with AI about this page. It can edit the page for you.">
                   <img src="/logo.png" alt="" width={16} height={16} /> Ask AI
                 </button>
               )}
-              <PageMenu owner={owner} onDuplicate={duplicate} onMove={() => setMoveOpen2(true)} onHistory={viewer ? null : () => setHistoryOpen(true)}
-                onExport={(kind) => exportPage(kind)} />
+              <PageMenu owner={owner} locked={Boolean(current.locked)} onLock={toggleLock} onDuplicate={duplicate} onMove={() => setMoveOpen2(true)} onHistory={viewer || isDb ? null : () => setHistoryOpen(true)}
+                onExport={isDb ? null : (kind) => exportPage(kind)} onCsv={isDb ? () => dbApi.current?.exportCsv() : null} />
               {owner && <PageLook note={current} setMeta={setMeta} />}
               {owner && <div className="pop-wrap">
                 <button className="icon-btn" type="button" onClick={() => setDelOpen((v) => !v)} aria-label="Move page to Trash" title="Move to Trash"><Icon name="trash" size={16} /></button>
@@ -1590,17 +1713,17 @@ export default function Notes() {
             {coverStyle(current) && (
               <Cover note={current} setMeta={setMeta} open={coverOpen} setOpen={setCoverOpen} notify={notify} />
             )}
-            <article className={`note-page ${coverStyle(current) ? 'has-cover' : ''} ${entering ? 'entering' : ''} ${current.wide ? 'wide' : ''} text-${current.textSize || 'm'} ${viewer ? 'read-only' : ''}`}>
+            <article className={`note-page ${coverStyle(current) ? 'has-cover' : ''} ${entering ? 'entering' : ''} ${current.wide ? 'wide' : ''} text-${current.textSize || 'm'} ${frozen && !suggesting ? 'read-only' : ''} ${suggesting ? 'suggesting' : ''} ${isDb ? 'is-db' : ''} ${current.database ? 'is-row' : ''}`}>
               {current.icon && (
                 <div className="note-icon-row">
                   <div className="pop-wrap">
-                    <button type="button" className="note-icon" onClick={() => setEmojiOpen((v) => !v)} aria-label="Change icon">{current.icon}</button>
+                    <button type="button" className="note-icon" onClick={() => !frozen && setEmojiOpen((v) => !v)} aria-label="Change icon">{current.icon}</button>
                     {emojiOpen && <EmojiPicker onPick={(e) => { setMeta({ icon: e }, true); setEmojiOpen(false); }}
                       onRemove={() => { setMeta({ icon: '' }, true); setEmojiOpen(false); }} onClose={() => setEmojiOpen(false)} />}
                   </div>
                 </div>
               )}
-              <div className="note-actions">
+              {!frozen && <div className="note-actions">
                 {!current.icon && (
                   <div className="pop-wrap">
                     <button type="button" className="add-icon" onClick={() => setEmojiOpen((v) => !v)}><Icon name="smile" size={15} /> Add icon</button>
@@ -1613,32 +1736,59 @@ export default function Notes() {
                     {coverOpen && <CoverPicker note={current} setMeta={setMeta} close={() => setCoverOpen(false)} notify={notify} />}
                   </div>
                 )}
-              </div>
-              <textarea ref={titleRef} className="note-title" rows={1} value={current.title} placeholder="Untitled" maxLength={200} readOnly={viewer}
+              </div>}
+              {current.locked && !suggesting && (
+                <div className="page-banner lock" role="status">
+                  <Icon name="lock" size={15} /> <span>{owner ? t('You locked this page, so nobody can change it.') : t('The owner locked this page.')}</span>
+                  {owner && <button type="button" className="btn sm" onClick={toggleLock}>{t('Unlock')}</button>}
+                </div>
+              )}
+              {suggesting && (
+                <div className="page-banner suggest" role="status">
+                  <Icon name="pencil" size={15} />
+                  <span><b>{t('Suggesting edits')}</b> · {t('Your changes go to {name} for review. The page itself does not change.', { name: current.owner || t('the owner') })}</span>
+                  <input value={sgMessage} onChange={(e) => setSgMessage(e.target.value)} maxLength={500} placeholder={t('Add a note (optional)')} aria-label="Note for the owner" />
+                  <button type="button" className="btn primary sm" onClick={sendSuggest}>{t('Send suggestion')}</button>
+                  <button type="button" className="btn sm" onClick={() => setSuggesting(null)}>{t('Cancel')}</button>
+                </div>
+              )}
+              <textarea ref={titleRef} className="note-title" rows={1} value={current.title} placeholder="Untitled" maxLength={200} readOnly={frozen}
                 onChange={(e) => setMeta({ title: e.target.value.replace(/\n/g, '') })}
                 onKeyDown={(e) => { if (e.key === 'Enter' || (e.key === 'ArrowDown')) { e.preventDefault(); editorRef.current?.focus(); } }} />
+              {current.database && <RowProps note={current} canEdit={!frozen} notify={notify} onChange={(props) => setCurrent((c) => ({ ...c, props }))} />}
+              {isDb ? (
+                <DatabaseView key={current.id} note={current} canEdit={!frozen} notify={notify} onOpen={open} onReady={onDbReady} />
+              ) : (<>
               <Backlinks id={current.id} onOpen={open} />
-              <NoteEditor key={liveOn ? 'live' : 'solo'} note={current} dark={dark} onAi={openAi}
-                liveOn={liveOn} readOnly={viewer} onPeople={setPeople} liveApi={liveApi}
+              <NoteEditor key={suggesting ? 'suggest' : liveOn ? 'live' : 'solo'} note={suggesting ? { ...current, content: suggesting.content, markdown: '' } : current} dark={dark} onAi={openAi}
+                onComment={frozen || suggesting ? undefined : (draft) => openComments(null, draft)}
+                onNewDatabase={owner && !frozen && !suggesting && !current.database ? dbFromSlash : undefined}
+                liveOn={liveOn && !suggesting} readOnly={suggesting ? false : frozen} onPeople={setPeople} liveApi={suggesting ? null : liveApi}
                 onRemoteMeta={(fields) => setCurrent((c) => ({ ...c, ...fields }))}
                 onLiveFail={() => { setLiveOff((set) => new Set(set).add(current.id)); notify(t('Live editing could not connect. Your changes still save, but others see them after a reload.')); }}
                 onReady={(ed) => { editorRef.current = ed; }}
-                onChange={(content, extra = {}) => queue(current.id, { content, ...extra })} />
+                onChange={(content, extra = {}) => { if (suggesting) { suggestDraft.current = content; return; } queue(current.id, { content, ...extra }); }} />
               {children.length > 0 && (
                 <section className="subpages">
                   <p className="history-group">Sub-pages</p>
                   {children.map((c) => (
                     <button key={c.id} type="button" onClick={() => open(c.id)}>
-                      <span className="tree-icon">{c.icon || <Icon name="file" size={15} />}</span>{titleOf(c)}
+                      <span className="tree-icon">{c.icon || <Icon name={c.db ? 'database' : 'file'} size={15} />}</span>{titleOf(c)}
                     </button>
                   ))}
                 </section>
               )}
-              <button className="add-sub" type="button" onClick={() => create(current.id)}><Icon name="plus" size={14} /> Add a sub-page</button>
+              {!current.database && (
+                <div className="add-subs">
+                  <button className="add-sub" type="button" onClick={() => create(current.id)}><Icon name="plus" size={14} /> Add a sub-page</button>
+                  {owner && <button className="add-sub" type="button" onClick={() => createDb(current.id)}><Icon name="database" size={14} /> {t('Add a database')}</button>}
+                </div>
+              )}
               {ai && editorRef.current && (
                 <NoteAI key={ai.key} editor={editorRef.current} ctx={ai.ctx} start={ai.start} title={titleOf(current)}
                   onClose={closeAi} notify={notify} />
               )}
+              </>)}
             </article>
             </Fragment>
           ) : (
@@ -1654,6 +1804,14 @@ export default function Notes() {
                   </button>
                 ))}
               </div>
+              <p className="history-group templates-head">Databases: tables, boards and calendars of pages</p>
+              <div className="templates">
+                {DB_TEMPLATES.map((d) => (
+                  <button key={d.id} type="button" className="suggest-card" onClick={() => createDb(null, d.id)}>
+                    <b>{d.icon} {d.label}</b><span>{d.text}</span>
+                  </button>
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -1663,6 +1821,14 @@ export default function Notes() {
       )}
       {pchatOpen && current && isSharedPage && !chatOpen && <PageChat key={current.id} note={current} notify={notify} onClose={() => setPchatOpen(false)} />}
       {moveOpen2 && current && <MoveDialog note={current} notes={notes || []} onClose={() => setMoveOpen2(false)} onMove={movePage} />}
+      {comments && current && !chatOpen && !pchatOpen && (
+        <CommentsPanel key={current.id} note={current} canEdit={!frozen} getEditor={() => editorRef.current} focus={comments.focus} draft={comments.draft}
+          notify={notify} onDraftDone={(cid) => setComments({ focus: cid, draft: null })} onClose={() => setComments(null)} />
+      )}
+      {sgOpen && current && (
+        <SuggestionsDialog note={current} list={suggestions} canEdit={!frozen} getEditor={() => editorRef.current} notify={notify}
+          onChanged={() => { reloadSuggestions(); }} onClose={() => setSgOpen(false)} />
+      )}
       {historyOpen && current && <PageHistory note={current} dark={dark} getEditor={() => editorRef.current} notify={notify} onClose={() => setHistoryOpen(false)} />}
     </div>
   );

@@ -26,6 +26,7 @@ import Chat from './pages/Chat.jsx';
 import { TrashPanel } from './lib/trash.jsx';
 import { Avatar } from './lib/avatar.jsx';
 import QuickFind from './pages/QuickFind.jsx';
+import Inbox, { useInboxCount } from './pages/Inbox.jsx';
 import { useResizable } from './lib/resize.jsx';
 
 // The notes editor is big, so it loads only when Notes is opened
@@ -63,7 +64,7 @@ const SIDE_KEY = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘\\' : 'Ctrl+\\
 const FIND_KEY = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘K' : 'Ctrl+K';
 const readHidden = () => { try { return localStorage.getItem('sa-sidebar') === 'hidden'; } catch { return false; } };
 
-function Sidebar({ onNavigate, onSettings, onTrash, onHide, onLeave, onFind }) {
+function Sidebar({ onNavigate, onSettings, onTrash, onHide, onLeave, onFind, onInbox, inboxCount }) {
   const { user } = useAuth();
   const { courses, tasks, recs } = useData();
   const dueSoon = tasks.filter((t) => !t.done && daysUntil(t.dueDate) >= 0 && daysUntil(t.dueDate) <= 7).length;
@@ -85,6 +86,11 @@ function Sidebar({ onNavigate, onSettings, onTrash, onHide, onLeave, onFind }) {
           <Icon name="search" />
           <span>Search</span>
           <kbd className="side-kbd">{FIND_KEY}</kbd>
+        </button>
+        <button type="button" className="side-link side-inbox" onClick={() => { onNavigate(); onInbox(); }} title="Inbox: shares, mentions, comments and suggestions">
+          <Icon name="bell" />
+          <span>Inbox</span>
+          {inboxCount > 0 && <span className="count unread">{inboxCount > 99 ? '99+' : inboxCount}</span>}
         </button>
         {PAGES.map((p) => (
           <NavLink key={p.to} to={p.to} end={p.to === '/'} onClick={onNavigate}
@@ -178,6 +184,8 @@ function Shell() {
   const [reminders, setReminders] = useState(false);
   const [trash, setTrash] = useState(false);
   const [find, setFind] = useState(false);   // Quick Find (Ctrl+K)
+  const [inboxOpen, setInboxOpen] = useState(false);
+  const [inboxCount, setInboxCount] = useInboxCount();
   // The sidebar's width can be dragged (remembered on this device)
   const side = useResizable('sa-side-w', { initial: 252, min: 200, max: 420 });
   // Desktop: the sidebar can be hidden (remembered on this device); while hidden it can "peek" on hover
@@ -218,7 +226,7 @@ function Shell() {
 
   return (
     <div className={`app ${open ? 'menu-open' : ''} ${hidden ? 'side-hidden' : ''} ${hidden && peek ? 'peek' : ''}`} style={{ '--side-w': `${side.width}px` }}>
-      <Sidebar onNavigate={() => setOpen(false)} onSettings={setSettings} onTrash={() => setTrash(true)} onHide={() => hide(true)} onLeave={() => setPeek(false)} onFind={() => setFind(true)} />
+      <Sidebar onNavigate={() => setOpen(false)} onSettings={setSettings} onTrash={() => setTrash(true)} onHide={() => hide(true)} onLeave={() => setPeek(false)} onFind={() => setFind(true)} onInbox={() => setInboxOpen(true)} inboxCount={inboxCount} />
       {!hidden && <div className={`side-resize ${side.dragging ? 'on' : ''}`} {...side.handleProps} aria-label="Resize the sidebar" />}
       {hidden && (
         <>
@@ -231,6 +239,7 @@ function Shell() {
       {reminders && <RemindersPanel onClose={() => setReminders(false)} />}
       {trash && <TrashPanel onClose={() => setTrash(false)} />}
       {find && <QuickFind pages={PAGES} onClose={() => setFind(false)} />}
+      {inboxOpen && <Inbox onClose={() => setInboxOpen(false)} onRead={(d) => setInboxCount((n) => (d === 0 ? 0 : Math.max(0, n + d)))} />}
       <div className="scrim" onClick={() => setOpen(false)} aria-hidden="true" />
       <div className="content">
         <div className="topbar">
